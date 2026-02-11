@@ -171,10 +171,10 @@ impl Channel {
         client_id: ClientId,
     ) -> Result<(), JoinError> {
         // Check limit
-        if let Some(limit) = self.modes.limit {
-            if self.members.len() >= limit as usize {
-                return Err(JoinError::ChannelFull);
-            }
+        if let Some(limit) = self.modes.limit
+            && self.members.len() >= limit as usize
+        {
+            return Err(JoinError::ChannelFull);
         }
 
         // Check ban (unless has exception)

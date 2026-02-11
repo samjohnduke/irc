@@ -5,6 +5,7 @@ use irc_proto::{errors::*, replies::*, Command, Message};
 use super::HandlerContext;
 use crate::error::{Error, Result};
 use crate::lock::RwLockExt;
+use crate::services;
 
 /// Handle PRIVMSG command.
 ///
@@ -18,6 +19,11 @@ pub fn handle_privmsg(ctx: &HandlerContext, target: &str, message: &str) -> Resu
     if message.is_empty() {
         ctx.reply(ERR_NOTEXTTOSEND, vec!["No text to send".into()])?;
         return Err(Error::NeedMoreParams("PRIVMSG".into()));
+    }
+
+    // Check if target is a service (NickServ, ChanServ)
+    if services::is_service_nick(target) {
+        return services::handle_service_message(ctx, target, message).map(|_| ());
     }
 
     if irc_proto::is_channel(target) {
@@ -85,7 +91,7 @@ fn send_to_channel(
     }
 
     // Build the message from the sender
-    let msg = Message::with_prefix(
+    let mut msg = Message::with_prefix(
         ctx.client.prefix()?,
         if send_errors {
             Command::Privmsg {
@@ -100,8 +106,27 @@ fn send_to_channel(
         },
     );
 
+    // Add account tag if sender is identified (for account-tag capability)
+    let sender_account = ctx.client.account()?;
+    crate::cap::extensions::add_account_tag(&mut msg, sender_account.as_deref());
+
     // Broadcast to all members except sender
-    ctx.state.broadcast_to_channel(&channel, msg.clone(), Some(client_id));
+    // Only include account tag for clients with account-tag capability
+    for member_id in channel.members.keys() {
+        if *member_id == client_id {
+            continue;
+        }
+        if let Some(member) = ctx.state.clients.get(member_id) {
+            let mut member_msg = msg.clone();
+            // Remove account tag if member doesn't have the cap
+            if !member.has_cap("account-tag")?
+                && let Some(ref mut tags) = member_msg.tags
+            {
+                tags.remove("account");
+            }
+            let _ = member.send_with_tags(member_msg);
+        }
+    }
 
     // Echo back to sender if echo-message is enabled
     if ctx.client.has_cap("echo-message")? {
@@ -140,20 +165,20 @@ fn send_to_user(
     };
 
     // Check if target is away
-    if let Some(away_msg) = target_client.away_message()? {
-        if send_errors {
-            ctx.reply(
-                RPL_AWAY,
-                vec![
-                    target_client.nickname()?.unwrap_or_default(),
-                    away_msg,
-                ],
-            )?;
-        }
+    if let Some(away_msg) = target_client.away_message()?
+        && send_errors
+    {
+        ctx.reply(
+            RPL_AWAY,
+            vec![
+                target_client.nickname()?.unwrap_or_default(),
+                away_msg,
+            ],
+        )?;
     }
 
     // Build the message from the sender
-    let msg = Message::with_prefix(
+    let mut msg = Message::with_prefix(
         ctx.client.prefix()?,
         if send_errors {
             Command::Privmsg {
@@ -168,8 +193,20 @@ fn send_to_user(
         },
     );
 
+    // Add account tag if sender is identified
+    let sender_account = ctx.client.account()?;
+    crate::cap::extensions::add_account_tag(&mut msg, sender_account.as_deref());
+
+    // Prepare message for target (remove account tag if they don't support it)
+    let mut target_msg = msg.clone();
+    if !target_client.has_cap("account-tag")?
+        && let Some(ref mut tags) = target_msg.tags
+    {
+        tags.remove("account");
+    }
+
     // Send to target
-    match target_client.send(msg.clone()) {
+    match target_client.send_with_tags(target_msg) {
         Ok(true) => {}
         Ok(false) => {
             // Client disconnected

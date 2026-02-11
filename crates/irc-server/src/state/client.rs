@@ -74,9 +74,8 @@ pub struct UserModes {
     pub registered: bool,
 }
 
-impl UserModes {
-    /// Get the mode string (e.g., "+iw").
-    pub fn to_string(&self) -> String {
+impl std::fmt::Display for UserModes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut modes = String::from("+");
         if self.invisible {
             modes.push('i');
@@ -91,9 +90,9 @@ impl UserModes {
             modes.push('r');
         }
         if modes.len() == 1 {
-            String::new()
+            write!(f, "")
         } else {
-            modes
+            write!(f, "{}", modes)
         }
     }
 }
@@ -402,6 +401,12 @@ impl Client {
     /// Set the account name after successful SASL authentication.
     pub fn set_account(&self, account: String) -> Result<()> {
         self.cap_state.write_lock("cap_state")?.account = Some(account);
+        Ok(())
+    }
+
+    /// Clear the account name (for logout).
+    pub fn clear_account(&self) -> Result<()> {
+        self.cap_state.write_lock("cap_state")?.account = None;
         Ok(())
     }
 

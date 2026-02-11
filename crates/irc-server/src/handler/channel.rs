@@ -116,18 +116,29 @@ fn join_single_channel(ctx: &HandlerContext, channel_name: &str, key: Option<&st
     // Update client's channel list
     ctx.client.join_channel(channel_name)?;
 
-    // Build JOIN message
-    let join_msg = Message::with_prefix(
-        ctx.client.prefix()?,
-        Command::Join {
-            channels: vec![(channel_name.to_string(), None)],
-        },
-    );
-
     // Broadcast JOIN to all channel members (including self)
+    // Use extended-join format for clients that support it
     {
         let channel = channel_arc.read_lock("channel")?;
-        ctx.state.broadcast_to_channel(&channel, join_msg.clone(), None);
+        let prefix = ctx.client.prefix()?;
+        let account = ctx.client.account()?;
+        let realname = ctx.client.realname()?.unwrap_or_default();
+
+        for member_id in channel.members.keys() {
+            if let Some(member) = ctx.state.clients.get(member_id) {
+                let msg = if member.has_cap("extended-join")? {
+                    crate::cap::extensions::build_extended_join(
+                        prefix.clone(),
+                        channel_name,
+                        account.as_deref(),
+                        &realname,
+                    )
+                } else {
+                    crate::cap::extensions::build_standard_join(prefix.clone(), channel_name)
+                };
+                let _ = member.send_with_tags(msg);
+            }
+        }
     }
 
     // Send topic to joining user
@@ -141,6 +152,9 @@ fn join_single_channel(ctx: &HandlerContext, channel_name: &str, key: Option<&st
         let channel = channel_arc.read_lock("channel")?;
         send_names_to_client(ctx, &channel)?;
     }
+
+    // Apply auto-modes from ChanServ if the channel is registered
+    let _ = crate::services::chanserv::apply_auto_modes(ctx, channel_name);
 
     tracing::debug!(
         client_id = %ctx.client.id,
@@ -565,7 +579,7 @@ pub fn handle_channel_mode(
                 }
 
                 // Apply the mode change
-                if apply_mode_change(ctx, &mut channel, &setter, &change, mode)? {
+                if apply_mode_change(ctx, &mut channel, &setter, change, mode)? {
                     applied_changes.changes.push(change.clone());
                 }
             }
@@ -636,11 +650,11 @@ fn apply_mode_change(
         }
         ChannelMode::Limit => {
             if change.adding {
-                if let Some(ref param) = change.param {
-                    if let Ok(limit) = param.parse::<u32>() {
-                        channel.modes.limit = Some(limit);
-                        return Ok(true);
-                    }
+                if let Some(ref param) = change.param
+                    && let Ok(limit) = param.parse::<u32>()
+                {
+                    channel.modes.limit = Some(limit);
+                    return Ok(true);
                 }
             } else {
                 channel.modes.limit = None;
@@ -993,14 +1007,21 @@ fn send_topic_to_client(ctx: &HandlerContext, channel: &Channel) -> Result<()> {
 
 /// Send names list to a client.
 fn send_names_to_client(ctx: &HandlerContext, channel: &Channel) -> Result<()> {
+    // Check if client has multi-prefix capability
+    let multi_prefix = ctx.client.has_cap("multi-prefix")?;
+
     // Build names list with prefixes
     let mut names = Vec::new();
     for (client_id, status) in &channel.members {
-        if let Some(client) = ctx.state.clients.get(client_id) {
-            if let Some(nick) = client.nickname()? {
-                let prefix = status.prefix_char().map(|c| c.to_string()).unwrap_or_default();
-                names.push(format!("{}{}", prefix, nick));
-            }
+        if let Some(client) = ctx.state.clients.get(client_id)
+            && let Some(nick) = client.nickname()?
+        {
+            let prefix = crate::cap::extensions::format_member_prefix(
+                status.operator,
+                status.voice,
+                multi_prefix,
+            );
+            names.push(format!("{}{}", prefix, nick));
         }
     }
 

@@ -25,7 +25,7 @@ pub use channel::{
     handle_part, handle_topic,
 };
 pub use messaging::{handle_notice, handle_privmsg};
-pub use misc::{handle_away, handle_ping, handle_pong};
+pub use misc::{handle_away, handle_ping, handle_pong, handle_setname};
 pub use oper::{handle_kill, handle_oper, handle_wallops};
 pub use query::{handle_who, handle_whois, handle_whowas};
 pub use registration::{handle_nick, handle_pass, handle_quit, handle_user};
@@ -218,6 +218,9 @@ pub async fn handle_message(
                     ctx.reply(303, vec![online.join(" ")])?;
                     Ok(())
                 }
+
+                // SETNAME (IRCv3)
+                Command::Setname { realname } => handle_setname(&ctx, realname),
 
                 Command::Unknown { command, .. } => {
                     ctx.reply(

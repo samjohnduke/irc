@@ -3,6 +3,7 @@
 //! This module implements CAP command handling and capability state management
 //! for IRCv3 capability negotiation.
 
+pub mod extensions;
 pub mod sasl;
 
 use std::collections::{HashMap, HashSet};
@@ -29,6 +30,14 @@ impl CapabilityRegistry {
         registry.register("message-tags", None);
         registry.register("server-time", None);
         registry.register("echo-message", None);
+
+        // Phase 5 capabilities
+        registry.register("account-notify", None);
+        registry.register("account-tag", None);
+        registry.register("extended-join", None);
+        registry.register("away-notify", None);
+        registry.register("multi-prefix", None);
+        registry.register("setname", None);
 
         registry
     }

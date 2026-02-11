@@ -36,6 +36,10 @@ pub struct ServerConfig {
     /// SASL accounts for authentication
     #[serde(default)]
     pub accounts: Vec<AccountConfig>,
+
+    /// Services configuration (NickServ, ChanServ)
+    #[serde(default)]
+    pub services: ServicesConfig,
 }
 
 /// Listener configuration.
@@ -175,6 +179,14 @@ pub struct AccountConfig {
     pub password_hash: String,
 }
 
+/// Services configuration.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ServicesConfig {
+    /// Path to the SQLite database file.
+    /// If not specified, services (NickServ, ChanServ) will be disabled.
+    pub database_path: Option<PathBuf>,
+}
+
 /// Admin information configuration.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct AdminConfig {
@@ -204,6 +216,7 @@ impl Default for ServerConfig {
             operators: Vec::new(),
             admin: AdminConfig::default(),
             accounts: Vec::new(),
+            services: ServicesConfig::default(),
         }
     }
 }

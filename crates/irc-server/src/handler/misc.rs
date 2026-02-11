@@ -1,8 +1,9 @@
-//! Miscellaneous command handlers (PING, PONG, AWAY).
+//! Miscellaneous command handlers (PING, PONG, AWAY, SETNAME).
 
 use irc_proto::{replies::*, Command, Message};
 
 use super::HandlerContext;
+use crate::cap::extensions::broadcast_away_notify;
 use crate::error::Result;
 
 /// Handle PING command.
@@ -38,6 +39,10 @@ pub fn handle_away(ctx: &HandlerContext, message: Option<&str>) -> Result<()> {
         Some(msg) if !msg.is_empty() => {
             // Set away message
             ctx.client.set_away(Some(msg.to_string()))?;
+
+            // Broadcast away-notify to common channel members
+            let _ = broadcast_away_notify(ctx, Some(msg));
+
             ctx.reply(RPL_NOWAWAY, vec!["You have been marked as being away".into()])?;
 
             tracing::debug!(
@@ -50,6 +55,10 @@ pub fn handle_away(ctx: &HandlerContext, message: Option<&str>) -> Result<()> {
         _ => {
             // Clear away message
             ctx.client.set_away(None)?;
+
+            // Broadcast away-notify to common channel members
+            let _ = broadcast_away_notify(ctx, None);
+
             ctx.reply(
                 RPL_UNAWAY,
                 vec!["You are no longer marked as being away".into()],
@@ -62,6 +71,39 @@ pub fn handle_away(ctx: &HandlerContext, message: Option<&str>) -> Result<()> {
             );
         }
     }
+
+    Ok(())
+}
+
+/// Handle SETNAME command (IRCv3).
+///
+/// Allows users to change their realname.
+pub fn handle_setname(ctx: &HandlerContext, new_realname: &str) -> Result<()> {
+    use crate::cap::extensions::broadcast_setname;
+
+    if new_realname.is_empty() {
+        ctx.reply(
+            irc_proto::errors::ERR_NEEDMOREPARAMS,
+            vec!["SETNAME".into(), "Not enough parameters".into()],
+        )?;
+        return Ok(());
+    }
+
+    // Update the realname
+    {
+        let username = ctx.client.username()?.unwrap_or_default();
+        ctx.client.set_user(username, new_realname.to_string())?;
+    }
+
+    // Broadcast to clients with setname cap
+    let _ = broadcast_setname(ctx, new_realname);
+
+    tracing::debug!(
+        client_id = %ctx.client.id,
+        nick = ?ctx.client.nickname()?,
+        new_realname = %new_realname,
+        "Client changed realname"
+    );
 
     Ok(())
 }

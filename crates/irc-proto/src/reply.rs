@@ -4,6 +4,7 @@
 //! as defined in RFC 2812 and extended by IRCv3.
 
 /// Reply codes (001-099, 200-399)
+#[allow(clippy::module_inception)]
 pub mod reply {
     // === Connection Registration ===
 

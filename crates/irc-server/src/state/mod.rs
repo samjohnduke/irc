@@ -18,6 +18,7 @@ use unicase::UniCase;
 
 use crate::cap::CapabilityRegistry;
 use crate::config::ServerConfig;
+use crate::db::Database;
 use crate::error::Result;
 use crate::lock::RwLockExt;
 
@@ -75,11 +76,32 @@ pub struct ServerState {
 
     /// IRCv3 capability registry.
     pub capabilities: CapabilityRegistry,
+
+    /// Services database (optional).
+    pub db: Option<Arc<Database>>,
 }
 
 impl ServerState {
     /// Create new server state with the given configuration.
     pub fn new(config: ServerConfig) -> Self {
+        // Initialize database if configured
+        let db = config
+            .services
+            .database_path
+            .as_ref()
+            .and_then(|path| {
+                match Database::new(path) {
+                    Ok(db) => {
+                        tracing::info!(path = ?path, "Services database initialized");
+                        Some(Arc::new(db))
+                    }
+                    Err(e) => {
+                        tracing::warn!(path = ?path, error = %e, "Failed to initialize services database, services will be disabled");
+                        None
+                    }
+                }
+            });
+
         Self {
             config: Arc::new(config),
             clients: DashMap::new(),
@@ -90,7 +112,26 @@ impl ServerState {
             motd: tokio::sync::RwLock::new(None),
             whowas_history: RwLock::new(VecDeque::new()),
             capabilities: CapabilityRegistry::new(),
+            db,
         }
+    }
+
+    /// Create new server state with an in-memory database (for testing).
+    pub fn with_memory_db(config: ServerConfig) -> Result<Self> {
+        let db = Database::in_memory()?;
+
+        Ok(Self {
+            config: Arc::new(config),
+            clients: DashMap::new(),
+            nicknames: DashMap::new(),
+            channels: DashMap::new(),
+            created_at: Utc::now(),
+            client_counter: AtomicU64::new(1),
+            motd: tokio::sync::RwLock::new(None),
+            whowas_history: RwLock::new(VecDeque::new()),
+            capabilities: CapabilityRegistry::new(),
+            db: Some(Arc::new(db)),
+        })
     }
 
     /// Generate the next unique client ID.
@@ -238,14 +279,14 @@ impl ServerState {
             if Some(client_id) == skip {
                 continue;
             }
-            if let Some(client) = self.clients.get(&client_id) {
-                if let Err(e) = client.send(msg.clone()) {
-                    tracing::debug!(
-                        client_id = %client_id,
-                        error = %e,
-                        "Failed to send broadcast message"
-                    );
-                }
+            if let Some(client) = self.clients.get(&client_id)
+                && let Err(e) = client.send(msg.clone())
+            {
+                tracing::debug!(
+                    client_id = %client_id,
+                    error = %e,
+                    "Failed to send broadcast message"
+                );
             }
         }
     }
@@ -285,10 +326,10 @@ impl ServerState {
         for entry in self.channels.iter() {
             let channel_name = entry.key().to_string();
             let mut channel = entry.value().write_lock("channel")?;
-            if channel.remove_member(client_id).is_some() {
-                if channel.member_count() == 0 {
-                    empty_channels.push(channel_name);
-                }
+            if channel.remove_member(client_id).is_some()
+                && channel.member_count() == 0
+            {
+                empty_channels.push(channel_name);
             }
         }
 

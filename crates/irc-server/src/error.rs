@@ -122,6 +122,34 @@ pub enum Error {
     /// No operator host (host mask doesn't match)
     #[error("No O-lines for your host")]
     NoOperHost,
+
+    /// Database error
+    #[error("Database error: {0}")]
+    Database(String),
+
+    /// Account already exists
+    #[error("Account already exists: {0}")]
+    AccountExists(String),
+
+    /// Nickname already registered
+    #[error("Nickname already registered: {0}")]
+    NickRegistered(String),
+
+    /// Channel already registered
+    #[error("Channel already registered: {0}")]
+    ChannelRegistered(String),
+
+    /// Services unavailable (no database)
+    #[error("Services unavailable")]
+    ServicesUnavailable,
+
+    /// Not logged in
+    #[error("Not logged in")]
+    NotLoggedIn,
+
+    /// Password hashing error
+    #[error("Password hashing error: {0}")]
+    PasswordHash(String),
 }
 
 impl Error {

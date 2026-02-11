@@ -52,16 +52,16 @@ pub fn handle_nick(ctx: &HandlerContext, nickname: &str) -> Result<()> {
     let is_registered = ctx.client.is_registered()?;
 
     // Check if nickname is already in use (by someone else)
-    if let Some(existing) = ctx.state.find_client_by_nick(nickname) {
-        if existing.id != ctx.client.id {
-            ctx.reply(
-                ERR_NICKNAMEINUSE,
-                vec![nickname.to_string(), "Nickname is already in use".into()],
-            )?;
-            return Err(Error::NicknameInUse(nickname.to_string()));
-        }
-        // Same client, same nick (possibly different case) - allow it
+    if let Some(existing) = ctx.state.find_client_by_nick(nickname)
+        && existing.id != ctx.client.id
+    {
+        ctx.reply(
+            ERR_NICKNAMEINUSE,
+            vec![nickname.to_string(), "Nickname is already in use".into()],
+        )?;
+        return Err(Error::NicknameInUse(nickname.to_string()));
     }
+    // Same client, same nick (possibly different case) - allow it
 
     // Unregister old nickname if we had one
     if let Some(ref old) = old_nick {
@@ -167,23 +167,23 @@ pub fn handle_quit(ctx: &HandlerContext, message: Option<&str>) -> Result<()> {
     );
 
     // Record WHOWAS entry for registered clients
-    if ctx.client.is_registered()? {
-        if let (Some(nick), Some(user), Some(realname)) = (
+    if ctx.client.is_registered()?
+        && let (Some(nick), Some(user), Some(realname)) = (
             ctx.client.nickname()?,
             ctx.client.username()?,
             ctx.client.realname()?,
-        ) {
-            let entry = WhowasEntry {
-                nickname: nick,
-                username: user,
-                hostname: ctx.client.hostname()?,
-                realname,
-                quit_time: Utc::now(),
-                server: ctx.state.config.server_name.clone(),
-            };
-            if let Err(e) = ctx.state.record_whowas(entry) {
-                tracing::warn!(error = %e, "Failed to record WHOWAS entry");
-            }
+        )
+    {
+        let entry = WhowasEntry {
+            nickname: nick,
+            username: user,
+            hostname: ctx.client.hostname()?,
+            realname,
+            quit_time: Utc::now(),
+            server: ctx.state.config.server_name.clone(),
+        };
+        if let Err(e) = ctx.state.record_whowas(entry) {
+            tracing::warn!(error = %e, "Failed to record WHOWAS entry");
         }
     }
 

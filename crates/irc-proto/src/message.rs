@@ -131,10 +131,8 @@ impl Message {
 
 impl fmt::Display for Message {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ref tags) = self.tags {
-            if !tags.is_empty() {
-                write!(f, "@{} ", tags)?;
-            }
+        if let Some(ref tags) = self.tags && !tags.is_empty() {
+            write!(f, "@{} ", tags)?;
         }
         if let Some(ref prefix) = self.prefix {
             write!(f, ":{} ", prefix)?;
@@ -192,9 +190,9 @@ fn parse_params(input: &str) -> Vec<String> {
     let mut remaining = input;
 
     while !remaining.is_empty() {
-        if remaining.starts_with(':') {
+        if let Some(trailing) = remaining.strip_prefix(':') {
             // Trailing parameter (rest of the line)
-            params.push(remaining[1..].to_string());
+            params.push(trailing.to_string());
             break;
         }
 
