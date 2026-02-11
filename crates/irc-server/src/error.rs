@@ -150,6 +150,14 @@ pub enum Error {
     /// Password hashing error
     #[error("Password hashing error: {0}")]
     PasswordHash(String),
+
+    /// Rate limited
+    #[error("Rate limited")]
+    RateLimited,
+
+    /// Banned from server
+    #[error("Banned: {0}")]
+    Banned(String),
 }
 
 impl Error {

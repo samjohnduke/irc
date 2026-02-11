@@ -209,6 +209,15 @@ pub mod reply {
     pub const RPL_MONLIST: u16 = 732;
     /// End of monitor list
     pub const RPL_ENDOFMONLIST: u16 = 733;
+
+    // === Help ===
+
+    /// Help start
+    pub const RPL_HELPSTART: u16 = 704;
+    /// Help text
+    pub const RPL_HELPTXT: u16 = 705;
+    /// End of help
+    pub const RPL_ENDOFHELP: u16 = 706;
 }
 
 /// Error codes (400-599)
@@ -336,6 +345,11 @@ pub mod error {
     pub const ERR_SASLABORTED: u16 = 906;
     /// SASL already authenticated
     pub const ERR_SASLALREADY: u16 = 907;
+
+    // === Monitor Errors ===
+
+    /// Monitor list is full
+    pub const ERR_MONLISTFULL: u16 = 734;
 }
 
 /// Get a human-readable description for a numeric code.

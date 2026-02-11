@@ -4,9 +4,13 @@
 //! - Account registration and authentication
 //! - Nickname registration
 //! - Channel registration and access control
+//! - Server bans (K-lines, Z-lines)
+//! - Message history
 
 pub mod accounts;
+pub mod bans;
 pub mod channels;
+pub mod history;
 pub mod nicks;
 
 use std::path::Path;
@@ -109,6 +113,39 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_registered_channels_founder ON registered_channels(founder_account_id);
             CREATE INDEX IF NOT EXISTS idx_channel_access_channel ON channel_access(channel_id);
             CREATE INDEX IF NOT EXISTS idx_channel_access_account ON channel_access(account_id);
+
+            -- Server bans table (K-lines, Z-lines)
+            CREATE TABLE IF NOT EXISTS server_bans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ban_type TEXT NOT NULL,
+                mask TEXT NOT NULL,
+                reason TEXT,
+                set_by TEXT NOT NULL,
+                set_at INTEGER NOT NULL,
+                expires_at INTEGER,
+                UNIQUE(ban_type, mask)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_server_bans_type ON server_bans(ban_type);
+            CREATE INDEX IF NOT EXISTS idx_server_bans_expires ON server_bans(expires_at);
+
+            -- Message history table
+            CREATE TABLE IF NOT EXISTS message_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                msgid TEXT UNIQUE,
+                timestamp INTEGER NOT NULL,
+                sender_account TEXT,
+                sender_nick TEXT NOT NULL,
+                sender_user TEXT NOT NULL,
+                sender_host TEXT NOT NULL,
+                target TEXT NOT NULL,
+                target_type TEXT NOT NULL,
+                command TEXT NOT NULL,
+                message TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_history_target ON message_history(target, timestamp);
+            CREATE INDEX IF NOT EXISTS idx_history_msgid ON message_history(msgid);
 
             -- Enable foreign keys
             PRAGMA foreign_keys = ON;

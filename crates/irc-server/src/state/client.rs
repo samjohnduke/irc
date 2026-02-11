@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::sync::RwLock;
+use std::time::Instant;
 
 use chrono::{DateTime, Utc};
 use irc_proto::{Command, Message, Prefix, Tags};
@@ -10,6 +11,7 @@ use tokio::sync::mpsc;
 use unicase::UniCase;
 
 use crate::cap::ClientCapState;
+use crate::config::LimitsConfig;
 use crate::error::{Error, Result};
 use crate::lock::RwLockExt;
 
@@ -97,6 +99,23 @@ impl std::fmt::Display for UserModes {
     }
 }
 
+/// Rate limiting state using token bucket algorithm.
+struct RateLimitState {
+    /// Available tokens.
+    tokens: f64,
+    /// Last time tokens were updated.
+    last_update: Instant,
+}
+
+impl Default for RateLimitState {
+    fn default() -> Self {
+        Self {
+            tokens: 20.0, // Start with burst capacity
+            last_update: Instant::now(),
+        }
+    }
+}
+
 /// A connected client.
 pub struct Client {
     /// Unique client ID.
@@ -143,6 +162,12 @@ pub struct Client {
 
     /// IRCv3 capability state.
     cap_state: RwLock<ClientCapState>,
+
+    /// Rate limiting state.
+    rate_limit: RwLock<RateLimitState>,
+
+    /// Nicknames this client is monitoring (MONITOR command).
+    monitor_list: RwLock<HashSet<UniCase<String>>>,
 }
 
 impl Client {
@@ -171,6 +196,8 @@ impl Client {
             tls,
             password: RwLock::new(None),
             cap_state: RwLock::new(ClientCapState::new()),
+            rate_limit: RwLock::new(RateLimitState::default()),
+            monitor_list: RwLock::new(HashSet::new()),
         }
     }
 
@@ -430,5 +457,90 @@ impl Client {
             tags.set("time", time);
         }
         self.send(message)
+    }
+
+    // ========================================
+    // Rate Limiting
+    // ========================================
+
+    /// Check if the client can send a command (token bucket algorithm).
+    /// Returns Ok(()) if allowed, Err(RateLimited) if not.
+    pub fn check_rate_limit(&self, config: &LimitsConfig) -> Result<()> {
+        let mut state = self.rate_limit.write_lock("rate_limit")?;
+        let now = Instant::now();
+        let elapsed = now.duration_since(state.last_update).as_secs_f64();
+
+        // Refill tokens based on time elapsed
+        state.tokens = (state.tokens + elapsed * config.command_rate_limit as f64)
+            .min(config.command_burst as f64);
+        state.last_update = now;
+
+        // Check if we have a token
+        if state.tokens >= 1.0 {
+            state.tokens -= 1.0;
+            Ok(())
+        } else {
+            Err(Error::RateLimited)
+        }
+    }
+
+    // ========================================
+    // MONITOR Support
+    // ========================================
+
+    /// Add nicknames to the monitor list.
+    /// Returns the list of nicknames that were actually added.
+    pub fn monitor_add(&self, nicks: &[&str]) -> Result<Vec<String>> {
+        let mut list = self.monitor_list.write_lock("monitor_list")?;
+        let mut added = Vec::new();
+
+        for nick in nicks {
+            if nick.is_empty() {
+                continue;
+            }
+            let key = UniCase::new(nick.to_string());
+            if list.insert(key) {
+                added.push(nick.to_string());
+            }
+        }
+
+        Ok(added)
+    }
+
+    /// Remove nicknames from the monitor list.
+    pub fn monitor_remove(&self, nicks: &[&str]) -> Result<()> {
+        let mut list = self.monitor_list.write_lock("monitor_list")?;
+
+        for nick in nicks {
+            let key = UniCase::new(nick.to_string());
+            list.remove(&key);
+        }
+
+        Ok(())
+    }
+
+    /// Clear the monitor list.
+    pub fn monitor_clear(&self) -> Result<()> {
+        let mut list = self.monitor_list.write_lock("monitor_list")?;
+        list.clear();
+        Ok(())
+    }
+
+    /// Get the monitor list.
+    pub fn monitor_list(&self) -> Result<Vec<String>> {
+        let list = self.monitor_list.read_lock("monitor_list")?;
+        Ok(list.iter().map(|k| k.to_string()).collect())
+    }
+
+    /// Check if this client is monitoring a nickname.
+    pub fn is_monitoring(&self, nick: &str) -> Result<bool> {
+        let list = self.monitor_list.read_lock("monitor_list")?;
+        let key = UniCase::new(nick.to_string());
+        Ok(list.contains(&key))
+    }
+
+    /// Get the number of monitored nicknames.
+    pub fn monitor_count(&self) -> Result<usize> {
+        Ok(self.monitor_list.read_lock("monitor_list")?.len())
     }
 }

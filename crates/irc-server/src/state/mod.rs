@@ -8,19 +8,36 @@ mod client;
 pub use client::{Client, ClientId, RegistrationPhase, UserModes};
 
 use std::collections::{HashSet, VecDeque};
+use std::net::IpAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use irc_proto::Message;
+use tokio::sync::watch;
 use unicase::UniCase;
 
 use crate::cap::CapabilityRegistry;
 use crate::config::ServerConfig;
 use crate::db::Database;
+use crate::db::bans::ServerBan;
 use crate::error::Result;
 use crate::lock::RwLockExt;
+
+/// Shutdown signal for server admin commands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ShutdownSignal {
+    /// Server is running normally.
+    #[default]
+    Running,
+    /// Server should reload configuration.
+    Rehash,
+    /// Server should restart.
+    Restart,
+    /// Server should shut down.
+    Shutdown,
+}
 
 /// Entry in the WHOWAS history buffer.
 #[derive(Debug, Clone)]
@@ -79,6 +96,21 @@ pub struct ServerState {
 
     /// Services database (optional).
     pub db: Option<Arc<Database>>,
+
+    /// Shutdown signal sender.
+    pub shutdown_tx: watch::Sender<ShutdownSignal>,
+
+    /// Shutdown signal receiver (cloneable for connection handlers).
+    pub shutdown_rx: watch::Receiver<ShutdownSignal>,
+
+    /// K-line cache (user@host patterns).
+    pub klines: DashMap<String, ServerBan>,
+
+    /// Z-line cache (IP patterns).
+    pub zlines: DashMap<String, ServerBan>,
+
+    /// Connection count per IP address.
+    pub connections_per_ip: DashMap<IpAddr, usize>,
 }
 
 impl ServerState {
@@ -102,6 +134,8 @@ impl ServerState {
                 }
             });
 
+        let (shutdown_tx, shutdown_rx) = watch::channel(ShutdownSignal::Running);
+
         Self {
             config: Arc::new(config),
             clients: DashMap::new(),
@@ -113,12 +147,18 @@ impl ServerState {
             whowas_history: RwLock::new(VecDeque::new()),
             capabilities: CapabilityRegistry::new(),
             db,
+            shutdown_tx,
+            shutdown_rx,
+            klines: DashMap::new(),
+            zlines: DashMap::new(),
+            connections_per_ip: DashMap::new(),
         }
     }
 
     /// Create new server state with an in-memory database (for testing).
     pub fn with_memory_db(config: ServerConfig) -> Result<Self> {
         let db = Database::in_memory()?;
+        let (shutdown_tx, shutdown_rx) = watch::channel(ShutdownSignal::Running);
 
         Ok(Self {
             config: Arc::new(config),
@@ -131,6 +171,11 @@ impl ServerState {
             whowas_history: RwLock::new(VecDeque::new()),
             capabilities: CapabilityRegistry::new(),
             db: Some(Arc::new(db)),
+            shutdown_tx,
+            shutdown_rx,
+            klines: DashMap::new(),
+            zlines: DashMap::new(),
+            connections_per_ip: DashMap::new(),
         })
     }
 
@@ -376,5 +421,133 @@ impl ServerState {
         }
 
         Ok(results)
+    }
+
+    // ========================================
+    // Shutdown Signaling
+    // ========================================
+
+    /// Request a server rehash (config reload).
+    pub fn request_rehash(&self) {
+        let _ = self.shutdown_tx.send(ShutdownSignal::Rehash);
+    }
+
+    /// Request a server restart.
+    pub fn request_restart(&self) {
+        let _ = self.shutdown_tx.send(ShutdownSignal::Restart);
+    }
+
+    /// Request a server shutdown.
+    pub fn request_shutdown(&self) {
+        let _ = self.shutdown_tx.send(ShutdownSignal::Shutdown);
+    }
+
+    // ========================================
+    // Server Bans (K-line/Z-line)
+    // ========================================
+
+    /// Check if a hostmask matches any K-line.
+    pub fn is_klined(&self, hostmask: &str) -> Option<ServerBan> {
+        for entry in self.klines.iter() {
+            if matches_mask(entry.key(), hostmask) {
+                return Some(entry.value().clone());
+            }
+        }
+        None
+    }
+
+    /// Check if an IP matches any Z-line.
+    pub fn is_zlined(&self, ip: &str) -> Option<ServerBan> {
+        for entry in self.zlines.iter() {
+            if matches_mask(entry.key(), ip) {
+                return Some(entry.value().clone());
+            }
+        }
+        None
+    }
+
+    /// Add a K-line.
+    pub fn add_kline(&self, ban: ServerBan) {
+        self.klines.insert(ban.mask.clone(), ban);
+    }
+
+    /// Remove a K-line.
+    pub fn remove_kline(&self, mask: &str) -> bool {
+        self.klines.remove(mask).is_some()
+    }
+
+    /// Add a Z-line.
+    pub fn add_zline(&self, ban: ServerBan) {
+        self.zlines.insert(ban.mask.clone(), ban);
+    }
+
+    /// Remove a Z-line.
+    pub fn remove_zline(&self, mask: &str) -> bool {
+        self.zlines.remove(mask).is_some()
+    }
+
+    /// Load bans from database into cache.
+    pub fn load_bans_from_db(&self) -> Result<()> {
+        use crate::db::bans::{self, BanType};
+
+        if let Some(ref db) = self.db {
+            let conn = db.connection()?;
+
+            // Load K-lines
+            for ban in bans::list_bans(&conn, BanType::Kline)? {
+                self.klines.insert(ban.mask.clone(), ban);
+            }
+
+            // Load Z-lines
+            for ban in bans::list_bans(&conn, BanType::Zline)? {
+                self.zlines.insert(ban.mask.clone(), ban);
+            }
+        }
+        Ok(())
+    }
+
+    // ========================================
+    // Connection Tracking
+    // ========================================
+
+    /// Check if adding another connection from this IP would exceed the limit.
+    pub fn check_connection_limit(&self, ip: IpAddr) -> bool {
+        let count = self.connections_per_ip.get(&ip).map(|r| *r).unwrap_or(0);
+        count < self.config.limits.max_connections_per_ip
+    }
+
+    /// Track a new connection from an IP.
+    pub fn track_connection(&self, ip: IpAddr) {
+        self.connections_per_ip
+            .entry(ip)
+            .and_modify(|c| *c += 1)
+            .or_insert(1);
+    }
+
+    /// Untrack a connection from an IP.
+    pub fn untrack_connection(&self, ip: IpAddr) {
+        if let Some(mut count) = self.connections_per_ip.get_mut(&ip) {
+            *count = count.saturating_sub(1);
+            if *count == 0 {
+                drop(count);
+                self.connections_per_ip.remove(&ip);
+            }
+        }
+    }
+
+    // ========================================
+    // MONITOR Support
+    // ========================================
+
+    /// Get clients monitoring a specific nickname.
+    pub fn get_monitors_for_nick(&self, nick: &str) -> Result<Vec<Arc<Client>>> {
+        let mut monitors = Vec::new();
+        for entry in self.clients.iter() {
+            let client = entry.value();
+            if client.is_monitoring(nick)? {
+                monitors.push(Arc::clone(client));
+            }
+        }
+        Ok(monitors)
     }
 }

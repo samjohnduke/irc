@@ -39,6 +39,10 @@ impl CapabilityRegistry {
         registry.register("multi-prefix", None);
         registry.register("setname", None);
 
+        // Phase 6 capabilities
+        registry.register("draft/chathistory", None);
+        registry.register("batch", None);
+
         registry
     }
 

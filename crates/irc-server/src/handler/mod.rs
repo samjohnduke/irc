@@ -4,8 +4,11 @@
 
 mod cap;
 mod channel;
+mod help;
+mod history;
 mod messaging;
 mod misc;
+mod monitor;
 mod oper;
 mod query;
 mod registration;
@@ -24,9 +27,15 @@ pub use channel::{
     handle_channel_mode, handle_invite, handle_join, handle_kick, handle_list, handle_names,
     handle_part, handle_topic,
 };
+pub use help::handle_help;
+pub use history::handle_chathistory;
 pub use messaging::{handle_notice, handle_privmsg};
 pub use misc::{handle_away, handle_ping, handle_pong, handle_setname};
-pub use oper::{handle_kill, handle_oper, handle_wallops};
+pub use monitor::handle_monitor;
+pub use oper::{
+    handle_die, handle_gline, handle_kill, handle_kline, handle_oper, handle_rehash,
+    handle_restart, handle_ungline, handle_unkline, handle_unzline, handle_wallops, handle_zline,
+};
 pub use query::{handle_who, handle_whois, handle_whowas};
 pub use registration::{handle_nick, handle_pass, handle_quit, handle_user};
 pub use server::{handle_admin, handle_info, handle_lusers, handle_motd, handle_stats, handle_time, handle_version};
@@ -168,6 +177,34 @@ pub async fn handle_message(
                 Command::Oper { name, password } => handle_oper(&ctx, name, password),
                 Command::Kill { nickname, comment } => handle_kill(&ctx, nickname, comment),
                 Command::Wallops { message: wallops_msg } => handle_wallops(&ctx, wallops_msg),
+                Command::Rehash => handle_rehash(&ctx),
+                Command::Restart => handle_restart(&ctx),
+                Command::Die => handle_die(&ctx),
+                Command::Kline { duration, mask, reason } => {
+                    handle_kline(&ctx, duration.as_deref(), mask, reason.as_deref())
+                }
+                Command::Unkline { mask } => handle_unkline(&ctx, mask),
+                Command::Gline { duration, mask, reason } => {
+                    handle_gline(&ctx, duration.as_deref(), mask, reason.as_deref())
+                }
+                Command::Ungline { mask } => handle_ungline(&ctx, mask),
+                Command::Zline { duration, mask, reason } => {
+                    handle_zline(&ctx, duration.as_deref(), mask, reason.as_deref())
+                }
+                Command::Unzline { mask } => handle_unzline(&ctx, mask),
+
+                // MONITOR command
+                Command::Monitor { subcommand, targets } => {
+                    handle_monitor(&ctx, *subcommand, targets.as_deref())
+                }
+
+                // CHATHISTORY command
+                Command::Chathistory { subcommand, target, params } => {
+                    handle_chathistory(&ctx, subcommand, target, params)
+                }
+
+                // HELP command
+                Command::Help { topic } => handle_help(&ctx, topic.as_deref()),
 
                 Command::Mode { target, modes, params } => {
                     if is_channel(target) {

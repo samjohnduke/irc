@@ -447,6 +447,90 @@ fn parse_command_with_params(command: &str, params: Vec<String>) -> Result<Comma
             message: params.into_iter().next().unwrap_or_default(),
         }),
 
+        "REHASH" => Ok(Command::Rehash),
+
+        "RESTART" => Ok(Command::Restart),
+
+        "DIE" => Ok(Command::Die),
+
+        "KLINE" => {
+            // KLINE [duration] mask [:reason]
+            let mut iter = params.into_iter().peekable();
+            let first = iter.next().unwrap_or_default();
+
+            // Check if first param looks like a duration (e.g., "1d", "2h", "30m")
+            let (duration, mask) = if first.chars().all(|c| c.is_ascii_digit())
+                || first.ends_with('d')
+                || first.ends_with('h')
+                || first.ends_with('m')
+                || first.ends_with('s')
+            {
+                let mask = iter.next().unwrap_or_default();
+                (Some(first), mask)
+            } else {
+                (None, first)
+            };
+            let reason = iter.next();
+
+            Ok(Command::Kline { duration, mask, reason })
+        }
+
+        "UNKLINE" => Ok(Command::Unkline {
+            mask: params.into_iter().next().unwrap_or_default(),
+        }),
+
+        "GLINE" => {
+            let mut iter = params.into_iter().peekable();
+            let first = iter.next().unwrap_or_default();
+
+            let (duration, mask) = if first.chars().all(|c| c.is_ascii_digit())
+                || first.ends_with('d')
+                || first.ends_with('h')
+                || first.ends_with('m')
+                || first.ends_with('s')
+            {
+                let mask = iter.next().unwrap_or_default();
+                (Some(first), mask)
+            } else {
+                (None, first)
+            };
+            let reason = iter.next();
+
+            Ok(Command::Gline { duration, mask, reason })
+        }
+
+        "UNGLINE" => Ok(Command::Ungline {
+            mask: params.into_iter().next().unwrap_or_default(),
+        }),
+
+        "ZLINE" => {
+            let mut iter = params.into_iter().peekable();
+            let first = iter.next().unwrap_or_default();
+
+            let (duration, mask) = if first.chars().all(|c| c.is_ascii_digit())
+                || first.ends_with('d')
+                || first.ends_with('h')
+                || first.ends_with('m')
+                || first.ends_with('s')
+            {
+                let mask = iter.next().unwrap_or_default();
+                (Some(first), mask)
+            } else {
+                (None, first)
+            };
+            let reason = iter.next();
+
+            Ok(Command::Zline { duration, mask, reason })
+        }
+
+        "UNZLINE" => Ok(Command::Unzline {
+            mask: params.into_iter().next().unwrap_or_default(),
+        }),
+
+        "HELP" => Ok(Command::Help {
+            topic: params.into_iter().next(),
+        }),
+
         "CAP" => {
             let mut iter = params.into_iter();
             Ok(Command::Cap {

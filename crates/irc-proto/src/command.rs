@@ -204,6 +204,56 @@ pub enum Command {
         message: String,
     },
 
+    /// REHASH - Reload server configuration
+    Rehash,
+
+    /// RESTART - Restart the server
+    Restart,
+
+    /// DIE - Shut down the server
+    Die,
+
+    /// KLINE - Ban by user@host mask
+    Kline {
+        duration: Option<String>,
+        mask: String,
+        reason: Option<String>,
+    },
+
+    /// UNKLINE - Remove K-line
+    Unkline {
+        mask: String,
+    },
+
+    /// GLINE - Global ban (alias for KLINE on single-server)
+    Gline {
+        duration: Option<String>,
+        mask: String,
+        reason: Option<String>,
+    },
+
+    /// UNGLINE - Remove G-line
+    Ungline {
+        mask: String,
+    },
+
+    /// ZLINE - Ban by IP/CIDR
+    Zline {
+        duration: Option<String>,
+        mask: String,
+        reason: Option<String>,
+    },
+
+    /// UNZLINE - Remove Z-line
+    Unzline {
+        mask: String,
+    },
+
+    /// HELP - Request help information
+    Help {
+        topic: Option<String>,
+    },
+
     // === IRCv3 ===
     /// CAP - Capability negotiation
     Cap {
@@ -310,6 +360,16 @@ impl Command {
             Command::Ison { .. } => "ISON",
             Command::Kill { .. } => "KILL",
             Command::Wallops { .. } => "WALLOPS",
+            Command::Rehash => "REHASH",
+            Command::Restart => "RESTART",
+            Command::Die => "DIE",
+            Command::Kline { .. } => "KLINE",
+            Command::Unkline { .. } => "UNKLINE",
+            Command::Gline { .. } => "GLINE",
+            Command::Ungline { .. } => "UNGLINE",
+            Command::Zline { .. } => "ZLINE",
+            Command::Unzline { .. } => "UNZLINE",
+            Command::Help { .. } => "HELP",
             Command::Cap { .. } => "CAP",
             Command::Authenticate { .. } => "AUTHENTICATE",
             Command::Batch { .. } => "BATCH",
@@ -513,6 +573,49 @@ impl fmt::Display for Command {
                 write!(f, "KILL {} :{}", nickname, comment)
             }
             Command::Wallops { message } => write!(f, "WALLOPS :{}", message),
+            Command::Rehash => write!(f, "REHASH"),
+            Command::Restart => write!(f, "RESTART"),
+            Command::Die => write!(f, "DIE"),
+            Command::Kline { duration, mask, reason } => {
+                write!(f, "KLINE")?;
+                if let Some(d) = duration {
+                    write!(f, " {}", d)?;
+                }
+                write!(f, " {}", mask)?;
+                if let Some(r) = reason {
+                    write!(f, " :{}", r)?;
+                }
+                Ok(())
+            }
+            Command::Unkline { mask } => write!(f, "UNKLINE {}", mask),
+            Command::Gline { duration, mask, reason } => {
+                write!(f, "GLINE")?;
+                if let Some(d) = duration {
+                    write!(f, " {}", d)?;
+                }
+                write!(f, " {}", mask)?;
+                if let Some(r) = reason {
+                    write!(f, " :{}", r)?;
+                }
+                Ok(())
+            }
+            Command::Ungline { mask } => write!(f, "UNGLINE {}", mask),
+            Command::Zline { duration, mask, reason } => {
+                write!(f, "ZLINE")?;
+                if let Some(d) = duration {
+                    write!(f, " {}", d)?;
+                }
+                write!(f, " {}", mask)?;
+                if let Some(r) = reason {
+                    write!(f, " :{}", r)?;
+                }
+                Ok(())
+            }
+            Command::Unzline { mask } => write!(f, "UNZLINE {}", mask),
+            Command::Help { topic } => match topic {
+                Some(t) => write!(f, "HELP {}", t),
+                None => write!(f, "HELP"),
+            },
             Command::Cap { subcommand, params } => {
                 write!(f, "CAP {}", subcommand)?;
                 for p in params {

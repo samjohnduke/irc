@@ -104,6 +104,30 @@ pub struct LimitsConfig {
     /// Size of per-client send buffer (messages)
     #[serde(default = "default_send_buffer_size")]
     pub send_buffer_size: usize,
+
+    /// Maximum connections per IP address
+    #[serde(default = "default_max_connections_per_ip")]
+    pub max_connections_per_ip: usize,
+
+    /// Maximum commands per second per client
+    #[serde(default = "default_command_rate_limit")]
+    pub command_rate_limit: usize,
+
+    /// Burst allowance (commands before rate limiting kicks in)
+    #[serde(default = "default_command_burst")]
+    pub command_burst: usize,
+
+    /// Maximum MONITOR entries per client
+    #[serde(default = "default_max_monitor")]
+    pub max_monitor: usize,
+
+    /// Maximum CHATHISTORY messages per request
+    #[serde(default = "default_max_history")]
+    pub max_history: usize,
+
+    /// Message history retention in days (0 = unlimited)
+    #[serde(default = "default_history_retention_days")]
+    pub history_retention_days: u32,
 }
 
 fn default_max_clients() -> usize {
@@ -138,6 +162,30 @@ fn default_send_buffer_size() -> usize {
     512
 }
 
+fn default_max_connections_per_ip() -> usize {
+    10
+}
+
+fn default_command_rate_limit() -> usize {
+    10
+}
+
+fn default_command_burst() -> usize {
+    20
+}
+
+fn default_max_monitor() -> usize {
+    100
+}
+
+fn default_max_history() -> usize {
+    100
+}
+
+fn default_history_retention_days() -> u32 {
+    7
+}
+
 impl Default for LimitsConfig {
     fn default() -> Self {
         Self {
@@ -151,6 +199,12 @@ impl Default for LimitsConfig {
             max_away_length: default_max_away_length(),
             max_channels: default_max_channels(),
             send_buffer_size: default_send_buffer_size(),
+            max_connections_per_ip: default_max_connections_per_ip(),
+            command_rate_limit: default_command_rate_limit(),
+            command_burst: default_command_burst(),
+            max_monitor: default_max_monitor(),
+            max_history: default_max_history(),
+            history_retention_days: default_history_retention_days(),
         }
     }
 }
