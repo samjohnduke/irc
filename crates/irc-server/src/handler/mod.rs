@@ -2,17 +2,23 @@
 //!
 //! This module contains handlers for all IRC commands, organized by category.
 
+mod channel;
 mod messaging;
 mod misc;
 mod registration;
 
 use std::sync::Arc;
 
-use irc_proto::{Command, Message, Prefix};
+use irc_proto::{is_channel, Command, Message, Prefix};
 
 use crate::error::{Error, Result};
+use crate::lock::RwLockExt;
 use crate::state::{Client, ServerState};
 
+pub use channel::{
+    handle_channel_mode, handle_invite, handle_join, handle_kick, handle_list, handle_names,
+    handle_part, handle_topic,
+};
 pub use messaging::{handle_notice, handle_privmsg};
 pub use misc::{handle_away, handle_ping, handle_pong};
 pub use registration::{handle_nick, handle_pass, handle_quit, handle_user};
@@ -42,25 +48,27 @@ impl<'a> HandlerContext<'a> {
     }
 
     /// Send a numeric reply to the client.
-    pub fn reply(&self, code: u16, params: Vec<String>) {
-        self.client.send_numeric(self.server_name(), code, params);
+    pub fn reply(&self, code: u16, params: Vec<String>) -> Result<()> {
+        self.client.send_numeric(self.server_name(), code, params)?;
+        Ok(())
     }
 
     /// Send an error reply to the client.
-    pub fn error(&self, error: &Error) {
+    pub fn error(&self, error: &Error) -> Result<()> {
         if let Some(code) = error.numeric_code() {
             let message = error.to_string();
-            self.reply(code, vec![message]);
+            self.reply(code, vec![message])?;
         }
+        Ok(())
     }
 
     /// Check if the client is registered, returning an error if not.
     pub fn require_registered(&self) -> Result<()> {
-        if self.client.is_registered() {
+        if self.client.is_registered()? {
             Ok(())
         } else {
             let err = Error::NotRegistered;
-            self.error(&err);
+            self.error(&err)?;
             Err(err)
         }
     }
@@ -105,23 +113,25 @@ pub async fn handle_message(
                 Command::Notice { target, message } => handle_notice(&ctx, target, message),
                 Command::Away { message: away_msg } => handle_away(&ctx, away_msg.as_deref()),
 
-                // Phase 2: Channel commands
-                Command::Join { .. }
-                | Command::Part { .. }
-                | Command::Topic { .. }
-                | Command::Names { .. }
-                | Command::List { .. }
-                | Command::Kick { .. }
-                | Command::Invite { .. } => {
-                    // Stub for Phase 2
-                    ctx.reply(
-                        irc_proto::errors::ERR_UNKNOWNCOMMAND,
-                        vec![
-                            message.command.name().to_string(),
-                            "Channel commands not yet implemented".into(),
-                        ],
-                    );
-                    Ok(())
+                // Channel commands
+                Command::Join { channels } => handle_join(&ctx, channels),
+                Command::Part { channels, message: part_msg } => {
+                    handle_part(&ctx, channels, part_msg.as_deref())
+                }
+                Command::Topic { channel, topic } => {
+                    handle_topic(&ctx, channel, topic.as_deref())
+                }
+                Command::Names { channels } => {
+                    handle_names(&ctx, channels.as_deref())
+                }
+                Command::List { channels } => {
+                    handle_list(&ctx, channels.as_deref())
+                }
+                Command::Kick { channel, users, comment } => {
+                    handle_kick(&ctx, channel, users, comment.as_deref())
+                }
+                Command::Invite { nickname, channel } => {
+                    handle_invite(&ctx, nickname, channel)
                 }
 
                 // Phase 3: Query commands
@@ -141,20 +151,22 @@ pub async fn handle_message(
                             message.command.name().to_string(),
                             "Query commands not yet implemented".into(),
                         ],
-                    );
+                    )?;
                     Ok(())
                 }
 
-                Command::Mode { target, modes, .. } => {
-                    // Basic mode stub - just echo back current modes for user
-                    if !irc_proto::is_channel(target) {
+                Command::Mode { target, modes, params } => {
+                    if is_channel(target) {
+                        handle_channel_mode(&ctx, target, modes.as_deref(), params)
+                    } else {
+                        // User mode
                         if modes.is_none() {
                             // Query user modes
-                            let mode_str = client.modes.read().unwrap().to_string();
-                            ctx.reply(irc_proto::replies::RPL_UMODEIS, vec![mode_str]);
+                            let mode_str = client.modes.read_lock("modes")?.to_string();
+                            ctx.reply(irc_proto::replies::RPL_UMODEIS, vec![mode_str])?;
                         }
+                        Ok(())
                     }
-                    Ok(())
                 }
 
                 Command::Userhost { nicknames } => {
@@ -162,23 +174,23 @@ pub async fn handle_message(
                     let mut replies = Vec::new();
                     for nick in nicknames.iter().take(5) {
                         if let Some(target) = state.find_client_by_nick(nick) {
-                            let away_marker = if target.is_away() { "-" } else { "+" };
-                            let oper_marker = if target.modes.read().unwrap().operator {
+                            let away_marker = if target.is_away()? { "-" } else { "+" };
+                            let oper_marker = if target.modes.read_lock("modes")?.operator {
                                 "*"
                             } else {
                                 ""
                             };
                             replies.push(format!(
                                 "{}{}={}{}@{}",
-                                target.nickname().unwrap_or_default(),
+                                target.nickname()?.unwrap_or_default(),
                                 oper_marker,
                                 away_marker,
-                                target.username().unwrap_or_default(),
-                                target.hostname()
+                                target.username()?.unwrap_or_default(),
+                                target.hostname()?
                             ));
                         }
                     }
-                    ctx.reply(302, vec![replies.join(" ")]);
+                    ctx.reply(302, vec![replies.join(" ")])?;
                     Ok(())
                 }
 
@@ -189,7 +201,7 @@ pub async fn handle_message(
                         .filter(|nick| state.find_client_by_nick(nick).is_some())
                         .cloned()
                         .collect();
-                    ctx.reply(303, vec![online.join(" ")]);
+                    ctx.reply(303, vec![online.join(" ")])?;
                     Ok(())
                 }
 
@@ -197,7 +209,7 @@ pub async fn handle_message(
                     ctx.reply(
                         irc_proto::errors::ERR_UNKNOWNCOMMAND,
                         vec![command.clone(), "Unknown command".into()],
-                    );
+                    )?;
                     Ok(())
                 }
 
@@ -208,7 +220,7 @@ pub async fn handle_message(
                             message.command.name().to_string(),
                             "Command not implemented".into(),
                         ],
-                    );
+                    )?;
                     Ok(())
                 }
             }

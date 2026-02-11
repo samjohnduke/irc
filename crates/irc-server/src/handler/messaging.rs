@@ -4,31 +4,24 @@ use irc_proto::{errors::*, replies::*, Command, Message};
 
 use super::HandlerContext;
 use crate::error::{Error, Result};
+use crate::lock::RwLockExt;
 
 /// Handle PRIVMSG command.
 ///
 /// Routes private messages to users or channels.
 pub fn handle_privmsg(ctx: &HandlerContext, target: &str, message: &str) -> Result<()> {
     if target.is_empty() {
-        ctx.reply(ERR_NORECIPIENT, vec!["No recipient given (PRIVMSG)".into()]);
+        ctx.reply(ERR_NORECIPIENT, vec!["No recipient given (PRIVMSG)".into()])?;
         return Err(Error::NeedMoreParams("PRIVMSG".into()));
     }
 
     if message.is_empty() {
-        ctx.reply(ERR_NOTEXTTOSEND, vec!["No text to send".into()]);
+        ctx.reply(ERR_NOTEXTTOSEND, vec!["No text to send".into()])?;
         return Err(Error::NeedMoreParams("PRIVMSG".into()));
     }
 
     if irc_proto::is_channel(target) {
-        // Channel message - Phase 2
-        ctx.reply(
-            ERR_NOSUCHCHANNEL,
-            vec![
-                target.to_string(),
-                "Channel messaging not yet implemented".into(),
-            ],
-        );
-        return Err(Error::NoSuchChannel(target.to_string()));
+        return send_to_channel(ctx, target, message, true);
     }
 
     // User message
@@ -45,12 +38,78 @@ pub fn handle_notice(ctx: &HandlerContext, target: &str, message: &str) -> Resul
     }
 
     if irc_proto::is_channel(target) {
-        // Channel notice - Phase 2
+        // Channel notice - don't send errors
+        let _ = send_to_channel(ctx, target, message, false);
         return Ok(());
     }
 
     // User notice - don't send errors for NOTICE
     let _ = send_to_user(ctx, target, message, false);
+    Ok(())
+}
+
+/// Send a message to a channel.
+fn send_to_channel(
+    ctx: &HandlerContext,
+    target: &str,
+    message: &str,
+    send_errors: bool,
+) -> Result<()> {
+    // Find the channel
+    let channel_arc = match ctx.state.get_channel(target) {
+        Some(c) => c,
+        None => {
+            if send_errors {
+                ctx.reply(
+                    ERR_NOSUCHCHANNEL,
+                    vec![target.to_string(), "No such channel".into()],
+                )?;
+            }
+            return Err(Error::NoSuchChannel(target.to_string()));
+        }
+    };
+
+    let channel = channel_arc.read_lock("channel")?;
+    let client_id = ctx.client.id;
+    let is_member = channel.is_member(client_id);
+
+    // Check if client can speak
+    if !channel.can_speak(client_id, is_member) {
+        if send_errors {
+            ctx.reply(
+                ERR_CANNOTSENDTOCHAN,
+                vec![target.to_string(), "Cannot send to channel".into()],
+            )?;
+        }
+        return Err(Error::CannotSendToChannel(target.to_string()));
+    }
+
+    // Build the message from the sender
+    let msg = Message::with_prefix(
+        ctx.client.prefix()?,
+        if send_errors {
+            Command::Privmsg {
+                target: target.to_string(),
+                message: message.to_string(),
+            }
+        } else {
+            Command::Notice {
+                target: target.to_string(),
+                message: message.to_string(),
+            }
+        },
+    );
+
+    // Broadcast to all members except sender
+    ctx.state.broadcast_to_channel(&channel, msg, Some(client_id));
+
+    tracing::debug!(
+        from = ?ctx.client.nickname()?,
+        to = %target,
+        message = %message,
+        "Channel message delivered"
+    );
+
     Ok(())
 }
 
@@ -69,28 +128,28 @@ fn send_to_user(
                 ctx.reply(
                     ERR_NOSUCHNICK,
                     vec![target.to_string(), "No such nick/channel".into()],
-                );
+                )?;
             }
             return Err(Error::NoSuchNick(target.to_string()));
         }
     };
 
     // Check if target is away
-    if let Some(away_msg) = target_client.away_message() {
+    if let Some(away_msg) = target_client.away_message()? {
         if send_errors {
             ctx.reply(
                 RPL_AWAY,
                 vec![
-                    target_client.nickname().unwrap_or_default(),
+                    target_client.nickname()?.unwrap_or_default(),
                     away_msg,
                 ],
-            );
+            )?;
         }
     }
 
     // Build the message from the sender
     let msg = Message::with_prefix(
-        ctx.client.prefix(),
+        ctx.client.prefix()?,
         if send_errors {
             Command::Privmsg {
                 target: target.to_string(),
@@ -110,13 +169,13 @@ fn send_to_user(
             ctx.reply(
                 ERR_NOSUCHNICK,
                 vec![target.to_string(), "No such nick/channel".into()],
-            );
+            )?;
         }
         return Err(Error::NoSuchNick(target.to_string()));
     }
 
     tracing::debug!(
-        from = ?ctx.client.nickname(),
+        from = ?ctx.client.nickname()?,
         to = %target,
         message = %message,
         "Message delivered"

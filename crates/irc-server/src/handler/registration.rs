@@ -11,8 +11,8 @@ use crate::state::RegistrationPhase;
 ///
 /// Sets the connection password before registration completes.
 pub fn handle_pass(ctx: &HandlerContext, password: &str) -> Result<()> {
-    if ctx.client.is_registered() {
-        ctx.reply(ERR_ALREADYREGISTERED, vec!["You may not reregister".into()]);
+    if ctx.client.is_registered()? {
+        ctx.reply(ERR_ALREADYREGISTERED, vec!["You may not reregister".into()])?;
         return Err(Error::AlreadyRegistered);
     }
 
@@ -20,11 +20,11 @@ pub fn handle_pass(ctx: &HandlerContext, password: &str) -> Result<()> {
         ctx.reply(
             ERR_NEEDMOREPARAMS,
             vec!["PASS".into(), "Not enough parameters".into()],
-        );
+        )?;
         return Err(Error::NeedMoreParams("PASS".into()));
     }
 
-    ctx.client.set_password(password.to_string());
+    ctx.client.set_password(password.to_string())?;
     Ok(())
 }
 
@@ -34,7 +34,7 @@ pub fn handle_pass(ctx: &HandlerContext, password: &str) -> Result<()> {
 pub fn handle_nick(ctx: &HandlerContext, nickname: &str) -> Result<()> {
     // Check if nickname is provided
     if nickname.is_empty() {
-        ctx.reply(ERR_NONICKNAMEGIVEN, vec!["No nickname given".into()]);
+        ctx.reply(ERR_NONICKNAMEGIVEN, vec!["No nickname given".into()])?;
         return Err(Error::NeedMoreParams("NICK".into()));
     }
 
@@ -43,12 +43,12 @@ pub fn handle_nick(ctx: &HandlerContext, nickname: &str) -> Result<()> {
         ctx.reply(
             ERR_ERRONEUSNICKNAME,
             vec![nickname.to_string(), format!("Erroneous nickname: {}", e)],
-        );
+        )?;
         return Err(Error::InvalidNickname(nickname.to_string()));
     }
 
-    let old_nick = ctx.client.nickname();
-    let is_registered = ctx.client.is_registered();
+    let old_nick = ctx.client.nickname()?;
+    let is_registered = ctx.client.is_registered()?;
 
     // Check if nickname is already in use (by someone else)
     if let Some(existing) = ctx.state.find_client_by_nick(nickname) {
@@ -56,7 +56,7 @@ pub fn handle_nick(ctx: &HandlerContext, nickname: &str) -> Result<()> {
             ctx.reply(
                 ERR_NICKNAMEINUSE,
                 vec![nickname.to_string(), "Nickname is already in use".into()],
-            );
+            )?;
             return Err(Error::NicknameInUse(nickname.to_string()));
         }
         // Same client, same nick (possibly different case) - allow it
@@ -77,20 +77,20 @@ pub fn handle_nick(ctx: &HandlerContext, nickname: &str) -> Result<()> {
         ctx.reply(
             ERR_NICKNAMEINUSE,
             vec![nickname.to_string(), "Nickname is already in use".into()],
-        );
+        )?;
         return Err(Error::NicknameInUse(nickname.to_string()));
     }
 
     // Update client state
-    ctx.client.set_nickname(nickname.to_string());
-    ctx.client.got_nick();
+    ctx.client.set_nickname(nickname.to_string())?;
+    ctx.client.got_nick()?;
 
     // If already registered, broadcast nick change
     if is_registered {
         if let Some(old) = old_nick {
             // Send NICK message to the client (and in Phase 2, to channels)
             let msg = Message::with_prefix(
-                ctx.client.prefix(),
+                ctx.client.prefix()?,
                 Command::Nick {
                     nickname: nickname.to_string(),
                 },
@@ -106,7 +106,7 @@ pub fn handle_nick(ctx: &HandlerContext, nickname: &str) -> Result<()> {
         }
     } else {
         // Check if registration is now complete
-        check_registration_complete(ctx);
+        check_registration_complete(ctx)?;
     }
 
     Ok(())
@@ -116,8 +116,8 @@ pub fn handle_nick(ctx: &HandlerContext, nickname: &str) -> Result<()> {
 ///
 /// Sets the username and realname for the connection.
 pub fn handle_user(ctx: &HandlerContext, username: &str, realname: &str) -> Result<()> {
-    if ctx.client.is_registered() {
-        ctx.reply(ERR_ALREADYREGISTERED, vec!["You may not reregister".into()]);
+    if ctx.client.is_registered()? {
+        ctx.reply(ERR_ALREADYREGISTERED, vec!["You may not reregister".into()])?;
         return Err(Error::AlreadyRegistered);
     }
 
@@ -125,7 +125,7 @@ pub fn handle_user(ctx: &HandlerContext, username: &str, realname: &str) -> Resu
         ctx.reply(
             ERR_NEEDMOREPARAMS,
             vec!["USER".into(), "Not enough parameters".into()],
-        );
+        )?;
         return Err(Error::NeedMoreParams("USER".into()));
     }
 
@@ -143,11 +143,11 @@ pub fn handle_user(ctx: &HandlerContext, username: &str, realname: &str) -> Resu
     };
 
     ctx.client
-        .set_user(clean_username, realname.to_string());
-    ctx.client.got_user();
+        .set_user(clean_username, realname.to_string())?;
+    ctx.client.got_user()?;
 
     // Check if registration is now complete
-    check_registration_complete(ctx);
+    check_registration_complete(ctx)?;
 
     Ok(())
 }
@@ -160,15 +160,34 @@ pub fn handle_quit(ctx: &HandlerContext, message: Option<&str>) -> Result<()> {
 
     tracing::info!(
         client_id = %ctx.client.id,
-        nick = ?ctx.client.nickname(),
+        nick = ?ctx.client.nickname()?,
         message = %quit_msg,
         "Client quit"
     );
 
+    // Broadcast QUIT to all users sharing channels with this client
+    let quit_broadcast = Message::with_prefix(
+        ctx.client.prefix()?,
+        Command::Quit {
+            message: Some(quit_msg.to_string()),
+        },
+    );
+
+    // Get all users who share channels with this client
+    let common_members = ctx.state.get_common_channel_members(ctx.client.id)?;
+    for member_id in common_members {
+        if let Some(member) = ctx.state.clients.get(&member_id) {
+            member.send(quit_broadcast.clone());
+        }
+    }
+
+    // Remove client from all channels
+    ctx.state.remove_client_from_all_channels(ctx.client.id)?;
+
     // Send ERROR message to client before disconnecting
     let error_msg = Message::new(Command::Unknown {
         command: "ERROR".into(),
-        params: vec![format!("Closing Link: {} ({})", ctx.client.hostname(), quit_msg)],
+        params: vec![format!("Closing Link: {} ({})", ctx.client.hostname()?, quit_msg)],
     });
     ctx.client.send(error_msg);
 
@@ -178,12 +197,12 @@ pub fn handle_quit(ctx: &HandlerContext, message: Option<&str>) -> Result<()> {
 }
 
 /// Check if registration is complete and send welcome burst if so.
-fn check_registration_complete(ctx: &HandlerContext) {
-    if ctx.client.registration_phase() == RegistrationPhase::Registered {
+fn check_registration_complete(ctx: &HandlerContext) -> Result<()> {
+    if ctx.client.registration_phase()? == RegistrationPhase::Registered {
         tracing::info!(
             client_id = %ctx.client.id,
-            nick = ?ctx.client.nickname(),
-            user = ?ctx.client.username(),
+            nick = ?ctx.client.nickname()?,
+            user = ?ctx.client.username()?,
             "Client registered"
         );
 
@@ -194,4 +213,5 @@ fn check_registration_complete(ctx: &HandlerContext) {
             send_welcome_burst(&client, &state).await;
         });
     }
+    Ok(())
 }

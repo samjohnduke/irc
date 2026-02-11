@@ -154,7 +154,9 @@ impl Default for ServerConfig {
             server_name: "localhost".into(),
             network_name: "LocalNet".into(),
             listen: vec![ListenConfig {
-                address: "127.0.0.1:6667".parse().unwrap(),
+                address: "127.0.0.1:6667"
+                    .parse()
+                    .expect("hardcoded address is valid"),
                 tls: None,
             }],
             motd_file: None,

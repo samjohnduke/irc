@@ -177,4 +177,92 @@ impl TestClient {
         }))
         .await;
     }
+
+    /// Send JOIN.
+    pub async fn join(&mut self, channel: &str) {
+        self.send(Message::new(Command::Join {
+            channels: vec![(channel.to_string(), None)],
+        }))
+        .await;
+    }
+
+    /// Send JOIN with key.
+    pub async fn join_with_key(&mut self, channel: &str, key: &str) {
+        self.send(Message::new(Command::Join {
+            channels: vec![(channel.to_string(), Some(key.to_string()))],
+        }))
+        .await;
+    }
+
+    /// Send PART.
+    pub async fn part(&mut self, channel: &str, message: Option<&str>) {
+        self.send(Message::new(Command::Part {
+            channels: vec![channel.to_string()],
+            message: message.map(String::from),
+        }))
+        .await;
+    }
+
+    /// Send TOPIC.
+    pub async fn topic(&mut self, channel: &str, topic: Option<&str>) {
+        self.send(Message::new(Command::Topic {
+            channel: channel.to_string(),
+            topic: topic.map(String::from),
+        }))
+        .await;
+    }
+
+    /// Send NAMES.
+    pub async fn names(&mut self, channels: Option<&[&str]>) {
+        self.send(Message::new(Command::Names {
+            channels: channels.map(|c| c.iter().map(|s| s.to_string()).collect()),
+        }))
+        .await;
+    }
+
+    /// Send LIST.
+    pub async fn list(&mut self, channels: Option<&[&str]>) {
+        self.send(Message::new(Command::List {
+            channels: channels.map(|c| c.iter().map(|s| s.to_string()).collect()),
+        }))
+        .await;
+    }
+
+    /// Send MODE.
+    pub async fn mode(&mut self, target: &str, modes: Option<&str>, params: &[&str]) {
+        self.send(Message::new(Command::Mode {
+            target: target.to_string(),
+            modes: modes.map(String::from),
+            params: params.iter().map(|s| s.to_string()).collect(),
+        }))
+        .await;
+    }
+
+    /// Send KICK.
+    pub async fn kick(&mut self, channel: &str, user: &str, comment: Option<&str>) {
+        self.send(Message::new(Command::Kick {
+            channel: channel.to_string(),
+            users: vec![user.to_string()],
+            comment: comment.map(String::from),
+        }))
+        .await;
+    }
+
+    /// Send INVITE.
+    pub async fn invite(&mut self, nickname: &str, channel: &str) {
+        self.send(Message::new(Command::Invite {
+            nickname: nickname.to_string(),
+            channel: channel.to_string(),
+        }))
+        .await;
+    }
+
+    /// Send PRIVMSG.
+    pub async fn privmsg(&mut self, target: &str, message: &str) {
+        self.send(Message::new(Command::Privmsg {
+            target: target.to_string(),
+            message: message.to_string(),
+        }))
+        .await;
+    }
 }

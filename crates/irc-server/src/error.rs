@@ -70,6 +70,42 @@ pub enum Error {
     /// Channel send error (client disconnected)
     #[error("Failed to send message to client")]
     SendError,
+
+    /// Channel is full
+    #[error("Channel is full: {0}")]
+    ChannelFull(String),
+
+    /// Banned from channel
+    #[error("Banned from channel: {0}")]
+    BannedFromChannel(String),
+
+    /// Bad channel key
+    #[error("Bad channel key: {0}")]
+    BadChannelKey(String),
+
+    /// Invite only channel
+    #[error("Invite only channel: {0}")]
+    InviteOnlyChannel(String),
+
+    /// Not channel operator
+    #[error("Not channel operator: {0}")]
+    NotChannelOperator(String),
+
+    /// User not in channel
+    #[error("User not in channel: {0}")]
+    UserNotInChannel(String, String),
+
+    /// User already on channel
+    #[error("User already on channel: {0}")]
+    UserOnChannel(String, String),
+
+    /// Invalid channel name
+    #[error("Invalid channel name: {0}")]
+    InvalidChannel(String),
+
+    /// Lock was poisoned (another thread panicked while holding it)
+    #[error("Internal state lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 impl Error {
@@ -88,6 +124,14 @@ impl Error {
             Error::CannotSendToChannel(_) => Some(ERR_CANNOTSENDTOCHAN),
             Error::NeedMoreParams(_) => Some(ERR_NEEDMOREPARAMS),
             Error::UnknownCommand(_) => Some(ERR_UNKNOWNCOMMAND),
+            Error::ChannelFull(_) => Some(ERR_CHANNELISFULL),
+            Error::BannedFromChannel(_) => Some(ERR_BANNEDFROMCHAN),
+            Error::BadChannelKey(_) => Some(ERR_BADCHANNELKEY),
+            Error::InviteOnlyChannel(_) => Some(ERR_INVITEONLYCHAN),
+            Error::NotChannelOperator(_) => Some(ERR_CHANOPRIVSNEEDED),
+            Error::UserNotInChannel(_, _) => Some(ERR_USERNOTINCHANNEL),
+            Error::UserOnChannel(_, _) => Some(ERR_USERONCHANNEL),
+            Error::InvalidChannel(_) => Some(ERR_NOSUCHCHANNEL),
             _ => None,
         }
     }

@@ -411,8 +411,8 @@ fn parse_command_with_params(command: &str, params: Vec<String>) -> Result<Comma
             let first = iter.next().unwrap_or_default();
             let second = iter.next();
 
-            let (server, nicks_str) = if second.is_some() {
-                (Some(first), second.unwrap())
+            let (server, nicks_str) = if let Some(s) = second {
+                (Some(first), s)
             } else {
                 (None, first)
             };

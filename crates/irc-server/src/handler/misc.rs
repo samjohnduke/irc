@@ -37,27 +37,27 @@ pub fn handle_away(ctx: &HandlerContext, message: Option<&str>) -> Result<()> {
     match message {
         Some(msg) if !msg.is_empty() => {
             // Set away message
-            ctx.client.set_away(Some(msg.to_string()));
-            ctx.reply(RPL_NOWAWAY, vec!["You have been marked as being away".into()]);
+            ctx.client.set_away(Some(msg.to_string()))?;
+            ctx.reply(RPL_NOWAWAY, vec!["You have been marked as being away".into()])?;
 
             tracing::debug!(
                 client_id = %ctx.client.id,
-                nick = ?ctx.client.nickname(),
+                nick = ?ctx.client.nickname()?,
                 message = %msg,
                 "Client is now away"
             );
         }
         _ => {
             // Clear away message
-            ctx.client.set_away(None);
+            ctx.client.set_away(None)?;
             ctx.reply(
                 RPL_UNAWAY,
                 vec!["You are no longer marked as being away".into()],
-            );
+            )?;
 
             tracing::debug!(
                 client_id = %ctx.client.id,
-                nick = ?ctx.client.nickname(),
+                nick = ?ctx.client.nickname()?,
                 "Client is no longer away"
             );
         }

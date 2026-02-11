@@ -11,9 +11,15 @@ use crate::state::{Client, ServerState};
 pub async fn send_welcome_burst(client: &Arc<Client>, state: &Arc<ServerState>) {
     let config = &state.config;
     let rb = ReplyBuilder::new(&config.server_name, client);
-    let nick = client.nickname().unwrap_or_else(|| "*".to_string());
-    let user = client.username().unwrap_or_else(|| "unknown".to_string());
-    let host = client.hostname();
+    let nick = client
+        .nickname()
+        .expect("nickname lock poisoned")
+        .unwrap_or_else(|| "*".to_string());
+    let user = client
+        .username()
+        .expect("username lock poisoned")
+        .unwrap_or_else(|| "unknown".to_string());
+    let host = client.hostname().expect("hostname lock poisoned");
 
     // 001 RPL_WELCOME
     rb.send(
@@ -103,11 +109,11 @@ async fn send_lusers(client: &Arc<Client>, state: &Arc<ServerState>) {
     let rb = ReplyBuilder::new(&config.server_name, client);
 
     let total = state.client_count();
-    let invisible = state.invisible_count();
+    let invisible = state.invisible_count().expect("lock poisoned");
     let visible = total.saturating_sub(invisible);
-    let operators = state.operator_count();
+    let operators = state.operator_count().expect("lock poisoned");
     let channels = state.channel_count();
-    let unknown = total.saturating_sub(state.registered_count());
+    let unknown = total.saturating_sub(state.registered_count().expect("lock poisoned"));
 
     // 251 RPL_LUSERCLIENT
     rb.send(

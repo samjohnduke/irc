@@ -52,7 +52,7 @@ where
     write_handle.abort();
 
     // Remove client from state
-    state.remove_client(client_id);
+    let _ = state.remove_client(client_id);
 
     result
 }

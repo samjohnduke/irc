@@ -12,11 +12,13 @@ pub mod config;
 pub mod connection;
 pub mod error;
 pub mod handler;
+pub mod lock;
 pub mod reply;
 pub mod server;
 pub mod state;
 
 pub use config::ServerConfig;
 pub use error::{Error, Result};
+pub use lock::RwLockExt;
 pub use server::Server;
 pub use state::ServerState;

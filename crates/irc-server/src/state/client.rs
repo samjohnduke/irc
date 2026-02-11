@@ -9,6 +9,9 @@ use irc_proto::{Command, Message, Prefix};
 use tokio::sync::mpsc;
 use unicase::UniCase;
 
+use crate::error::Result;
+use crate::lock::RwLockExt;
+
 /// Unique identifier for a connected client.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ClientId(pub u64);
@@ -168,92 +171,99 @@ impl Client {
     }
 
     /// Check if the client is fully registered.
-    pub fn is_registered(&self) -> bool {
-        self.registration.read().unwrap().is_registered()
+    pub fn is_registered(&self) -> Result<bool> {
+        Ok(self.registration.read_lock("registration")?.is_registered())
     }
 
     /// Get the current registration phase.
-    pub fn registration_phase(&self) -> RegistrationPhase {
-        *self.registration.read().unwrap()
+    pub fn registration_phase(&self) -> Result<RegistrationPhase> {
+        Ok(*self.registration.read_lock("registration")?)
     }
 
     /// Get the client's nickname.
-    pub fn nickname(&self) -> Option<String> {
-        self.nickname.read().unwrap().clone()
+    pub fn nickname(&self) -> Result<Option<String>> {
+        Ok(self.nickname.read_lock("nickname")?.clone())
     }
 
     /// Set the client's nickname.
-    pub fn set_nickname(&self, nick: String) {
-        *self.nickname.write().unwrap() = Some(nick);
+    pub fn set_nickname(&self, nick: String) -> Result<()> {
+        *self.nickname.write_lock("nickname")? = Some(nick);
+        Ok(())
     }
 
     /// Mark that NICK was received.
-    pub fn got_nick(&self) {
-        self.registration.write().unwrap().got_nick();
+    pub fn got_nick(&self) -> Result<()> {
+        self.registration.write_lock("registration")?.got_nick();
+        Ok(())
     }
 
     /// Get the client's username.
-    pub fn username(&self) -> Option<String> {
-        self.username.read().unwrap().clone()
+    pub fn username(&self) -> Result<Option<String>> {
+        Ok(self.username.read_lock("username")?.clone())
     }
 
     /// Set the client's username and realname.
-    pub fn set_user(&self, username: String, realname: String) {
-        *self.username.write().unwrap() = Some(username);
-        *self.realname.write().unwrap() = Some(realname);
+    pub fn set_user(&self, username: String, realname: String) -> Result<()> {
+        *self.username.write_lock("username")? = Some(username);
+        *self.realname.write_lock("realname")? = Some(realname);
+        Ok(())
     }
 
     /// Mark that USER was received.
-    pub fn got_user(&self) {
-        self.registration.write().unwrap().got_user();
+    pub fn got_user(&self) -> Result<()> {
+        self.registration.write_lock("registration")?.got_user();
+        Ok(())
     }
 
     /// Get the client's realname.
-    pub fn realname(&self) -> Option<String> {
-        self.realname.read().unwrap().clone()
+    pub fn realname(&self) -> Result<Option<String>> {
+        Ok(self.realname.read_lock("realname")?.clone())
     }
 
     /// Get the client's hostname.
-    pub fn hostname(&self) -> String {
-        self.hostname.read().unwrap().clone()
+    pub fn hostname(&self) -> Result<String> {
+        Ok(self.hostname.read_lock("hostname")?.clone())
     }
 
     /// Set the client's hostname.
-    pub fn set_hostname(&self, hostname: String) {
-        *self.hostname.write().unwrap() = hostname;
+    pub fn set_hostname(&self, hostname: String) -> Result<()> {
+        *self.hostname.write_lock("hostname")? = hostname;
+        Ok(())
     }
 
     /// Get the client's away message.
-    pub fn away_message(&self) -> Option<String> {
-        self.away.read().unwrap().clone()
+    pub fn away_message(&self) -> Result<Option<String>> {
+        Ok(self.away.read_lock("away")?.clone())
     }
 
     /// Set the client's away message.
-    pub fn set_away(&self, message: Option<String>) {
-        *self.away.write().unwrap() = message;
+    pub fn set_away(&self, message: Option<String>) -> Result<()> {
+        *self.away.write_lock("away")? = message;
+        Ok(())
     }
 
     /// Check if the client is away.
-    pub fn is_away(&self) -> bool {
-        self.away.read().unwrap().is_some()
+    pub fn is_away(&self) -> Result<bool> {
+        Ok(self.away.read_lock("away")?.is_some())
     }
 
     /// Set the connection password.
-    pub fn set_password(&self, password: String) {
-        *self.password.write().unwrap() = Some(password);
+    pub fn set_password(&self, password: String) -> Result<()> {
+        *self.password.write_lock("password")? = Some(password);
+        Ok(())
     }
 
     /// Get the connection password.
-    pub fn password(&self) -> Option<String> {
-        self.password.read().unwrap().clone()
+    pub fn password(&self) -> Result<Option<String>> {
+        Ok(self.password.read_lock("password")?.clone())
     }
 
     /// Get the client's prefix for outgoing messages.
-    pub fn prefix(&self) -> Prefix {
-        let nick = self.nickname().unwrap_or_else(|| "*".to_string());
-        let user = self.username().unwrap_or_else(|| "unknown".to_string());
-        let host = self.hostname();
-        Prefix::from_user(nick, user, host)
+    pub fn prefix(&self) -> Result<Prefix> {
+        let nick = self.nickname()?.unwrap_or_else(|| "*".to_string());
+        let user = self.username()?.unwrap_or_else(|| "unknown".to_string());
+        let host = self.hostname()?;
+        Ok(Prefix::from_user(nick, user, host))
     }
 
     /// Send a message to this client.
@@ -264,8 +274,8 @@ impl Client {
     }
 
     /// Send a numeric reply to this client.
-    pub fn send_numeric(&self, server_name: &str, code: u16, params: Vec<String>) -> bool {
-        let target = self.nickname().unwrap_or_else(|| "*".to_string());
+    pub fn send_numeric(&self, server_name: &str, code: u16, params: Vec<String>) -> Result<bool> {
+        let target = self.nickname()?.unwrap_or_else(|| "*".to_string());
         let msg = Message::with_prefix(
             Prefix::from_server(server_name),
             Command::Numeric {
@@ -274,6 +284,49 @@ impl Client {
                 params,
             },
         );
-        self.send(msg)
+        Ok(self.send(msg))
+    }
+
+    /// Add a channel to the client's channel list.
+    pub fn join_channel(&self, channel_name: &str) -> Result<()> {
+        let key = UniCase::new(channel_name.to_string());
+        self.channels.write_lock("channels")?.insert(key);
+        Ok(())
+    }
+
+    /// Remove a channel from the client's channel list.
+    pub fn leave_channel(&self, channel_name: &str) -> Result<()> {
+        let key = UniCase::new(channel_name.to_string());
+        self.channels.write_lock("channels")?.remove(&key);
+        Ok(())
+    }
+
+    /// Get the number of channels the client is in.
+    pub fn channel_count(&self) -> Result<usize> {
+        Ok(self.channels.read_lock("channels")?.len())
+    }
+
+    /// Check if the client is in a channel.
+    pub fn is_in_channel(&self, channel_name: &str) -> Result<bool> {
+        let key = UniCase::new(channel_name.to_string());
+        Ok(self.channels.read_lock("channels")?.contains(&key))
+    }
+
+    /// Get the client's hostmask (nick!user@host).
+    pub fn hostmask(&self) -> Result<String> {
+        let nick = self.nickname()?.unwrap_or_else(|| "*".to_string());
+        let user = self.username()?.unwrap_or_else(|| "unknown".to_string());
+        let host = self.hostname()?;
+        Ok(format!("{}!{}@{}", nick, user, host))
+    }
+
+    /// Get a copy of the channel names the client is in.
+    pub fn channel_names(&self) -> Result<Vec<String>> {
+        Ok(self
+            .channels
+            .read_lock("channels")?
+            .iter()
+            .map(|c| c.to_string())
+            .collect())
     }
 }

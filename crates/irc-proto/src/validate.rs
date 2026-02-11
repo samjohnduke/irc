@@ -42,7 +42,7 @@ pub fn validate_nickname_with_max(nick: &str, max_len: usize) -> Result<(), Vali
     let mut chars = nick.chars();
 
     // First character must be letter or special
-    let first = chars.next().unwrap();
+    let first = chars.next().expect("non-empty string guaranteed by check above");
     if !is_nick_start_char(first) {
         return Err(ValidationError::InvalidNicknameStart(first));
     }
@@ -115,7 +115,7 @@ pub fn validate_channel_with_max(channel: &str, max_len: usize) -> Result<(), Va
     let mut chars = channel.chars();
 
     // First character must be a valid prefix
-    let prefix = chars.next().unwrap();
+    let prefix = chars.next().expect("non-empty string guaranteed by check above");
     if !is_channel_prefix(prefix) {
         return Err(ValidationError::InvalidChannelPrefix(prefix));
     }

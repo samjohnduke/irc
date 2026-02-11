@@ -18,10 +18,15 @@ pub struct ReplyBuilder<'a> {
 
 impl<'a> ReplyBuilder<'a> {
     /// Create a new reply builder.
+    ///
+    /// Panics if the client's nickname lock is poisoned.
     pub fn new(server_name: &'a str, client: &Client) -> Self {
         Self {
             server_name,
-            target: client.nickname().unwrap_or_else(|| "*".to_string()),
+            target: client
+                .nickname()
+                .expect("nickname lock poisoned in reply builder")
+                .unwrap_or_else(|| "*".to_string()),
         }
     }
 
