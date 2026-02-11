@@ -874,7 +874,7 @@ pub fn handle_invite(ctx: &HandlerContext, nickname: &str, channel_name: &str) -
                     channel: channel_name.to_string(),
                 },
             );
-            target.send(invite_msg);
+            target.send(invite_msg)?;
 
             return Ok(());
         }
@@ -942,7 +942,7 @@ pub fn handle_invite(ctx: &HandlerContext, nickname: &str, channel_name: &str) -
             channel: channel_name.to_string(),
         },
     );
-    target.send(invite_msg);
+    target.send(invite_msg)?;
 
     // Check if target is away
     if let Some(away_msg) = target.away_message()? {

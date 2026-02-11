@@ -164,14 +164,23 @@ fn send_to_user(
     );
 
     // Send to target
-    if !target_client.send(msg) {
-        if send_errors {
-            ctx.reply(
-                ERR_NOSUCHNICK,
-                vec![target.to_string(), "No such nick/channel".into()],
-            )?;
+    match target_client.send(msg) {
+        Ok(true) => {}
+        Ok(false) => {
+            // Client disconnected
+            if send_errors {
+                ctx.reply(
+                    ERR_NOSUCHNICK,
+                    vec![target.to_string(), "No such nick/channel".into()],
+                )?;
+            }
+            return Err(Error::NoSuchNick(target.to_string()));
         }
-        return Err(Error::NoSuchNick(target.to_string()));
+        Err(e) => {
+            // Send buffer full - client too slow
+            tracing::debug!(target = %target, error = %e, "Failed to send message");
+            return Err(e);
+        }
     }
 
     tracing::debug!(

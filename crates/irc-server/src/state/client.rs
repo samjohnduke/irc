@@ -9,7 +9,7 @@ use irc_proto::{Command, Message, Prefix};
 use tokio::sync::mpsc;
 use unicase::UniCase;
 
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::lock::RwLockExt;
 
 /// Unique identifier for a connected client.
@@ -105,8 +105,8 @@ pub struct Client {
     /// Client's remote address.
     pub addr: SocketAddr,
 
-    /// Channel for sending messages to this client.
-    pub sender: mpsc::UnboundedSender<Message>,
+    /// Channel for sending messages to this client (bounded to prevent backpressure).
+    pub sender: mpsc::Sender<Message>,
 
     /// Registration phase.
     registration: RwLock<RegistrationPhase>,
@@ -147,7 +147,7 @@ impl Client {
     pub fn new(
         id: ClientId,
         addr: SocketAddr,
-        sender: mpsc::UnboundedSender<Message>,
+        sender: mpsc::Sender<Message>,
         tls: bool,
     ) -> Self {
         let hostname = addr.ip().to_string();
@@ -268,9 +268,14 @@ impl Client {
 
     /// Send a message to this client.
     ///
-    /// Returns `true` if successful, `false` if the channel is closed.
-    pub fn send(&self, message: Message) -> bool {
-        self.sender.send(message).is_ok()
+    /// Returns `Ok(true)` if successful, `Ok(false)` if the channel is closed,
+    /// or `Err(SendBufferFull)` if the send buffer is full (client too slow).
+    pub fn send(&self, message: Message) -> Result<bool> {
+        match self.sender.try_send(message) {
+            Ok(()) => Ok(true),
+            Err(mpsc::error::TrySendError::Full(_)) => Err(Error::SendBufferFull),
+            Err(mpsc::error::TrySendError::Closed(_)) => Ok(false),
+        }
     }
 
     /// Send a numeric reply to this client.
@@ -284,7 +289,7 @@ impl Client {
                 params,
             },
         );
-        Ok(self.send(msg))
+        self.send(msg)
     }
 
     /// Add a channel to the client's channel list.

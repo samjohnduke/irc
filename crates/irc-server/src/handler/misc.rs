@@ -17,7 +17,7 @@ pub fn handle_ping(ctx: &HandlerContext, server1: &str, _server2: Option<&str>) 
             server2: Some(server1.to_string()),
         },
     );
-    ctx.client.send(pong);
+    ctx.client.send(pong)?;
 
     Ok(())
 }

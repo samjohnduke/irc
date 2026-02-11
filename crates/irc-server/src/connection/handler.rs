@@ -28,8 +28,9 @@ where
     let client_id = state.next_client_id();
     tracing::info!(%client_id, %addr, tls, "New connection");
 
-    // Create channel for outgoing messages
-    let (tx, rx) = mpsc::unbounded_channel::<Message>();
+    // Create bounded channel for outgoing messages (prevents backpressure from slow clients)
+    let buffer_size = state.config.limits.send_buffer_size;
+    let (tx, rx) = mpsc::channel::<Message>(buffer_size);
 
     // Create client
     let client = Arc::new(Client::new(client_id, addr, tx, tls));
@@ -91,7 +92,7 @@ where
 
 /// Write loop - sends messages to the client.
 async fn write_loop<S>(
-    mut rx: mpsc::UnboundedReceiver<Message>,
+    mut rx: mpsc::Receiver<Message>,
     mut writer: futures::stream::SplitSink<Framed<S, MessageCodec>, Message>,
 ) where
     S: AsyncRead + AsyncWrite + Unpin,

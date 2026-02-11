@@ -1,0 +1,36 @@
+---
+interface Props {
+  headings: { depth: number; slug: string; text: string }[];
+}
+
+const { headings } = Astro.props;
+const filtered = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+---
+
+{filtered.length > 0 && (
+  <nav>
+    <h4 class="mb-4 font-mono text-[11px] uppercase tracking-[0.15em] text-gray-600">
+      On this page
+    </h4>
+    <ul class="relative space-y-1">
+      {/* Vertical guide line */}
+      <div class="absolute left-0 top-0 bottom-0 w-px bg-border-dim"></div>
+
+      {filtered.map((heading) => (
+        <li>
+          <a
+            href={`#${heading.slug}`}
+            class:list={[
+              "relative block py-1 text-[13px] leading-snug text-gray-600 transition-colors duration-200 hover:text-gray-300",
+              heading.depth === 2 ? "pl-3.5" : "pl-7",
+            ]}
+          >
+            {/* Hover indicator dot */}
+            <span class="absolute left-[-2px] top-1/2 h-1 w-1 -translate-y-1/2 rounded-full bg-cyan-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100"></span>
+            {heading.text}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}

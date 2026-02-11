@@ -1,0 +1,44 @@
+---
+const command = "curl -sSf https://irc.example.com/install.sh | sh";
+---
+
+<div class="group relative overflow-hidden rounded-xl border border-border-dim bg-surface transition-all duration-300 hover:border-border">
+  <!-- Subtle glow on hover -->
+  <div class="absolute inset-0 bg-gradient-to-r from-cyan-500/[0.02] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+
+  <div class="relative flex items-center justify-between gap-4 px-5 py-4">
+    <div class="flex items-center gap-3 min-w-0">
+      <span class="flex-shrink-0 font-mono text-sm text-cyan-600">$</span>
+      <code class="font-mono text-sm text-gray-300 truncate">{command}</code>
+    </div>
+    <button
+      data-copy={command}
+      class="flex-shrink-0 flex items-center gap-1.5 rounded-lg border border-border-dim bg-surface-raised px-3 py-1.5 font-mono text-xs text-gray-500 transition-all duration-200 hover:border-border hover:text-gray-300 hover:bg-white/5"
+      aria-label="Copy to clipboard"
+    >
+      <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="5" y="5" width="8" height="8" rx="1.5" />
+        <path d="M3 11V3h8" />
+      </svg>
+      <span class="copy-text">Copy</span>
+    </button>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const text = btn.dataset.copy;
+      if (text) {
+        await navigator.clipboard.writeText(text);
+        const textEl = btn.querySelector(".copy-text");
+        if (textEl) textEl.textContent = "Copied!";
+        btn.classList.add("!text-cyan-400", "!border-cyan-500/30");
+        setTimeout(() => {
+          if (textEl) textEl.textContent = "Copy";
+          btn.classList.remove("!text-cyan-400", "!border-cyan-500/30");
+        }, 2000);
+      }
+    });
+  });
+</script>

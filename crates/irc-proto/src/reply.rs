@@ -151,6 +151,42 @@ pub mod reply {
     /// You are now an operator
     pub const RPL_YOUREOPER: u16 = 381;
 
+    // === Server Info ===
+
+    /// Server version
+    pub const RPL_VERSION: u16 = 351;
+    /// Server time
+    pub const RPL_TIME: u16 = 391;
+
+    // === STATS ===
+
+    /// Stats link info
+    pub const RPL_STATSLINKINFO: u16 = 211;
+    /// Stats commands
+    pub const RPL_STATSCOMMANDS: u16 = 212;
+    /// Stats uptime
+    pub const RPL_STATSUPTIME: u16 = 242;
+    /// End of STATS
+    pub const RPL_ENDOFSTATS: u16 = 219;
+
+    // === ADMIN ===
+
+    /// Admin server info
+    pub const RPL_ADMINME: u16 = 256;
+    /// Admin location 1
+    pub const RPL_ADMINLOC1: u16 = 257;
+    /// Admin location 2
+    pub const RPL_ADMINLOC2: u16 = 258;
+    /// Admin email
+    pub const RPL_ADMINEMAIL: u16 = 259;
+
+    // === INFO ===
+
+    /// Info line
+    pub const RPL_INFO: u16 = 371;
+    /// End of INFO
+    pub const RPL_ENDOFINFO: u16 = 374;
+
     // === SASL ===
 
     /// Logged in

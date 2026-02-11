@@ -1,11 +1,12 @@
 //! Registration command handlers (PASS, NICK, USER, QUIT).
 
+use chrono::Utc;
 use irc_proto::{errors::*, Command, Message};
 
 use super::HandlerContext;
 use crate::error::{Error, Result};
 use crate::reply::send_welcome_burst;
-use crate::state::RegistrationPhase;
+use crate::state::{RegistrationPhase, WhowasEntry};
 
 /// Handle PASS command.
 ///
@@ -95,7 +96,7 @@ pub fn handle_nick(ctx: &HandlerContext, nickname: &str) -> Result<()> {
                     nickname: nickname.to_string(),
                 },
             );
-            ctx.client.send(msg);
+            ctx.client.send(msg)?;
 
             tracing::info!(
                 client_id = %ctx.client.id,
@@ -165,6 +166,27 @@ pub fn handle_quit(ctx: &HandlerContext, message: Option<&str>) -> Result<()> {
         "Client quit"
     );
 
+    // Record WHOWAS entry for registered clients
+    if ctx.client.is_registered()? {
+        if let (Some(nick), Some(user), Some(realname)) = (
+            ctx.client.nickname()?,
+            ctx.client.username()?,
+            ctx.client.realname()?,
+        ) {
+            let entry = WhowasEntry {
+                nickname: nick,
+                username: user,
+                hostname: ctx.client.hostname()?,
+                realname,
+                quit_time: Utc::now(),
+                server: ctx.state.config.server_name.clone(),
+            };
+            if let Err(e) = ctx.state.record_whowas(entry) {
+                tracing::warn!(error = %e, "Failed to record WHOWAS entry");
+            }
+        }
+    }
+
     // Broadcast QUIT to all users sharing channels with this client
     let quit_broadcast = Message::with_prefix(
         ctx.client.prefix()?,
@@ -177,7 +199,10 @@ pub fn handle_quit(ctx: &HandlerContext, message: Option<&str>) -> Result<()> {
     let common_members = ctx.state.get_common_channel_members(ctx.client.id)?;
     for member_id in common_members {
         if let Some(member) = ctx.state.clients.get(&member_id) {
-            member.send(quit_broadcast.clone());
+            // Log but continue if send fails - don't let one slow client block others
+            if let Err(e) = member.send(quit_broadcast.clone()) {
+                tracing::debug!(member_id = %member_id, error = %e, "Failed to send QUIT broadcast");
+            }
         }
     }
 
@@ -189,7 +214,8 @@ pub fn handle_quit(ctx: &HandlerContext, message: Option<&str>) -> Result<()> {
         command: "ERROR".into(),
         params: vec![format!("Closing Link: {} ({})", ctx.client.hostname()?, quit_msg)],
     });
-    ctx.client.send(error_msg);
+    // Ignore send errors - client is quitting anyway
+    let _ = ctx.client.send(error_msg);
 
     // The connection handler will clean up when the client disconnects
     // We signal disconnection by returning an error

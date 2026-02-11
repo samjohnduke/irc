@@ -1,0 +1,73 @@
+---
+title: CLI Usage
+description: Connect to IRC servers using the terminal client.
+order: 5
+section: Clients
+---
+
+## Connecting
+
+Connect to a server:
+
+```sh
+irc --server irc.example.com --port 6697 --tls --nick mynick
+```
+
+Or with shorter flags:
+
+```sh
+irc -s irc.example.com -p 6697 -t -n mynick
+```
+
+## Commands
+
+Once connected, use standard IRC commands:
+
+```
+/join #channel          Join a channel
+/part #channel          Leave a channel
+/msg user Hello!        Send a private message
+/nick newnick           Change your nickname
+/topic #channel New topic   Set channel topic
+/quit                   Disconnect
+```
+
+## Channel Operations
+
+```
+/mode #channel +o user       Grant operator status
+/mode #channel +b user!*@*   Ban a user
+/kick #channel user reason   Kick a user
+/invite user #channel        Invite a user
+/names #channel              List channel members
+```
+
+## Key Bindings
+
+| Key | Action |
+|---|---|
+| `Tab` | Autocomplete nicks and channels |
+| `Up`/`Down` | Scroll through command history |
+| `PgUp`/`PgDown` | Scroll buffer |
+| `Ctrl+C` | Quit |
+
+## Configuration
+
+The CLI client can also be configured via a TOML file at `~/.config/irc/client.toml`:
+
+```toml
+[server]
+address = "irc.example.com"
+port = 6697
+tls = true
+
+[user]
+nick = "mynick"
+realname = "My Name"
+```
+
+When a config file is present, just run:
+
+```sh
+irc
+```

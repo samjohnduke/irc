@@ -1,0 +1,235 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://fonts.gstatic.com/s/instrumentserif/v4/jizBRFtNs2ka5fCjSE3wOGBx.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://fonts.gstatic.com/s/instrumentserif/v4/jizHRFtNs2ka5fCjSE3wOGBx1lg.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://fonts.gstatic.com/s/jetbrainsmono/v18/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxjPVmUsaaDhw.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("https://fonts.gstatic.com/s/jetbrainsmono/v18/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxjPVmUsaaDhw.woff2") format("woff2");
+}
+
+@theme {
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-cyan-50: #ecfeff;
+  --color-cyan-100: #cffafe;
+  --color-cyan-200: #a5f3fc;
+  --color-cyan-300: #67e8f9;
+  --color-cyan-400: #22d3ee;
+  --color-cyan-500: #06b6d4;
+  --color-cyan-600: #0891b2;
+  --color-cyan-700: #0e7490;
+  --color-cyan-800: #155e75;
+  --color-cyan-900: #164e63;
+  --color-cyan-950: #083344;
+
+  --color-gray-850: #1a1d23;
+  --color-gray-900: #111318;
+  --color-gray-950: #0a0b0e;
+
+  --color-surface: #0d0f12;
+  --color-surface-raised: #141619;
+  --color-border-dim: #1e2028;
+  --color-border: #282a33;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-gray-950 text-gray-100 antialiased;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+::selection {
+  @apply bg-cyan-500/30;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { @apply w-1.5; }
+::-webkit-scrollbar-track { @apply bg-transparent; }
+::-webkit-scrollbar-thumb { @apply bg-gray-700/50 rounded-full; }
+
+/* ===== GRID BACKGROUND ===== */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+.grid-bg-dense {
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ===== NOISE TEXTURE ===== */
+.noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* ===== SCAN LINES ===== */
+.scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.08) 2px,
+    rgba(0, 0, 0, 0.08) 4px
+  );
+}
+
+/* ===== GLOW EFFECTS ===== */
+.glow-border {
+  position: relative;
+}
+.glow-border::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.15), transparent 40%, transparent 60%, rgba(34, 211, 238, 0.08));
+  opacity: 0;
+  transition: opacity 0.4s var(--ease-out-expo);
+}
+.glow-border:hover::before {
+  opacity: 1;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes terminal-type {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.8s var(--ease-out-expo) both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease both;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 4s ease-in-out infinite;
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* Stagger children */
+.stagger > :nth-child(1) { animation-delay: 0ms; }
+.stagger > :nth-child(2) { animation-delay: 80ms; }
+.stagger > :nth-child(3) { animation-delay: 160ms; }
+.stagger > :nth-child(4) { animation-delay: 240ms; }
+.stagger > :nth-child(5) { animation-delay: 320ms; }
+.stagger > :nth-child(6) { animation-delay: 400ms; }
+
+/* ===== PROSE OVERRIDES ===== */
+.prose {
+  --tw-prose-body: theme(--color-gray-300);
+  --tw-prose-headings: theme(--color-gray-100);
+  --tw-prose-links: theme(--color-cyan-400);
+  --tw-prose-bold: theme(--color-gray-100);
+  --tw-prose-code: theme(--color-cyan-300);
+  --tw-prose-pre-bg: theme(--color-gray-900);
+  --tw-prose-pre-code: theme(--color-gray-300);
+  --tw-prose-counters: theme(--color-gray-400);
+  --tw-prose-bullets: theme(--color-gray-500);
+  --tw-prose-hr: theme(--color-gray-800);
+  --tw-prose-quotes: theme(--color-gray-300);
+  --tw-prose-quote-borders: theme(--color-cyan-700);
+  --tw-prose-th-borders: theme(--color-gray-700);
+  --tw-prose-td-borders: theme(--color-gray-800);
+}
+
+.prose :where(code):not(:where(pre *)) {
+  @apply bg-gray-800/50 px-1.5 py-0.5 rounded text-sm font-normal before:content-none after:content-none;
+}
+
+.prose :where(a) {
+  @apply underline decoration-cyan-400/30 underline-offset-2 transition-colors hover:text-cyan-300 hover:decoration-cyan-300/50;
+}

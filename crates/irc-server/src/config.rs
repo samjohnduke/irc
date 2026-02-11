@@ -28,6 +28,10 @@ pub struct ServerConfig {
     /// Operator accounts
     #[serde(default)]
     pub operators: Vec<OperConfig>,
+
+    /// Admin information
+    #[serde(default)]
+    pub admin: AdminConfig,
 }
 
 /// Listener configuration.
@@ -88,6 +92,10 @@ pub struct LimitsConfig {
     /// Maximum channels a user can join
     #[serde(default = "default_max_channels")]
     pub max_channels: usize,
+
+    /// Size of per-client send buffer (messages)
+    #[serde(default = "default_send_buffer_size")]
+    pub send_buffer_size: usize,
 }
 
 fn default_max_clients() -> usize {
@@ -118,6 +126,10 @@ fn default_max_channels() -> usize {
     25
 }
 
+fn default_send_buffer_size() -> usize {
+    512
+}
+
 impl Default for LimitsConfig {
     fn default() -> Self {
         Self {
@@ -130,6 +142,7 @@ impl Default for LimitsConfig {
             max_kick_length: default_max_kick_length(),
             max_away_length: default_max_away_length(),
             max_channels: default_max_channels(),
+            send_buffer_size: default_send_buffer_size(),
         }
     }
 }
@@ -148,6 +161,19 @@ pub struct OperConfig {
     pub host_mask: Option<String>,
 }
 
+/// Admin information configuration.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct AdminConfig {
+    /// Location line 1 (e.g., organization name)
+    pub location1: Option<String>,
+
+    /// Location line 2 (e.g., city, country)
+    pub location2: Option<String>,
+
+    /// Admin email address
+    pub email: Option<String>,
+}
+
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
@@ -162,6 +188,7 @@ impl Default for ServerConfig {
             motd_file: None,
             limits: LimitsConfig::default(),
             operators: Vec::new(),
+            admin: AdminConfig::default(),
         }
     }
 }

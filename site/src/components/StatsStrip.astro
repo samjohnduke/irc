@@ -1,0 +1,21 @@
+---
+const stats = [
+  { value: "RFC 2812", label: "Protocol Compliance" },
+  { value: "<1ms", label: "Message Latency" },
+  { value: "10k+", label: "Concurrent Connections" },
+  { value: "~5MB", label: "Binary Size" },
+];
+---
+
+<section class="relative border-y border-border-dim py-16">
+  <div class="mx-auto max-w-7xl px-6">
+    <div class="grid grid-cols-2 gap-8 lg:grid-cols-4">
+      {stats.map(({ value, label }) => (
+        <div class="text-center">
+          <div class="font-mono text-2xl font-bold text-white sm:text-3xl">{value}</div>
+          <div class="mt-1.5 text-xs uppercase tracking-widest text-gray-600">{label}</div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

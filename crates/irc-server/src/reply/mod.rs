@@ -43,8 +43,16 @@ impl<'a> ReplyBuilder<'a> {
     }
 
     /// Build and send a numeric reply.
+    ///
+    /// Logs but continues on failure (used in welcome burst where we can't easily propagate errors).
     pub fn send(&self, client: &Client, code: u16, params: Vec<String>) {
-        client.send(self.numeric(code, params));
+        if let Err(e) = client.send(self.numeric(code, params)) {
+            tracing::debug!(
+                code = code,
+                error = %e,
+                "Failed to send numeric reply"
+            );
+        }
     }
 }
 

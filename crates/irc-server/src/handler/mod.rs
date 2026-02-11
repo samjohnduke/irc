@@ -5,7 +5,10 @@
 mod channel;
 mod messaging;
 mod misc;
+mod oper;
+mod query;
 mod registration;
+mod server;
 
 use std::sync::Arc;
 
@@ -21,7 +24,10 @@ pub use channel::{
 };
 pub use messaging::{handle_notice, handle_privmsg};
 pub use misc::{handle_away, handle_ping, handle_pong};
+pub use oper::{handle_kill, handle_oper, handle_wallops};
+pub use query::{handle_who, handle_whois, handle_whowas};
 pub use registration::{handle_nick, handle_pass, handle_quit, handle_user};
+pub use server::{handle_admin, handle_info, handle_lusers, handle_motd, handle_stats, handle_time, handle_version};
 
 /// Context for command handlers.
 pub struct HandlerContext<'a> {
@@ -74,9 +80,10 @@ impl<'a> HandlerContext<'a> {
     }
 
     /// Send a message from the server to the client.
-    pub fn send_server_message(&self, command: Command) {
+    pub fn send_server_message(&self, command: Command) -> Result<()> {
         let msg = Message::with_prefix(self.server_prefix(), command);
-        self.client.send(msg);
+        self.client.send(msg)?;
+        Ok(())
     }
 }
 
@@ -134,26 +141,28 @@ pub async fn handle_message(
                     handle_invite(&ctx, nickname, channel)
                 }
 
-                // Phase 3: Query commands
-                Command::Who { .. }
-                | Command::Whois { .. }
-                | Command::Whowas { .. }
-                | Command::Motd { .. }
-                | Command::Lusers { .. }
-                | Command::Version { .. }
-                | Command::Time { .. }
-                | Command::Admin { .. }
-                | Command::Info { .. } => {
-                    // Stub for Phase 3
-                    ctx.reply(
-                        irc_proto::errors::ERR_UNKNOWNCOMMAND,
-                        vec![
-                            message.command.name().to_string(),
-                            "Query commands not yet implemented".into(),
-                        ],
-                    )?;
-                    Ok(())
+                // Server query commands
+                Command::Motd { .. } => handle_motd(&ctx),
+                Command::Lusers { .. } => handle_lusers(&ctx),
+                Command::Version { .. } => handle_version(&ctx),
+                Command::Time { .. } => handle_time(&ctx),
+                Command::Admin { .. } => handle_admin(&ctx),
+                Command::Info { .. } => handle_info(&ctx),
+                Command::Stats { query, .. } => handle_stats(&ctx, *query),
+
+                // User query commands
+                Command::Who { mask, operators_only } => {
+                    handle_who(&ctx, mask, *operators_only)
                 }
+                Command::Whois { nicknames, .. } => handle_whois(&ctx, nicknames),
+                Command::Whowas { nickname, count, .. } => {
+                    handle_whowas(&ctx, nickname, *count)
+                }
+
+                // Operator commands
+                Command::Oper { name, password } => handle_oper(&ctx, name, password),
+                Command::Kill { nickname, comment } => handle_kill(&ctx, nickname, comment),
+                Command::Wallops { message: wallops_msg } => handle_wallops(&ctx, wallops_msg),
 
                 Command::Mode { target, modes, params } => {
                     if is_channel(target) {
@@ -236,14 +245,14 @@ fn handle_cap(ctx: &HandlerContext, subcommand: &str, _params: &[String]) -> Res
             ctx.send_server_message(Command::Cap {
                 subcommand: "LS".into(),
                 params: vec!["".into()],
-            });
+            })?;
         }
         "REQ" => {
             // Reject all capability requests for now
             ctx.send_server_message(Command::Cap {
                 subcommand: "NAK".into(),
                 params: vec!["".into()],
-            });
+            })?;
         }
         "END" => {
             // Client finished capability negotiation

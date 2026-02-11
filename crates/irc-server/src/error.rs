@@ -106,6 +106,22 @@ pub enum Error {
     /// Lock was poisoned (another thread panicked while holding it)
     #[error("Internal state lock poisoned: {0}")]
     LockPoisoned(String),
+
+    /// Client send buffer is full (client too slow)
+    #[error("Client send buffer full")]
+    SendBufferFull,
+
+    /// No operator privileges
+    #[error("Permission Denied- You're not an IRC operator")]
+    NoPrivileges,
+
+    /// Password mismatch (OPER command)
+    #[error("Password incorrect")]
+    PasswordMismatch,
+
+    /// No operator host (host mask doesn't match)
+    #[error("No O-lines for your host")]
+    NoOperHost,
 }
 
 impl Error {
@@ -132,6 +148,9 @@ impl Error {
             Error::UserNotInChannel(_, _) => Some(ERR_USERNOTINCHANNEL),
             Error::UserOnChannel(_, _) => Some(ERR_USERONCHANNEL),
             Error::InvalidChannel(_) => Some(ERR_NOSUCHCHANNEL),
+            Error::NoPrivileges => Some(ERR_NOPRIVILEGES),
+            Error::PasswordMismatch => Some(ERR_PASSWDMISMATCH),
+            Error::NoOperHost => Some(ERR_NOOPERHOST),
             _ => None,
         }
     }

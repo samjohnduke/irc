@@ -1,0 +1,50 @@
+---
+import DownloadButton from "./DownloadButton.astro";
+import InstallCommand from "./InstallCommand.astro";
+
+const platforms = [
+  { label: "Linux x86_64", asset: "irc-server-linux-x86_64" },
+  { label: "Linux aarch64", asset: "irc-server-linux-aarch64" },
+  { label: "macOS x86_64", asset: "irc-server-darwin-x86_64" },
+  { label: "macOS aarch64", asset: "irc-server-darwin-aarch64" },
+  { label: "Windows x86_64", asset: "irc-server-windows-x86_64.exe" },
+];
+---
+
+<section class="relative py-32 grid-bg noise">
+  <!-- Section divider -->
+  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-px h-24 bg-gradient-to-b from-transparent via-border to-transparent"></div>
+
+  <div class="relative mx-auto max-w-7xl px-6">
+    <div class="mx-auto max-w-2xl text-center">
+      <p class="font-mono text-xs uppercase tracking-[0.2em] text-cyan-500">Install</p>
+      <h2 class="mt-4 font-display text-4xl tracking-tight text-white sm:text-5xl">
+        Up and running<br />in seconds
+      </h2>
+      <p class="mt-4 text-gray-500">
+        One command. All three binaries. Every platform.
+      </p>
+    </div>
+
+    <!-- Install command -->
+    <div class="mx-auto mt-12 max-w-xl">
+      <InstallCommand />
+    </div>
+
+    <!-- Platform downloads -->
+    <div class="mx-auto mt-16 max-w-2xl">
+      <div class="flex items-center gap-4 mb-6">
+        <div class="h-px flex-1 bg-border-dim"></div>
+        <span class="font-mono text-[11px] uppercase tracking-widest text-gray-600">or download directly</span>
+        <div class="h-px flex-1 bg-border-dim"></div>
+      </div>
+      <div class="flex flex-wrap justify-center gap-3">
+        {platforms.map((p) => <DownloadButton {...p} />)}
+      </div>
+    </div>
+
+    <p class="mt-10 text-center text-sm text-gray-600">
+      All binaries on the <a href="https://github.com/example/irc/releases" class="text-cyan-500/70 transition-colors hover:text-cyan-400 underline decoration-cyan-500/20 underline-offset-2">releases page</a>
+    </p>
+  </div>
+</section>

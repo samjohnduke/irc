@@ -1,0 +1,52 @@
+---
+const navLinks = [
+  { label: "Guide", href: "/guide/" },
+  { label: "GitHub", href: "https://github.com/example/irc", external: true },
+];
+
+const currentPath = Astro.url.pathname;
+---
+
+<header class="fixed top-0 left-0 right-0 z-50">
+  <div class="mx-auto max-w-7xl px-6 pt-5">
+    <nav class="flex h-14 items-center justify-between rounded-full border border-border-dim bg-gray-950/70 px-6 backdrop-blur-xl">
+      <a href="/" class="flex items-center gap-2.5 group">
+        <div class="flex h-7 w-7 items-center justify-center rounded-md bg-cyan-500/10 border border-cyan-500/20 transition-colors group-hover:bg-cyan-500/20">
+          <span class="font-mono text-xs font-bold text-cyan-400">&gt;_</span>
+        </div>
+        <span class="font-display text-xl text-white tracking-tight">irc</span>
+      </a>
+      <div class="flex items-center gap-1">
+        <a
+          href="/guide/"
+          class:list={[
+            "rounded-full px-4 py-1.5 text-sm transition-all duration-300",
+            currentPath.startsWith("/guide/")
+              ? "bg-white/10 text-white"
+              : "text-gray-400 hover:text-white hover:bg-white/5",
+          ]}
+        >
+          Guide
+        </a>
+        <a
+          href="https://github.com/example/irc"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="rounded-full px-4 py-1.5 text-sm text-gray-400 transition-all duration-300 hover:text-white hover:bg-white/5"
+        >
+          GitHub
+          <svg class="ml-1 inline-block h-3 w-3 opacity-50" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3.5 3.5h5v5" /><path d="M8.5 3.5L3 9" />
+          </svg>
+        </a>
+        <div class="mx-2 h-4 w-px bg-border"></div>
+        <a
+          href="/guide/getting-started/"
+          class="rounded-full bg-cyan-500 px-4 py-1.5 text-sm font-medium text-gray-950 transition-all duration-300 hover:bg-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]"
+        >
+          Get Started
+        </a>
+      </div>
+    </nav>
+  </div>
+</header>

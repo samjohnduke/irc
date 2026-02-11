@@ -3,6 +3,7 @@
 mod common;
 
 use irc_proto::{errors, replies, Command};
+use irc_server::ServerConfig;
 
 use common::{TestClient, TestServer};
 
@@ -932,5 +933,379 @@ async fn test_quit_broadcasts_to_channels() {
             }
             _ => panic!("Expected QUIT, got {:?}", msg.command),
         }
+    }
+}
+
+// ============================================================
+// Phase 3: Server query tests
+// ============================================================
+
+#[tokio::test]
+async fn test_motd_command() {
+    let server = TestServer::start().await;
+    let mut client = TestClient::connect(server.addr()).await;
+
+    client.register("alice", "alice", "Alice").await;
+    client.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    // Request MOTD explicitly
+    client.motd().await;
+
+    // Should get ERR_NOMOTD (no motd file configured)
+    if let Some(msg) = client.recv().await {
+        assert!(
+            matches!(&msg.command, Command::Numeric { code, .. } if *code == errors::ERR_NOMOTD),
+            "Should get no MOTD error, got {:?}",
+            msg.command
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_lusers_command() {
+    let server = TestServer::start().await;
+    let mut client = TestClient::connect(server.addr()).await;
+
+    client.register("alice", "alice", "Alice").await;
+    client.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    // Request LUSERS
+    client.lusers().await;
+
+    // Should get LUSERCLIENT (251)
+    let msgs = client.recv_until_numeric(replies::RPL_GLOBALUSERS).await;
+    assert!(
+        msgs.iter().any(|m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_LUSERCLIENT)),
+        "Should get LUSERCLIENT"
+    );
+}
+
+#[tokio::test]
+async fn test_version_command() {
+    let server = TestServer::start().await;
+    let mut client = TestClient::connect(server.addr()).await;
+
+    client.register("alice", "alice", "Alice").await;
+    client.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    // Request VERSION
+    client.version().await;
+
+    // Should get RPL_VERSION (351)
+    if let Some(msg) = client.recv().await {
+        assert!(
+            matches!(&msg.command, Command::Numeric { code, params, .. } if *code == replies::RPL_VERSION && params.iter().any(|p| p.contains("irc-server"))),
+            "Should get version reply, got {:?}",
+            msg.command
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_time_command() {
+    let server = TestServer::start().await;
+    let mut client = TestClient::connect(server.addr()).await;
+
+    client.register("alice", "alice", "Alice").await;
+    client.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    // Request TIME
+    client.time().await;
+
+    // Should get RPL_TIME (391)
+    if let Some(msg) = client.recv().await {
+        assert!(
+            matches!(&msg.command, Command::Numeric { code, .. } if *code == replies::RPL_TIME),
+            "Should get time reply, got {:?}",
+            msg.command
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_admin_no_config() {
+    let server = TestServer::start().await;
+    let mut client = TestClient::connect(server.addr()).await;
+
+    client.register("alice", "alice", "Alice").await;
+    client.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    // Request ADMIN (no admin configured)
+    client.admin().await;
+
+    // Should get ERR_NOADMININFO (423)
+    if let Some(msg) = client.recv().await {
+        assert!(
+            matches!(&msg.command, Command::Numeric { code, .. } if *code == errors::ERR_NOADMININFO),
+            "Should get no admin info error, got {:?}",
+            msg.command
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_info_command() {
+    let server = TestServer::start().await;
+    let mut client = TestClient::connect(server.addr()).await;
+
+    client.register("alice", "alice", "Alice").await;
+    client.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    // Request INFO
+    client.info().await;
+
+    // Should get RPL_INFO (371) lines ending with RPL_ENDOFINFO (374)
+    let msgs = client.recv_until_numeric(replies::RPL_ENDOFINFO).await;
+    assert!(
+        msgs.iter().any(|m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_INFO)),
+        "Should have INFO lines"
+    );
+    assert!(
+        msgs.iter().any(|m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_ENDOFINFO)),
+        "Should end with ENDOFINFO"
+    );
+}
+
+#[tokio::test]
+async fn test_stats_uptime() {
+    let server = TestServer::start().await;
+    let mut client = TestClient::connect(server.addr()).await;
+
+    client.register("alice", "alice", "Alice").await;
+    client.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    // Request STATS u (uptime)
+    client.stats(Some('u')).await;
+
+    // Should get RPL_STATSUPTIME (242) and RPL_ENDOFSTATS (219)
+    let msgs = client.recv_until_numeric(replies::RPL_ENDOFSTATS).await;
+    assert!(
+        msgs.iter().any(|m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_STATSUPTIME)),
+        "Should have uptime stats"
+    );
+}
+
+// ============================================================
+// Phase 3: User query tests
+// ============================================================
+
+#[tokio::test]
+async fn test_who_channel() {
+    let server = TestServer::start().await;
+
+    let mut alice = TestClient::connect(server.addr()).await;
+    alice.register("alice", "alice", "Alice User").await;
+    alice.recv_until_numeric(errors::ERR_NOMOTD).await;
+    alice.join("#test").await;
+    alice.recv_until_numeric(replies::RPL_ENDOFNAMES).await;
+
+    let mut bob = TestClient::connect(server.addr()).await;
+    bob.register("bob", "bob", "Bob User").await;
+    bob.recv_until_numeric(errors::ERR_NOMOTD).await;
+    bob.join("#test").await;
+    bob.recv_until_numeric(replies::RPL_ENDOFNAMES).await;
+    alice.recv().await; // Bob's JOIN
+
+    // Request WHO #test
+    alice.who("#test").await;
+
+    // Should get RPL_WHOREPLY (352) for each user, ending with RPL_ENDOFWHO (315)
+    let msgs = alice.recv_until_numeric(replies::RPL_ENDOFWHO).await;
+    let who_replies: Vec<_> = msgs
+        .iter()
+        .filter(|m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_WHOREPLY))
+        .collect();
+
+    assert!(who_replies.len() >= 2, "Should have WHO replies for both users");
+}
+
+#[tokio::test]
+async fn test_whois_user() {
+    let server = TestServer::start().await;
+
+    let mut alice = TestClient::connect(server.addr()).await;
+    alice.register("alice", "alice", "Alice User").await;
+    alice.recv_until_numeric(errors::ERR_NOMOTD).await;
+    alice.join("#test").await;
+    alice.recv_until_numeric(replies::RPL_ENDOFNAMES).await;
+
+    let mut bob = TestClient::connect(server.addr()).await;
+    bob.register("bob", "bob", "Bob User").await;
+    bob.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    // Bob does WHOIS on alice
+    bob.whois(&["alice"]).await;
+
+    // Should get WHOIS replies
+    let msgs = bob.recv_until_numeric(replies::RPL_ENDOFWHOIS).await;
+
+    // Check for RPL_WHOISUSER (311)
+    assert!(
+        msgs.iter().any(|m| matches!(
+            &m.command,
+            Command::Numeric { code, params, .. } if *code == replies::RPL_WHOISUSER && params.iter().any(|p| p.contains("alice"))
+        )),
+        "Should have WHOISUSER"
+    );
+
+    // Check for RPL_WHOISCHANNELS (319) - alice is in #test
+    assert!(
+        msgs.iter().any(|m| matches!(
+            &m.command,
+            Command::Numeric { code, params, .. } if *code == replies::RPL_WHOISCHANNELS && params.iter().any(|p| p.contains("#test"))
+        )),
+        "Should have WHOISCHANNELS with #test"
+    );
+}
+
+#[tokio::test]
+async fn test_whois_no_such_nick() {
+    let server = TestServer::start().await;
+    let mut client = TestClient::connect(server.addr()).await;
+
+    client.register("alice", "alice", "Alice").await;
+    client.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    // WHOIS non-existent user
+    client.whois(&["nobody"]).await;
+
+    // Should get ERR_NOSUCHNICK (401)
+    if let Some(msg) = client.recv().await {
+        assert!(
+            matches!(&msg.command, Command::Numeric { code, .. } if *code == errors::ERR_NOSUCHNICK),
+            "Should get no such nick, got {:?}",
+            msg.command
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_whowas_not_found() {
+    let server = TestServer::start().await;
+    let mut client = TestClient::connect(server.addr()).await;
+
+    client.register("alice", "alice", "Alice").await;
+    client.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    // WHOWAS for someone who never existed
+    client.whowas("nobody", None).await;
+
+    // Should get ERR_WASNOSUCHNICK (406) and RPL_ENDOFWHOWAS (369)
+    let msgs = client.recv_until_numeric(replies::RPL_ENDOFWHOWAS).await;
+    assert!(
+        msgs.iter().any(|m| matches!(&m.command, Command::Numeric { code, .. } if *code == errors::ERR_WASNOSUCHNICK)),
+        "Should get was no such nick"
+    );
+}
+
+#[tokio::test]
+async fn test_whowas_after_quit() {
+    let server = TestServer::start().await;
+
+    // Bob connects and quits
+    let mut bob = TestClient::connect(server.addr()).await;
+    bob.register("bob", "bob", "Bob User").await;
+    bob.recv_until_numeric(errors::ERR_NOMOTD).await;
+    bob.quit(Some("Goodbye")).await;
+
+    // Small delay to let quit process
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+    // Alice queries WHOWAS bob
+    let mut alice = TestClient::connect(server.addr()).await;
+    alice.register("alice", "alice", "Alice").await;
+    alice.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    alice.whowas("bob", None).await;
+
+    // Should get RPL_WHOWASUSER (314)
+    let msgs = alice.recv_until_numeric(replies::RPL_ENDOFWHOWAS).await;
+    assert!(
+        msgs.iter().any(|m| matches!(
+            &m.command,
+            Command::Numeric { code, params, .. } if *code == replies::RPL_WHOWASUSER && params.iter().any(|p| p == "bob")
+        )),
+        "Should have WHOWAS entry for bob, got {:?}",
+        msgs
+    );
+}
+
+// ============================================================
+// Phase 3: Operator tests (basic - without OPER due to password complexity)
+// ============================================================
+
+#[tokio::test]
+async fn test_oper_wrong_password() {
+    let mut config = ServerConfig::default();
+    // Add an operator with a hashed password (pre-computed)
+    // This is the hash for "testpass" using argon2
+    config.operators.push(irc_server::config::OperConfig {
+        name: "admin".to_string(),
+        password_hash: "$argon2id$v=19$m=19456,t=2,p=1$testSALT1234$K9M3Kn9KvJKzYJ7F7vXdxQ".to_string(),
+        host_mask: None,
+    });
+
+    let server = TestServer::start_with_config(config).await;
+    let mut client = TestClient::connect(server.addr()).await;
+
+    client.register("alice", "alice", "Alice").await;
+    client.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    // Try OPER with wrong password
+    client.oper("admin", "wrongpassword").await;
+
+    // Should get ERR_PASSWDMISMATCH (464)
+    if let Some(msg) = client.recv().await {
+        assert!(
+            matches!(&msg.command, Command::Numeric { code, .. } if *code == errors::ERR_PASSWDMISMATCH),
+            "Should get password mismatch, got {:?}",
+            msg.command
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_kill_requires_oper() {
+    let server = TestServer::start().await;
+
+    let mut alice = TestClient::connect(server.addr()).await;
+    alice.register("alice", "alice", "Alice").await;
+    alice.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    let mut bob = TestClient::connect(server.addr()).await;
+    bob.register("bob", "bob", "Bob").await;
+    bob.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    // Alice (non-oper) tries to kill bob
+    alice.kill("bob", "Testing").await;
+
+    // Should get ERR_NOPRIVILEGES (481)
+    if let Some(msg) = alice.recv().await {
+        assert!(
+            matches!(&msg.command, Command::Numeric { code, .. } if *code == errors::ERR_NOPRIVILEGES),
+            "Should get no privileges error, got {:?}",
+            msg.command
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_wallops_requires_oper() {
+    let server = TestServer::start().await;
+    let mut client = TestClient::connect(server.addr()).await;
+
+    client.register("alice", "alice", "Alice").await;
+    client.recv_until_numeric(errors::ERR_NOMOTD).await;
+
+    // Non-oper tries to send WALLOPS
+    client.wallops("Test message").await;
+
+    // Should get ERR_NOPRIVILEGES (481)
+    if let Some(msg) = client.recv().await {
+        assert!(
+            matches!(&msg.command, Command::Numeric { code, .. } if *code == errors::ERR_NOPRIVILEGES),
+            "Should get no privileges error, got {:?}",
+            msg.command
+        );
     }
 }

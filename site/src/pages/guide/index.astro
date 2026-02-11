@@ -1,0 +1,23 @@
+---
+import GuideLayout from "../../layouts/GuideLayout.astro";
+import { guideSections } from "../../data/navigation";
+---
+
+<GuideLayout title="Guide" description="Learn how to install, configure, and use the irc server and clients.">
+  <p>
+    Welcome to the irc guide. Choose a topic from the sidebar, or start with one of the sections below.
+  </p>
+
+  {guideSections.map((section) => (
+    <>
+      <h2>{section.title}</h2>
+      <ul>
+        {section.items.map(({ label, slug }) => (
+          <li>
+            <a href={`/guide/${slug}/`}>{label}</a>
+          </li>
+        ))}
+      </ul>
+    </>
+  ))}
+</GuideLayout>

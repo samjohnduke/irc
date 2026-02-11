@@ -7,7 +7,7 @@ mod client;
 
 pub use client::{Client, ClientId, RegistrationPhase, UserModes};
 
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 
@@ -19,6 +19,26 @@ use unicase::UniCase;
 use crate::config::ServerConfig;
 use crate::error::Result;
 use crate::lock::RwLockExt;
+
+/// Entry in the WHOWAS history buffer.
+#[derive(Debug, Clone)]
+pub struct WhowasEntry {
+    /// The nickname
+    pub nickname: String,
+    /// The username
+    pub username: String,
+    /// The hostname
+    pub hostname: String,
+    /// The realname
+    pub realname: String,
+    /// When the user quit
+    pub quit_time: DateTime<Utc>,
+    /// The server name
+    pub server: String,
+}
+
+/// Maximum number of WHOWAS entries to keep.
+const WHOWAS_MAX_ENTRIES: usize = 1000;
 
 mod channel;
 pub use channel::{Channel, ChannelModes, JoinError, MaskEntry, MemberStatus, matches_mask};
@@ -48,6 +68,9 @@ pub struct ServerState {
 
     /// Message of the day (loaded from config).
     pub motd: tokio::sync::RwLock<Option<Vec<String>>>,
+
+    /// WHOWAS history buffer.
+    pub whowas_history: RwLock<VecDeque<WhowasEntry>>,
 }
 
 impl ServerState {
@@ -61,10 +84,14 @@ impl ServerState {
             created_at: Utc::now(),
             client_counter: AtomicU64::new(1),
             motd: tokio::sync::RwLock::new(None),
+            whowas_history: RwLock::new(VecDeque::new()),
         }
     }
 
     /// Generate the next unique client ID.
+    ///
+    /// Uses wrapping arithmetic - will wrap to 0 after 2^64 connections.
+    /// In practice this is unreachable (would take millions of years).
     pub fn next_client_id(&self) -> ClientId {
         ClientId(self.client_counter.fetch_add(1, Ordering::Relaxed))
     }
@@ -195,6 +222,7 @@ impl ServerState {
     /// Broadcast a message to all members of a channel.
     ///
     /// Optionally skip a specific client (usually the sender).
+    /// Logs but continues if individual sends fail.
     pub fn broadcast_to_channel(
         &self,
         channel: &Channel,
@@ -206,7 +234,13 @@ impl ServerState {
                 continue;
             }
             if let Some(client) = self.clients.get(&client_id) {
-                client.send(msg.clone());
+                if let Err(e) = client.send(msg.clone()) {
+                    tracing::debug!(
+                        client_id = %client_id,
+                        error = %e,
+                        "Failed to send broadcast message"
+                    );
+                }
             }
         }
     }
@@ -259,5 +293,42 @@ impl ServerState {
         }
 
         Ok(empty_channels)
+    }
+
+    /// Record a WHOWAS entry for a disconnecting client.
+    pub fn record_whowas(&self, entry: WhowasEntry) -> Result<()> {
+        let mut history = self.whowas_history.write_lock("whowas_history")?;
+
+        // Remove oldest entries if we're at capacity
+        while history.len() >= WHOWAS_MAX_ENTRIES {
+            history.pop_front();
+        }
+
+        history.push_back(entry);
+        Ok(())
+    }
+
+    /// Look up WHOWAS entries for a nickname.
+    ///
+    /// Returns up to `count` entries (or all if None), most recent first.
+    pub fn lookup_whowas(&self, nickname: &str, count: Option<u32>) -> Result<Vec<WhowasEntry>> {
+        let history = self.whowas_history.read_lock("whowas_history")?;
+        let nick_lower = nickname.to_lowercase();
+
+        let mut results: Vec<_> = history
+            .iter()
+            .filter(|e| e.nickname.to_lowercase() == nick_lower)
+            .cloned()
+            .collect();
+
+        // Most recent first
+        results.reverse();
+
+        // Limit results if count specified
+        if let Some(n) = count {
+            results.truncate(n as usize);
+        }
+
+        Ok(results)
     }
 }

@@ -1,0 +1,57 @@
+---
+import FeatureCard from "./FeatureCard.astro";
+
+const features = [
+  {
+    icon: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#22d3ee" stroke-width="1.5"><path d="M13 2L5 10l8 8"/><path d="M7 2l8 8-8 8" transform="translate(4 0)"/></svg>`,
+    title: "Blazing Fast",
+    description: "Rust + Tokio async I/O. Thousands of concurrent connections with minimal memory and zero garbage collection pauses.",
+  },
+  {
+    icon: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#22d3ee" stroke-width="1.5"><rect x="3" y="9" width="14" height="8" rx="2"/><path d="M6 9V6a4 4 0 118 0v3"/><circle cx="10" cy="13" r="1.5"/></svg>`,
+    title: "Secure by Default",
+    description: "TLS via rustls — no OpenSSL. Encrypted connections out of the box. Certificate management built in.",
+  },
+  {
+    icon: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#22d3ee" stroke-width="1.5"><path d="M4 4h12v12H4z"/><path d="M4 8h12M8 4v12"/></svg>`,
+    title: "RFC 2812",
+    description: "Complete protocol compliance. Channel modes, user modes, operator commands, and proper numeric replies.",
+  },
+  {
+    icon: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#22d3ee" stroke-width="1.5"><rect x="2" y="3" width="16" height="12" rx="2"/><path d="M5 18h10"/><path d="M10 15v3"/></svg>`,
+    title: "CLI + GUI",
+    description: "Terminal client for power users. Graphical client for everyone else. Same protocol, your choice of interface.",
+  },
+  {
+    icon: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#22d3ee" stroke-width="1.5"><path d="M4 4l4 4M4 4h3M4 4v3"/><path d="M16 16l-4-4M16 16h-3M16 16v-3"/><rect x="2" y="2" width="16" height="16" rx="3"/></svg>`,
+    title: "Single Binary",
+    description: "Each component compiles to one static binary. No runtime dependencies. Download it, run it, done.",
+  },
+  {
+    icon: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#22d3ee" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 2v3M10 15v3M2 10h3M15 10h3M4.2 4.2l2.2 2.2M13.6 13.6l2.2 2.2M4.2 15.8l2.2-2.2M13.6 6.4l2.2-2.2"/></svg>`,
+    title: "Configurable",
+    description: "TOML-based config. MOTD, operator accounts, channel limits, TLS certs — everything you need to customize.",
+  },
+];
+---
+
+<section class="relative py-32 noise">
+  <!-- Section divider line -->
+  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-px h-24 bg-gradient-to-b from-transparent via-border to-transparent"></div>
+
+  <div class="relative mx-auto max-w-7xl px-6">
+    <!-- Section header -->
+    <div class="mx-auto max-w-2xl text-center">
+      <p class="font-mono text-xs uppercase tracking-[0.2em] text-cyan-500">Features</p>
+      <h2 class="mt-4 font-display text-4xl tracking-tight text-white sm:text-5xl">
+        Everything you need
+      </h2>
+      <p class="mt-4 text-gray-500">A complete IRC suite designed for modern infrastructure.</p>
+    </div>
+
+    <!-- Grid -->
+    <div class="stagger mt-20 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {features.map((f) => <FeatureCard {...f} class="animate-fade-up" />)}
+    </div>
+  </div>
+</section>

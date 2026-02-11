@@ -1,0 +1,33 @@
+---
+interface Props {
+  title?: string;
+  class?: string;
+}
+
+const { title = "terminal", class: className = "" } = Astro.props;
+---
+
+<div class:list={["group relative overflow-hidden rounded-xl border border-border bg-surface-raised", className]}>
+  <!-- Glow effect behind terminal -->
+  <div class="absolute -inset-px -z-10 rounded-xl bg-gradient-to-b from-cyan-500/10 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"></div>
+
+  <!-- Title bar -->
+  <div class="flex items-center gap-2 border-b border-border-dim px-4 py-3">
+    <div class="flex gap-1.5">
+      <div class="h-2.5 w-2.5 rounded-full bg-[#ff5f57]"></div>
+      <div class="h-2.5 w-2.5 rounded-full bg-[#febc2e]"></div>
+      <div class="h-2.5 w-2.5 rounded-full bg-[#28c840]"></div>
+    </div>
+    <div class="flex-1 text-center">
+      <span class="font-mono text-[11px] text-gray-600">{title}</span>
+    </div>
+    <div class="w-[52px]"></div>
+  </div>
+
+  <!-- Terminal content with scan lines -->
+  <div class="scanlines relative">
+    <div class="p-5 font-mono text-[13px] leading-relaxed text-gray-300">
+      <slot />
+    </div>
+  </div>
+</div>

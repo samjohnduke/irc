@@ -30,3 +30,8 @@ tarpaulin-report.html
 # Local config (don't commit real server configs with passwords)
 config.toml
 *.local.toml
+
+# Site
+site/node_modules/
+site/dist/
+site/.astro/

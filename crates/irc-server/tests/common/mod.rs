@@ -265,4 +265,106 @@ impl TestClient {
         }))
         .await;
     }
+
+    /// Send WHO.
+    pub async fn who(&mut self, mask: &str) {
+        self.send(Message::new(Command::Who {
+            mask: mask.to_string(),
+            operators_only: false,
+        }))
+        .await;
+    }
+
+    /// Send WHOIS.
+    pub async fn whois(&mut self, nicknames: &[&str]) {
+        self.send(Message::new(Command::Whois {
+            server: None,
+            nicknames: nicknames.iter().map(|s| s.to_string()).collect(),
+        }))
+        .await;
+    }
+
+    /// Send WHOWAS.
+    pub async fn whowas(&mut self, nickname: &str, count: Option<u32>) {
+        self.send(Message::new(Command::Whowas {
+            nickname: nickname.to_string(),
+            count,
+            server: None,
+        }))
+        .await;
+    }
+
+    /// Send MOTD.
+    pub async fn motd(&mut self) {
+        self.send(Message::new(Command::Motd { server: None }))
+            .await;
+    }
+
+    /// Send LUSERS.
+    pub async fn lusers(&mut self) {
+        self.send(Message::new(Command::Lusers {
+            mask: None,
+            server: None,
+        }))
+        .await;
+    }
+
+    /// Send VERSION.
+    pub async fn version(&mut self) {
+        self.send(Message::new(Command::Version { server: None }))
+            .await;
+    }
+
+    /// Send TIME.
+    pub async fn time(&mut self) {
+        self.send(Message::new(Command::Time { server: None }))
+            .await;
+    }
+
+    /// Send ADMIN.
+    pub async fn admin(&mut self) {
+        self.send(Message::new(Command::Admin { server: None }))
+            .await;
+    }
+
+    /// Send INFO.
+    pub async fn info(&mut self) {
+        self.send(Message::new(Command::Info { server: None }))
+            .await;
+    }
+
+    /// Send STATS.
+    pub async fn stats(&mut self, query: Option<char>) {
+        self.send(Message::new(Command::Stats {
+            query,
+            server: None,
+        }))
+        .await;
+    }
+
+    /// Send OPER.
+    pub async fn oper(&mut self, name: &str, password: &str) {
+        self.send(Message::new(Command::Oper {
+            name: name.to_string(),
+            password: password.to_string(),
+        }))
+        .await;
+    }
+
+    /// Send KILL.
+    pub async fn kill(&mut self, nickname: &str, comment: &str) {
+        self.send(Message::new(Command::Kill {
+            nickname: nickname.to_string(),
+            comment: comment.to_string(),
+        }))
+        .await;
+    }
+
+    /// Send WALLOPS.
+    pub async fn wallops(&mut self, message: &str) {
+        self.send(Message::new(Command::Wallops {
+            message: message.to_string(),
+        }))
+        .await;
+    }
 }

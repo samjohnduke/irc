@@ -1,0 +1,26 @@
+---
+interface Props {
+  label: string;
+  asset: string;
+  variant?: "primary" | "secondary";
+}
+
+const { label, asset, variant = "secondary" } = Astro.props;
+const href = `https://github.com/example/irc/releases/latest/download/${asset}`;
+---
+
+<a
+  href={href}
+  class:list={[
+    "group inline-flex items-center gap-2.5 rounded-lg px-5 py-2.5 text-sm font-medium transition-all duration-300",
+    variant === "primary"
+      ? "bg-cyan-500 text-gray-950 hover:bg-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]"
+      : "border border-border-dim bg-surface text-gray-400 hover:border-border hover:text-gray-200 hover:bg-surface-raised",
+  ]}
+>
+  <svg class="h-4 w-4 transition-transform duration-300 group-hover:translate-y-0.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+    <path d="M8 3v8M5 8l3 3 3-3" />
+    <path d="M3 13h10" />
+  </svg>
+  {label}
+</a>

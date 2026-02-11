@@ -18,7 +18,17 @@
       "Bash(git branch:*)",
       "Bash(git push:*)",
       "Bash(find:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(wc:*)",
+      "WebFetch(domain:docs.astro.build)",
+      "WebFetch(domain:developers.cloudflare.com)",
+      "Bash(npm install:*)",
+      "Bash(npm view:*)",
+      "Bash(npm run build:*)",
+      "WebFetch(domain:evilmartians.com)",
+      "WebFetch(domain:www.warp.dev)",
+      "WebFetch(domain:zed.dev)",
+      "WebFetch(domain:ghostty.org)"
     ]
   }
 }

@@ -1,0 +1,23 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  icon: string;
+  class?: string;
+}
+
+const { title, description, icon, class: className = "" } = Astro.props;
+---
+
+<div class:list={["glow-border group relative overflow-hidden rounded-xl border border-border-dim bg-surface p-6 transition-all duration-500 hover:border-border hover:bg-surface-raised", className]}>
+  <!-- Subtle gradient on hover -->
+  <div class="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.03] to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"></div>
+
+  <div class="relative">
+    <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-500/[0.07] border border-cyan-500/10 transition-colors duration-300 group-hover:bg-cyan-500/10 group-hover:border-cyan-500/20">
+      <span class="text-lg" set:html={icon} />
+    </div>
+    <h3 class="text-base font-semibold text-white">{title}</h3>
+    <p class="mt-2 text-sm leading-relaxed text-gray-500 transition-colors duration-300 group-hover:text-gray-400">{description}</p>
+  </div>
+</div>
