@@ -1,0 +1,20 @@
+[package]
+name = "irc-proto"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "IRC protocol parsing, serialization, and types"
+
+[dependencies]
+thiserror.workspace = true
+bytes.workspace = true
+tokio-util.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+proptest.workspace = true
+
+# TODO: Add benchmarks later
+# [[bench]]
+# name = "parsing"
+# harness = false

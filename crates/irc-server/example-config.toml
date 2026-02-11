@@ -1,0 +1,38 @@
+# Example IRC server configuration
+
+# Server name (appears in WHOIS, etc.)
+server_name = "irc.example.com"
+
+# Network name
+network_name = "ExampleNet"
+
+# Path to MOTD file (optional)
+# motd_file = "/etc/irc/motd.txt"
+
+# Listeners
+[[listen]]
+address = "127.0.0.1:6667"
+# tls = { cert_file = "/path/to/cert.pem", key_file = "/path/to/key.pem" }
+
+# TLS listener (optional)
+# [[listen]]
+# address = "127.0.0.1:6697"
+# tls = { cert_file = "/path/to/cert.pem", key_file = "/path/to/key.pem" }
+
+# Server limits
+[limits]
+max_clients = 1024
+ping_timeout = 180
+registration_timeout = 60
+max_nick_length = 30
+max_channel_length = 50
+max_topic_length = 390
+max_kick_length = 255
+max_away_length = 255
+max_channels = 25
+
+# Operator accounts (optional)
+# [[operators]]
+# name = "admin"
+# password_hash = "$argon2id$..."  # Use argon2 to generate
+# host_mask = "*@*.admin.example.com"

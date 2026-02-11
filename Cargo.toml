@@ -1,0 +1,56 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/irc-proto",
+    "crates/irc-server",
+    "crates/irc-client-lib",
+    "crates/irc-cli",
+    "crates/irc-gui",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/example/irc"
+
+[workspace.dependencies]
+# Protocol
+irc-proto = { path = "crates/irc-proto" }
+irc-client-lib = { path = "crates/irc-client-lib" }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+
+# TLS
+tokio-rustls = "0.26"
+rustls = "0.23"
+rustls-pemfile = "2"
+webpki-roots = "0.26"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Utilities
+bytes = "1"
+chrono = { version = "0.4", features = ["serde"] }
+unicase = "2"
+base64 = "0.22"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Testing
+criterion = "0.5"
+proptest = "1"

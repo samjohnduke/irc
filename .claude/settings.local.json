@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:datatracker.ietf.org)",
+      "WebFetch(domain:www.rfc-editor.org)",
+      "Bash(xargs -I {} sh -c 'echo \"\"{}\"\"; wc -l < \"\"{}\"\"')",
+      "Bash(ls:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:modern.ircdocs.horse)",
+      "WebFetch(domain:dd.ircdocs.horse)",
+      "WebFetch(domain:ircv3.net)",
+      "WebFetch(domain:soju.im)",
+      "Bash(cargo build:*)",
+      "Bash(cargo test:*)",
+      "Bash(cargo clippy:*)"
+    ]
+  }
+}

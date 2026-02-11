@@ -1,0 +1,32 @@
+# Build artifacts
+/target/
+debug/
+release/
+
+# Cargo
+Cargo.lock
+!Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test/coverage
+*.profraw
+*.profdata
+lcov.info
+tarpaulin-report.html
+
+# Logs
+*.log
+
+# Local config (don't commit real server configs with passwords)
+config.toml
+*.local.toml

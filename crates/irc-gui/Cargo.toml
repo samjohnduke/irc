@@ -1,0 +1,18 @@
+[package]
+name = "irc-gui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Desktop GUI IRC client"
+
+[[bin]]
+name = "irc-gui"
+path = "src/main.rs"
+
+[dependencies]
+irc-client-lib.workspace = true
+irc-proto.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+iced = { version = "0.13", features = ["tokio"] }
