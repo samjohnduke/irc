@@ -1,0 +1,69 @@
+---
+title: Connecting
+description: Connect to IRC servers with the terminal client.
+order: 5
+section: CLI Client
+---
+
+> The CLI client is in active development. This page documents the designed interface. The binary currently prints a placeholder message while implementation is underway.
+
+## Command-Line Flags
+
+| Flag | Short | Default | Description |
+|---|---|---|---|
+| `--server` | `-s` | — | Server hostname to connect to |
+| `--port` | `-p` | `6697` | Server port |
+| `--tls` | — | `true` | Use TLS encryption |
+| `--nick` | `-n` | — | Your nickname |
+
+## Quick Connect
+
+Connect to a server with TLS (the default):
+
+```sh
+irc -s irc.example.com -n mynick
+```
+
+Connect to a local server without TLS on the standard plain-text port:
+
+```sh
+irc -s 127.0.0.1 -p 6667 --tls false -n mynick
+```
+
+Connect with a custom port:
+
+```sh
+irc -s irc.example.com -p 7000 -n mynick
+```
+
+## Configuration File
+
+Instead of passing flags every time, save your connection settings in `~/.config/irc/cli.toml`. When a config file is present, you can connect by just running:
+
+```sh
+irc
+```
+
+See [CLI Configuration](/guide/cli-configuration/) for the full config reference.
+
+## Multiple Servers
+
+The client supports connecting to multiple servers simultaneously:
+
+- `/server <host> [port]` — quick connect to a new server
+- `/connect <name>` — connect to a server defined in your config file
+- `/disconnect [message]` — disconnect from the current server
+
+Each server gets its own status buffer, and channels from different servers are kept separate in the buffer list.
+
+## Reconnection
+
+If your connection drops, the client will automatically attempt to reconnect. You can manually reconnect with `/connect`.
+
+## Server Passwords
+
+Some servers require a password to connect. You can provide one in your config file or when connecting:
+
+```
+/server irc.example.com 6697 mypassword
+```

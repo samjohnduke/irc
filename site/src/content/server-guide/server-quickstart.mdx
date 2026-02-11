@@ -1,0 +1,84 @@
+---
+title: Running the Server
+description: Start and run the IRC server.
+order: 1
+section: Getting Started
+---
+
+## Starting with Defaults
+
+Run the server with no arguments to start with default settings:
+
+```sh
+irc-server
+```
+
+By default, the server:
+- Listens on `127.0.0.1:6667` (localhost only, no TLS)
+- Uses `localhost` as the server name
+- Uses `LocalNet` as the network name
+- Accepts up to 1024 connections
+
+This is useful for local development and testing. For production, use a configuration file.
+
+## Starting with a Config File
+
+```sh
+irc-server -c server.toml
+```
+
+Or with the long flag:
+
+```sh
+irc-server --config /etc/irc/server.toml
+```
+
+See [Configuration Reference](/guide/server-configuration/) for the full list of options.
+
+## Command-Line Flags
+
+| Flag | Short | Description |
+|---|---|---|
+| `--config <FILE>` | `-c` | Path to configuration file |
+| `--bind <ADDR>` | `-b` | Override listen address (e.g., `0.0.0.0:6667`) |
+| `--foreground` | `-f` | Run in foreground (don't daemonize) |
+| `--verbose` | `-v` | Increase log verbosity (repeat for more: `-vv`, `-vvv`) |
+
+The `--bind` flag overrides all `[[listen]]` entries in the config file and creates a single plain-text listener on the specified address.
+
+## Logging
+
+The server uses structured logging via `tracing`. The default log level is `info`.
+
+Increase verbosity with `-v`:
+
+| Flag | Level | What You See |
+|---|---|---|
+| (none) | `info` | Connections, disconnections, errors |
+| `-v` | `debug` | Commands, channel operations, state changes |
+| `-vv` | `trace` | Raw protocol messages, internal state |
+
+You can also set the log level with the `RUST_LOG` environment variable, which takes precedence over `-v`:
+
+```sh
+RUST_LOG=debug irc-server -c server.toml
+RUST_LOG=irc_server=trace irc-server -c server.toml
+```
+
+## Minimal Config File
+
+A minimal config file that's ready for real use:
+
+```toml
+server_name = "irc.example.com"
+network_name = "MyNetwork"
+
+[[listen]]
+address = "0.0.0.0:6667"
+```
+
+This listens on all interfaces on port 6667 without TLS. See [TLS Encryption](/guide/server-tls/) to add encrypted connections.
+
+## Graceful Shutdown
+
+Press `Ctrl+C` to stop the server. It will close all connections and shut down cleanly.

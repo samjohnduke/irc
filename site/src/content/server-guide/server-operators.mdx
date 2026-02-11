@@ -1,0 +1,107 @@
+---
+title: Server Operators
+description: Configure operator accounts and use operator commands.
+order: 4
+section: Administration
+---
+
+## What Are IRC Operators?
+
+IRC operators (often called "IRCops" or "opers") are users with server-level administrative privileges. Unlike channel operators who manage individual channels, IRC operators can manage the server itself — disconnecting users, sending global messages, and viewing server internals.
+
+Operator status is separate from channel operator status. A user with server operator privileges gets user mode `+o`, while channel operators have channel mode `+o` on specific channels.
+
+## Configuring Operators
+
+Operator accounts are defined in the `[[operators]]` array in the server configuration:
+
+```toml
+[[operators]]
+name = "admin"
+password_hash = "$argon2id$v=19$m=19456,t=2,p=1$..."
+
+[[operators]]
+name = "mod"
+password_hash = "$argon2id$v=19$m=19456,t=2,p=1$..."
+host_mask = "*@*.trusted.example.com"
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | yes | Operator username (used with the OPER command) |
+| `password_hash` | string | yes | Argon2 password hash |
+| `host_mask` | string | no | Only allow OPER from clients matching this host mask pattern |
+
+The optional `host_mask` field restricts who can use the OPER command to clients connecting from matching hosts. The mask uses the standard `nick!user@host` wildcard format (e.g., `*@*.admin.example.com`).
+
+## Generating Password Hashes
+
+Operator passwords are stored as Argon2 hashes. You can generate a hash using the `argon2` command-line tool:
+
+```sh
+# Install argon2 (if not already installed)
+sudo apt install argon2          # Debian/Ubuntu
+sudo dnf install argon2          # Fedora
+brew install argon2              # macOS
+
+# Generate a hash (will prompt for password on stdin)
+echo -n "your-password" | argon2 "$(openssl rand -base64 16)" -id -e
+```
+
+Copy the full output (starting with `$argon2id$...`) into the `password_hash` field.
+
+**Important:** Never store passwords in plain text. Always use the Argon2 hash.
+
+## Authenticating as an Operator
+
+Once connected to the server, use the OPER command to authenticate:
+
+```
+/quote OPER admin yourpassword
+```
+
+Or in most IRC clients:
+
+```
+OPER admin yourpassword
+```
+
+If authentication succeeds, you'll receive a confirmation and gain user mode `+o`. You'll also automatically receive mode `+w` (WALLOPS) so you can see operator broadcasts.
+
+## Operator Commands
+
+Once authenticated as an operator, you can use these commands:
+
+### KILL
+
+Forcibly disconnect a user from the server:
+
+```
+KILL baduser :Violating server rules
+```
+
+The user will be disconnected and shown the reason message.
+
+### WALLOPS
+
+Send a message to all users with user mode `+w` (typically other operators):
+
+```
+WALLOPS :Server maintenance in 10 minutes
+```
+
+## User Modes for Operators
+
+| Mode | Flag | Description |
+|---|---|---|
+| Operator | `+o` | Granted on successful OPER authentication. Cannot be set manually — only gained through OPER and lost by removing it with MODE |
+| Wallops | `+w` | Receive WALLOPS messages. Automatically set when gaining +o |
+| Server Notices | `+s` | Receive server notice messages |
+| Invisible | `+i` | Hide from WHO and NAMES for users not sharing a channel |
+
+## Security Considerations
+
+- Use strong passwords and always hash them with Argon2
+- Use `host_mask` to restrict OPER access to trusted networks when possible
+- Keep the number of operator accounts small
+- Operator credentials in the config file should have restricted file permissions (`chmod 600`)

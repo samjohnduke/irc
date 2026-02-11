@@ -1,0 +1,199 @@
+---
+title: Configuration Reference
+description: Complete reference for every server configuration option.
+order: 2
+section: Configuration
+---
+
+## Configuration File
+
+The server reads its configuration from a TOML file specified with `--config` / `-c`. All fields have defaults, so you only need to specify what you want to change.
+
+## Top-Level Settings
+
+```toml
+server_name = "irc.example.com"
+network_name = "ExampleNet"
+motd_file = "/etc/irc/motd.txt"
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `server_name` | string | `"localhost"` | The server's hostname, shown in WHOIS, connection messages, and message prefixes |
+| `network_name` | string | `"LocalNet"` | The IRC network name, reported in ISUPPORT (005) |
+| `motd_file` | string | — | Path to a plain text file displayed to users on connect (MOTD) |
+
+## Listeners
+
+The `[[listen]]` array defines one or more addresses the server listens on. Each listener can optionally enable TLS.
+
+### Plain text listener
+
+```toml
+[[listen]]
+address = "0.0.0.0:6667"
+```
+
+### TLS listener
+
+```toml
+[[listen]]
+address = "0.0.0.0:6697"
+tls = { cert_file = "/etc/irc/cert.pem", key_file = "/etc/irc/key.pem" }
+```
+
+### Multiple listeners
+
+You can have both plain and TLS on different ports:
+
+```toml
+[[listen]]
+address = "0.0.0.0:6667"
+
+[[listen]]
+address = "0.0.0.0:6697"
+tls = { cert_file = "/etc/irc/cert.pem", key_file = "/etc/irc/key.pem" }
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `address` | `ip:port` | Socket address to bind (e.g., `0.0.0.0:6667`, `[::]:6697`) |
+| `tls.cert_file` | path | Path to TLS certificate file (PEM format) |
+| `tls.key_file` | path | Path to TLS private key file (PEM format) |
+
+## Limits
+
+The `[limits]` section controls resource limits and protocol constraints.
+
+```toml
+[limits]
+max_clients = 1024
+ping_timeout = 180
+registration_timeout = 60
+max_nick_length = 30
+max_channel_length = 50
+max_topic_length = 390
+max_kick_length = 255
+max_away_length = 255
+max_channels = 25
+send_buffer_size = 512
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `max_clients` | integer | `1024` | Maximum number of simultaneous client connections |
+| `ping_timeout` | integer | `180` | Seconds before a client is disconnected for not responding to PING |
+| `registration_timeout` | integer | `60` | Seconds a client has to complete registration (NICK + USER) after connecting |
+| `max_nick_length` | integer | `30` | Maximum characters in a nickname |
+| `max_channel_length` | integer | `50` | Maximum characters in a channel name |
+| `max_topic_length` | integer | `390` | Maximum characters in a channel topic |
+| `max_kick_length` | integer | `255` | Maximum characters in a kick message |
+| `max_away_length` | integer | `255` | Maximum characters in an away message |
+| `max_channels` | integer | `25` | Maximum number of channels a single user can join |
+| `send_buffer_size` | integer | `512` | Size of the per-client outgoing message buffer (in messages) |
+
+## Operators
+
+The `[[operators]]` array defines IRC operator accounts. Operators can use privileged commands like KILL and WALLOPS.
+
+```toml
+[[operators]]
+name = "admin"
+password_hash = "$argon2id$v=19$m=19456,t=2,p=1$..."
+host_mask = "*@*.admin.example.com"
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | yes | Operator username (used with the OPER command) |
+| `password_hash` | string | yes | Argon2 password hash |
+| `host_mask` | string | no | Restrict OPER to clients matching this host mask |
+
+Passwords are stored as Argon2 hashes, never in plain text. See [Server Operators](/guide/server-operators/) for instructions on generating hashes.
+
+## Admin
+
+The `[admin]` section provides information returned by the ADMIN command.
+
+```toml
+[admin]
+location1 = "Example Organization"
+location2 = "San Francisco, CA, US"
+email = "admin@example.com"
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `location1` | string | First location line (typically organization name) |
+| `location2` | string | Second location line (typically city/country) |
+| `email` | string | Admin contact email address |
+
+## Accounts (SASL)
+
+The `[[accounts]]` array defines user accounts for SASL PLAIN authentication.
+
+```toml
+[[accounts]]
+name = "alice"
+password_hash = "$argon2id$v=19$m=19456,t=2,p=1$..."
+
+[[accounts]]
+name = "bob"
+password_hash = "$argon2id$v=19$m=19456,t=2,p=1$..."
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | Account username for SASL authentication |
+| `password_hash` | string | Argon2 password hash |
+
+Clients authenticate using SASL PLAIN during connection registration. See your client's documentation for SASL configuration.
+
+## Full Example
+
+A complete annotated configuration file:
+
+```toml
+# Server identity
+server_name = "irc.example.com"
+network_name = "ExampleNet"
+motd_file = "/etc/irc/motd.txt"
+
+# Listen on plain text and TLS
+[[listen]]
+address = "0.0.0.0:6667"
+
+[[listen]]
+address = "0.0.0.0:6697"
+tls = { cert_file = "/etc/irc/cert.pem", key_file = "/etc/irc/key.pem" }
+
+# Resource limits
+[limits]
+max_clients = 1024
+ping_timeout = 180
+registration_timeout = 60
+max_nick_length = 30
+max_channel_length = 50
+max_topic_length = 390
+max_kick_length = 255
+max_away_length = 255
+max_channels = 25
+send_buffer_size = 512
+
+# Operator accounts
+[[operators]]
+name = "admin"
+password_hash = "$argon2id$v=19$m=19456,t=2,p=1$..."
+host_mask = "*@*.admin.example.com"
+
+# Admin info (returned by /ADMIN)
+[admin]
+location1 = "Example Organization"
+location2 = "San Francisco, CA, US"
+email = "admin@example.com"
+
+# SASL accounts
+[[accounts]]
+name = "alice"
+password_hash = "$argon2id$v=19$m=19456,t=2,p=1$..."
+```

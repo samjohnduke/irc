@@ -1,24 +1,21 @@
 ---
 title: Installation
-description: Install the irc server and clients on your platform.
-order: 2
+description: Install the IRC server and clients on your platform.
+order: 3
 section: Getting Started
 ---
 
 ## Install Script
 
-The recommended way to install is using the install script:
+The recommended way to install is with the install script:
 
 ```sh
 curl -sSf https://irc.example.com/install.sh | sh
 ```
 
-The script will:
-1. Detect your OS and architecture
-2. Download the latest release from GitHub
-3. Install binaries to `/usr/local/bin` (or `$IRC_INSTALL_DIR`)
+The script detects your OS and architecture, downloads the latest release from GitHub, and installs all three binaries to `/usr/local/bin`.
 
-You can customize the install directory:
+To install to a custom directory:
 
 ```sh
 IRC_INSTALL_DIR=~/.local/bin curl -sSf https://irc.example.com/install.sh | sh
@@ -28,15 +25,17 @@ IRC_INSTALL_DIR=~/.local/bin curl -sSf https://irc.example.com/install.sh | sh
 
 Pre-built binaries are available on the [GitHub releases page](https://github.com/example/irc/releases).
 
+Table of platforms and binaries:
+
 | Platform | Server | CLI | GUI |
 |---|---|---|---|
 | Linux x86_64 | `irc-server-linux-x86_64` | `irc-linux-x86_64` | `irc-gui-linux-x86_64` |
 | Linux aarch64 | `irc-server-linux-aarch64` | `irc-linux-aarch64` | `irc-gui-linux-aarch64` |
 | macOS x86_64 | `irc-server-darwin-x86_64` | `irc-darwin-x86_64` | `irc-gui-darwin-x86_64` |
-| macOS aarch64 | `irc-server-darwin-aarch64` | `irc-darwin-aarch64` | `irc-gui-darwin-aarch64` |
+| macOS aarch64 (Apple Silicon) | `irc-server-darwin-aarch64` | `irc-darwin-aarch64` | `irc-gui-darwin-aarch64` |
 | Windows x86_64 | `irc-server-windows-x86_64.exe` | `irc-windows-x86_64.exe` | `irc-gui-windows-x86_64.exe` |
 
-Download, make executable, and move to your PATH:
+After downloading, make the binary executable and move it to your PATH:
 
 ```sh
 chmod +x irc-server-linux-x86_64
@@ -45,7 +44,7 @@ sudo mv irc-server-linux-x86_64 /usr/local/bin/irc-server
 
 ## Build from Source
 
-You'll need [Rust](https://www.rust-lang.org/tools/install) (1.85+).
+You'll need [Rust](https://www.rust-lang.org/tools/install) 1.85 or later.
 
 ```sh
 git clone https://github.com/example/irc.git
@@ -53,15 +52,27 @@ cd irc
 cargo build --release
 ```
 
-Binaries are placed in `target/release/`:
+The binaries are placed in `target/release/`:
 
 ```sh
 ls target/release/irc-server target/release/irc target/release/irc-gui
 ```
 
+To install them system-wide:
+
+```sh
+sudo cp target/release/irc-server /usr/local/bin/
+sudo cp target/release/irc /usr/local/bin/
+sudo cp target/release/irc-gui /usr/local/bin/
+```
+
 ## Verify Installation
+
+Check that the binaries are installed and working:
 
 ```sh
 irc-server --version
 irc --version
 ```
+
+Both should print their version number. If you get "command not found", make sure the install directory is in your `PATH`.

@@ -1,23 +1,97 @@
 ---
-import GuideLayout from "../../layouts/GuideLayout.astro";
-import { guideSections } from "../../data/navigation";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 ---
 
-<GuideLayout title="Guide" description="Learn how to install, configure, and use the irc server and clients.">
-  <p>
-    Welcome to the irc guide. Choose a topic from the sidebar, or start with one of the sections below.
-  </p>
+<BaseLayout title="Guide — irc" description="Learn how to use the irc suite or run your own server.">
+  <div class="relative pt-28 pb-20">
+    <div class="mx-auto max-w-3xl px-6">
 
-  {guideSections.map((section) => (
-    <>
-      <h2>{section.title}</h2>
-      <ul>
-        {section.items.map(({ label, slug }) => (
-          <li>
-            <a href={`/guide/${slug}/`}>{label}</a>
-          </li>
-        ))}
-      </ul>
-    </>
-  ))}
-</GuideLayout>
+      {/* Header */}
+      <header class="mb-12 text-center">
+        <p class="mb-2 font-mono text-xs uppercase tracking-[0.15em] text-cyan-500">Documentation</p>
+        <h1 class="font-display text-4xl tracking-tight text-white sm:text-5xl">Guide</h1>
+        <p class="mt-4 text-lg text-gray-500">
+          Choose the guide that fits what you're looking to do.
+        </p>
+      </header>
+
+      {/* Guide cards */}
+      <div class="grid gap-6 sm:grid-cols-3">
+
+        {/* User Guide */}
+        <a
+          href="/user-guide/"
+          class="group rounded-xl border border-border-dim bg-surface p-8 transition-all duration-300 hover:border-border hover:bg-surface-raised"
+        >
+          <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-cyan-500/[0.07] border border-cyan-500/10 text-cyan-400">
+            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <path d="M7 12l3 2-3 2" />
+              <path d="M13 16h4" />
+            </svg>
+          </div>
+          <h2 class="text-xl font-semibold text-white">User Guide</h2>
+          <p class="mt-2 text-sm text-gray-500">
+            Learn IRC and connect with the terminal or GUI client.
+          </p>
+          <span class="mt-4 inline-flex items-center gap-1.5 font-mono text-xs text-cyan-400 transition-transform duration-200 group-hover:translate-x-1">
+            Get started
+            <svg class="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 3l3 3-3 3" />
+            </svg>
+          </span>
+        </a>
+
+        {/* Server Guide */}
+        <a
+          href="/server-guide/"
+          class="group rounded-xl border border-border-dim bg-surface p-8 transition-all duration-300 hover:border-border hover:bg-surface-raised"
+        >
+          <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-cyan-500/[0.07] border border-cyan-500/10 text-cyan-400">
+            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="4" y="4" width="16" height="6" rx="1.5" />
+              <rect x="4" y="14" width="16" height="6" rx="1.5" />
+              <circle cx="7.5" cy="7" r="1" />
+              <circle cx="7.5" cy="17" r="1" />
+            </svg>
+          </div>
+          <h2 class="text-xl font-semibold text-white">Server Guide</h2>
+          <p class="mt-2 text-sm text-gray-500">
+            Install, configure, and deploy your own IRC server.
+          </p>
+          <span class="mt-4 inline-flex items-center gap-1.5 font-mono text-xs text-cyan-400 transition-transform duration-200 group-hover:translate-x-1">
+            Get started
+            <svg class="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 3l3 3-3 3" />
+            </svg>
+          </span>
+        </a>
+
+        {/* Dev Guide */}
+        <a
+          href="/dev-guide/"
+          class="group rounded-xl border border-border-dim bg-surface p-8 transition-all duration-300 hover:border-border hover:bg-surface-raised"
+        >
+          <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-cyan-500/[0.07] border border-cyan-500/10 text-cyan-400">
+            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M8 9l-4 3 4 3" />
+              <path d="M16 9l4 3-4 3" />
+              <path d="M14 5l-4 14" />
+            </svg>
+          </div>
+          <h2 class="text-xl font-semibold text-white">Dev Guide</h2>
+          <p class="mt-2 text-sm text-gray-500">
+            Architecture, build instructions, and how to contribute.
+          </p>
+          <span class="mt-4 inline-flex items-center gap-1.5 font-mono text-xs text-cyan-400 transition-transform duration-200 group-hover:translate-x-1">
+            Get started
+            <svg class="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 3l3 3-3 3" />
+            </svg>
+          </span>
+        </a>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>

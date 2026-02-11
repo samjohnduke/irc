@@ -1,8 +1,8 @@
 import { defineCollection, z } from "astro:content";
 import { glob } from "astro/loaders";
 
-const guide = defineCollection({
-  loader: glob({ pattern: "**/*.mdx", base: "./src/content/guide" }),
+const userGuide = defineCollection({
+  loader: glob({ pattern: "**/*.mdx", base: "./src/content/user-guide" }),
   schema: z.object({
     title: z.string(),
     description: z.string(),
@@ -11,4 +11,24 @@ const guide = defineCollection({
   }),
 });
 
-export const collections = { guide };
+const serverGuide = defineCollection({
+  loader: glob({ pattern: "**/*.mdx", base: "./src/content/server-guide" }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    order: z.number(),
+    section: z.string(),
+  }),
+});
+
+const devGuide = defineCollection({
+  loader: glob({ pattern: "**/*.mdx", base: "./src/content/dev-guide" }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    order: z.number(),
+    section: z.string(),
+  }),
+});
+
+export const collections = { "user-guide": userGuide, "server-guide": serverGuide, "dev-guide": devGuide };

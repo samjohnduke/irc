@@ -1,0 +1,134 @@
+---
+title: TLS Encryption
+description: Secure your server with TLS certificates.
+order: 3
+section: Configuration
+---
+
+## Why TLS?
+
+IRC traditionally runs over unencrypted TCP connections. Without TLS, messages (including passwords) are sent in plain text and can be intercepted by anyone between the client and server. TLS encrypts the connection, protecting:
+
+- Message content
+- Nicknames and passwords
+- SASL authentication credentials
+- Channel names and topics
+
+The standard port for IRC with TLS is **6697**, while plain text IRC traditionally uses **6667**.
+
+## Self-Signed Certificates
+
+For testing and local development, generate a self-signed certificate:
+
+```sh
+openssl req -x509 -newkey rsa:4096 \
+  -keyout key.pem -out cert.pem \
+  -days 365 -nodes \
+  -subj "/CN=irc.example.com"
+```
+
+This creates `cert.pem` (the certificate) and `key.pem` (the private key).
+
+**Note:** Clients connecting with a self-signed certificate will see a warning and may need to explicitly accept it. This is fine for testing but not suitable for production.
+
+## Production Certificates
+
+For a production server, use certificates from a trusted certificate authority. [Let's Encrypt](https://letsencrypt.org/) provides free certificates:
+
+```sh
+# Install certbot
+sudo apt install certbot    # Debian/Ubuntu
+sudo dnf install certbot    # Fedora
+
+# Obtain a certificate
+sudo certbot certonly --standalone -d irc.example.com
+```
+
+The certificates are typically stored at:
+- Certificate: `/etc/letsencrypt/live/irc.example.com/fullchain.pem`
+- Private key: `/etc/letsencrypt/live/irc.example.com/privkey.pem`
+
+## Configuration
+
+TLS is configured per-listener in the `[[listen]]` block:
+
+```toml
+[[listen]]
+address = "0.0.0.0:6697"
+tls = { cert_file = "/etc/irc/cert.pem", key_file = "/etc/irc/key.pem" }
+```
+
+### Multiple Listeners
+
+Run both plain text and TLS on separate ports:
+
+```toml
+# Plain text (for local/trusted networks)
+[[listen]]
+address = "0.0.0.0:6667"
+
+# TLS (for public access)
+[[listen]]
+address = "0.0.0.0:6697"
+tls = { cert_file = "/etc/irc/cert.pem", key_file = "/etc/irc/key.pem" }
+```
+
+### TLS-Only
+
+To require TLS for all connections, only define TLS listeners:
+
+```toml
+[[listen]]
+address = "0.0.0.0:6697"
+tls = { cert_file = "/etc/irc/cert.pem", key_file = "/etc/irc/key.pem" }
+```
+
+### With Let's Encrypt Paths
+
+```toml
+[[listen]]
+address = "0.0.0.0:6697"
+tls = { cert_file = "/etc/letsencrypt/live/irc.example.com/fullchain.pem", key_file = "/etc/letsencrypt/live/irc.example.com/privkey.pem" }
+```
+
+Make sure the server process has read access to the certificate files. If running as a dedicated user, you may need to adjust file permissions or use a deploy hook.
+
+## Standard Ports
+
+| Port | Protocol | Usage |
+|---|---|---|
+| 6667 | Plain text | Traditional IRC |
+| 6697 | TLS | Encrypted IRC (standard) |
+
+Some networks also use port ranges 6660-6669 for plain text and 6697 or 9999 for TLS, but 6667 and 6697 are the most common.
+
+## Testing Your TLS Setup
+
+Verify that TLS is working with `openssl s_client`:
+
+```sh
+openssl s_client -connect irc.example.com:6697
+```
+
+You should see the certificate details and a successful handshake. Then you can type raw IRC commands:
+
+```
+NICK testuser
+USER testuser 0 * :Test User
+```
+
+To test with a specific hostname (useful with self-signed certs):
+
+```sh
+openssl s_client -connect 127.0.0.1:6697 -servername irc.example.com
+```
+
+## Certificate Renewal
+
+If using Let's Encrypt, certificates expire every 90 days. Set up automatic renewal:
+
+```sh
+sudo certbot renew --deploy-hook "systemctl reload irc-server"
+```
+
+Or add a cron job / systemd timer to run `certbot renew` regularly.

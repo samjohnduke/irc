@@ -367,4 +367,67 @@ impl TestClient {
         }))
         .await;
     }
+
+    /// Send CAP LS.
+    pub async fn cap_ls(&mut self, version: Option<u32>) {
+        let params = match version {
+            Some(v) => vec![v.to_string()],
+            None => vec![],
+        };
+        self.send(Message::new(Command::Cap {
+            subcommand: "LS".to_string(),
+            params,
+        }))
+        .await;
+    }
+
+    /// Send CAP LIST.
+    pub async fn cap_list(&mut self) {
+        self.send(Message::new(Command::Cap {
+            subcommand: "LIST".to_string(),
+            params: vec![],
+        }))
+        .await;
+    }
+
+    /// Send CAP REQ.
+    pub async fn cap_req(&mut self, caps: &str) {
+        self.send(Message::new(Command::Cap {
+            subcommand: "REQ".to_string(),
+            params: vec![caps.to_string()],
+        }))
+        .await;
+    }
+
+    /// Send CAP END.
+    pub async fn cap_end(&mut self) {
+        self.send(Message::new(Command::Cap {
+            subcommand: "END".to_string(),
+            params: vec![],
+        }))
+        .await;
+    }
+
+    /// Send AUTHENTICATE.
+    pub async fn authenticate(&mut self, data: &str) {
+        self.send(Message::new(Command::Authenticate {
+            data: data.to_string(),
+        }))
+        .await;
+    }
+
+    /// Perform SASL PLAIN authentication.
+    pub async fn sasl_plain(&mut self, username: &str, password: &str) {
+        // Request SASL capability
+        self.cap_req("sasl").await;
+        self.recv().await; // ACK
+
+        // Start PLAIN auth
+        self.authenticate("PLAIN").await;
+        self.recv().await; // AUTHENTICATE +
+
+        // Send credentials
+        let auth_data = irc_server::cap::sasl::encode_plain("", username, password);
+        self.authenticate(&auth_data).await;
+    }
 }

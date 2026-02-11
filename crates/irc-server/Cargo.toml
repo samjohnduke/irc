@@ -21,9 +21,12 @@ clap.workspace = true
 chrono.workspace = true
 unicase.workspace = true
 dashmap = "6"
-argon2 = "0.5"
+argon2 = { version = "0.5", features = ["std"] }
+password-hash = "0.5"
+base64 = "0.22"
 anyhow = "1"
 futures = "0.3"
 
 [dev-dependencies]
 tokio-test = "0.4"
+rand = "0.8"

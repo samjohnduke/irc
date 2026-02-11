@@ -1,0 +1,154 @@
+---
+title: Chatting
+description: Send messages, join channels, and have conversations.
+order: 7
+section: CLI Client
+---
+
+> The CLI client is in active development. This page documents the designed interface.
+
+## Sending Messages
+
+To send a message to the current channel or query, just type and press `Enter`. No command needed — any text that doesn't start with `/` is sent as a message to the active buffer.
+
+## Channels
+
+### Joining a Channel
+
+```
+/join #channel
+```
+
+To join a channel with a key (password):
+
+```
+/join #channel secretkey
+```
+
+### Leaving a Channel
+
+```
+/part
+/part #channel
+/part #channel Goodbye everyone
+```
+
+Without arguments, `/part` leaves the current channel. You can specify a channel name and an optional part message.
+
+### Setting the Topic
+
+View the current topic:
+
+```
+/topic
+```
+
+Set a new topic:
+
+```
+/topic Welcome to #channel — read the rules at example.com
+```
+
+Note: If the channel has mode `+t` set, only operators can change the topic.
+
+### Listing Members
+
+```
+/names
+```
+
+Shows all users in the current channel with their status prefixes (`@` for ops, `+` for voiced).
+
+### Listing Channels
+
+```
+/list
+/list #rust*
+```
+
+Lists channels on the server. You can provide a pattern to filter results.
+
+## Private Messages
+
+### Send a Private Message
+
+```
+/msg alice Hey, how's it going?
+```
+
+This sends a message to `alice` without opening a dedicated buffer.
+
+### Open a Query Buffer
+
+```
+/query alice
+```
+
+Opens a private message buffer with `alice`. All messages between you and `alice` will appear in this buffer. Send messages by just typing into the buffer.
+
+### Close a Query Buffer
+
+```
+/close
+```
+
+Closes the current buffer (works for queries and channels).
+
+## Actions and Notices
+
+### Actions
+
+```
+/me waves hello
+```
+
+Displayed as: `* mynick waves hello`
+
+### Notices
+
+```
+/notice #channel Server maintenance at midnight
+/notice alice Check your email
+```
+
+Notices are similar to messages but are meant for automated or informational content. Most clients display them differently and never send automatic replies to notices.
+
+## Changing Your Identity
+
+### Change Your Nickname
+
+```
+/nick newnick
+```
+
+### Set Away Status
+
+```
+/away Gone for lunch
+```
+
+Other users will see your away message when they `/whois` you or send you a message.
+
+To remove your away status:
+
+```
+/away
+```
+
+## Message Display
+
+Messages appear with timestamps, nick colors, and status prefixes:
+
+```
+14:32 <alice> Regular message
+14:32 <@bob> Message from an operator
+14:32 <+charlie> Message from a voiced user
+14:33 --> carol (carol@host) has joined #channel
+14:33 <-- dave has left #channel (Goodbye)
+14:33 <-- eve has quit (Ping timeout: 180 seconds)
+14:34 *** alice is now known as alice_away
+14:34 *** bob sets mode +o charlie
+14:35 * alice waves hello
+```
+
+Nicknames are assigned consistent colors based on a hash of the name, so each person's messages are easy to distinguish visually.

@@ -2,12 +2,14 @@
 //!
 //! This module contains handlers for all IRC commands, organized by category.
 
+mod cap;
 mod channel;
 mod messaging;
 mod misc;
 mod oper;
 mod query;
 mod registration;
+mod sasl;
 mod server;
 
 use std::sync::Arc;
@@ -108,8 +110,11 @@ pub async fn handle_message(
         Command::Ping { server1, server2 } => handle_ping(&ctx, server1, server2.as_deref()),
         Command::Pong { .. } => handle_pong(&ctx),
 
-        // CAP negotiation (Phase 4 - stub for now)
-        Command::Cap { subcommand, params } => handle_cap(&ctx, subcommand, params),
+        // CAP negotiation (IRCv3)
+        Command::Cap { subcommand, params } => cap::handle_cap(&ctx, subcommand, params),
+
+        // SASL authentication (IRCv3)
+        Command::Authenticate { data } => sasl::handle_authenticate(&ctx, data),
 
         // Commands requiring registration
         _ => {
@@ -237,27 +242,3 @@ pub async fn handle_message(
     }
 }
 
-/// Handle CAP command (Phase 4 stub).
-fn handle_cap(ctx: &HandlerContext, subcommand: &str, _params: &[String]) -> Result<()> {
-    match subcommand.to_uppercase().as_str() {
-        "LS" => {
-            // Return empty capability list for now
-            ctx.send_server_message(Command::Cap {
-                subcommand: "LS".into(),
-                params: vec!["".into()],
-            })?;
-        }
-        "REQ" => {
-            // Reject all capability requests for now
-            ctx.send_server_message(Command::Cap {
-                subcommand: "NAK".into(),
-                params: vec!["".into()],
-            })?;
-        }
-        "END" => {
-            // Client finished capability negotiation
-        }
-        _ => {}
-    }
-    Ok(())
-}

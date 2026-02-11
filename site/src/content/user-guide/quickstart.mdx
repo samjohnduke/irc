@@ -1,0 +1,95 @@
+---
+title: Quick Start
+description: Get a server running and connect to it in five minutes.
+order: 4
+section: Getting Started
+---
+
+## Start the Server
+
+Start the server with default settings — it will listen on `127.0.0.1:6667` with no TLS:
+
+```sh
+irc-server
+```
+
+You should see log output indicating the server is listening. That's it — no configuration file needed for local testing.
+
+## Connect with an IRC Client
+
+Since the project's CLI client is still in development, use any existing IRC client to connect. Here are examples with popular clients:
+
+### irssi
+
+```sh
+irssi -c 127.0.0.1 -p 6667 -n mynick
+```
+
+### WeeChat
+
+```sh
+weechat
+```
+
+Then inside WeeChat:
+
+```
+/server add local 127.0.0.1/6667 -notls
+/connect local
+```
+
+### netcat (for testing)
+
+You can even test with raw TCP:
+
+```sh
+nc 127.0.0.1 6667
+NICK mynick
+USER myuser 0 * :My Name
+JOIN #test
+PRIVMSG #test :Hello, world!
+```
+
+## Your First Session
+
+Once connected:
+
+1. **Set your nick** (most clients do this automatically on connect):
+   ```
+   /nick mynick
+   ```
+
+2. **Join a channel**:
+   ```
+   /join #test
+   ```
+
+3. **Send a message** — just type and press Enter:
+   ```
+   Hello, world!
+   ```
+
+4. **See who's in the channel**:
+   ```
+   /names
+   ```
+
+5. **Set a topic**:
+   ```
+   /topic #test Welcome to the test channel
+   ```
+
+6. **Leave the channel**:
+   ```
+   /part #test
+   ```
+
+## Next Steps
+
+Now that you have a server running:
+
+- [Server Configuration](/guide/server-configuration/) — customize your server with a config file
+- [TLS Encryption](/guide/server-tls/) — secure connections with TLS
+- [Channel Management](/guide/server-channels/) — learn about channel modes and moderation
+- [CLI Client](/guide/cli-connecting/) — details on the project's terminal client (in development)
+- [Modes Reference](/guide/modes-reference/) — understand channel and user modes

@@ -1,0 +1,78 @@
+---
+title: What is IRC?
+description: An introduction to Internet Relay Chat for newcomers.
+order: 1
+section: Introduction
+---
+
+## What is IRC?
+
+IRC stands for **Internet Relay Chat**. It is a real-time text messaging protocol created in 1988 by Jarkko Oikarinen at the University of Oulu in Finland. It is one of the oldest chat protocols on the internet and remains actively used today, more than three decades after its creation.
+
+At its core, IRC lets people communicate in group conversations called **channels** or through **private messages** between two users. The protocol follows a client-server model: you run an IRC client on your machine, it connects to an IRC server, and the server relays messages between all connected clients. There is no central authority that owns or controls IRC as a whole — anyone can run a server, and anyone can write a client.
+
+Despite the rise of newer platforms, IRC continues to serve as the backbone for many open source projects, technical communities, and groups that value simplicity, openness, and user control.
+
+## How IRC Works
+
+IRC uses a straightforward client-server architecture:
+
+- **You run a client** — an IRC client is a program on your computer (or in your browser) that connects to an IRC server over TCP, usually secured with TLS encryption. The client provides the interface you use to read and send messages.
+- **The server manages everything** — the server accepts incoming connections, keeps track of who is online, manages channels, enforces permissions, and relays messages between clients. When you send a message to a channel, the server delivers it to every other user in that channel.
+- **You pick a nickname** — when you connect, you choose a nickname (often called a "nick") that identifies you to other users. Nicknames must be unique on a given server.
+- **You join channels** — channels are chat rooms whose names start with `#` (for example, `#general` or `#rust`). You can join as many channels as you like. If you join a channel that does not exist yet, it is created automatically and you become its first operator.
+- **Messages are broadcast** — when you type a message in a channel, every user in that channel sees it. You can also send private messages directly to another user by their nickname.
+
+A typical session looks like this: you start your client, connect to a server, set your nickname, join one or more channels, and start talking. When you disconnect, you leave those channels until you reconnect.
+
+## Key Concepts
+
+Here is a reference for the most common IRC terminology:
+
+| Term | Description |
+|---|---|
+| **Server** | The program that accepts connections from clients and relays messages between them. A server manages channels, nicknames, and permissions. |
+| **Client** | A program you use to connect to an IRC server. Clients come in many forms — terminal-based, graphical, or web-based. |
+| **Nick** | Your display name on IRC, short for nickname. It must be unique on the server you are connected to. You can change it at any time with the `/nick` command. |
+| **Channel** | A chat room where multiple users can talk. Channel names start with `#` (e.g., `#general`). Anyone can create a channel simply by joining one that does not exist yet. |
+| **Topic** | A short description set on a channel, visible to all members. Topics are often used to communicate rules, share links, or describe the channel's purpose. |
+| **Operator (op)** | A user with elevated privileges in a channel. Operators can kick or ban users, change channel modes, and set the topic. Their nicknames are shown with an `@` prefix in the user list. |
+| **Voice** | A status given to users in moderated channels that allows them to send messages. Voiced users are shown with a `+` prefix in the user list. |
+| **Mode** | A setting applied to a channel or user that controls behavior. For example, a channel can be set to invite-only, moderated, or secret. Modes are managed with the `/mode` command. |
+| **MOTD** | Message of the Day. A block of text displayed to every user when they first connect to a server. Typically contains server rules, news, or contact information. |
+| **Kick** | Forcibly removing a user from a channel. This is an operator action. The kicked user can usually rejoin unless they are also banned. |
+| **Ban** | Preventing a user matching a particular host mask from joining a channel. Bans are set by operators and persist until removed. |
+| **WHOIS** | A command used to look up information about another user, such as their hostname, what channels they are in, and how long they have been idle. |
+| **PRIVMSG** | The underlying protocol command used for sending messages, both to channels and to individual users. When you type a message in your client, it sends a PRIVMSG on your behalf. |
+
+## How IRC Differs from Modern Chat
+
+If you are coming from platforms like Slack, Discord, or Microsoft Teams, there are several important differences to be aware of:
+
+- **No built-in accounts** — by default, nicknames on IRC are first-come-first-served. There is no signup process or email verification. Some networks run auxiliary services like NickServ that let you register and protect a nickname, but account systems are not part of the core IRC protocol.
+
+- **No message history by default** — IRC is a real-time protocol. If you are not connected when a message is sent, you do not receive it. There is no scroll-back waiting for you when you reconnect. Some users run bouncers (like ZNC) that stay connected on their behalf and replay missed messages, and some servers support extensions for limited history, but this is not a built-in guarantee.
+
+- **Federated model** — IRC was designed from the start to support networks of linked servers. Different IRC networks (like Libera.Chat, OFTC, or EFnet) are entirely independent from one another. This is fundamentally different from centralized platforms where one company operates the entire service.
+
+- **Lightweight** — IRC uses minimal bandwidth and system resources. The protocol is plain text over TCP. There are no images to load, no JavaScript to run, and no background telemetry. A client can run comfortably on nearly any hardware.
+
+- **Open protocol** — IRC is defined by public specifications, primarily RFC 1459, RFC 2812, and the modern IRCv3 extensions. Anyone can write a client, a server, or a bot without asking permission or paying for API access.
+
+- **No file uploads, reactions, or threads** — IRC is fundamentally about text messages. There are no emoji reactions, threaded conversations, or file sharing built into the protocol. Some extensions exist (CTCP allows actions like `/me waves`, and DCC was used historically for file transfers), but the protocol stays focused on text communication.
+
+## Why IRC Still Matters
+
+Even in a world full of feature-rich chat platforms, IRC remains relevant for good reasons:
+
+- **Active communities** — networks like Libera.Chat, OFTC, and others host hundreds of thousands of users. Many major open source projects use IRC as their primary or secondary communication channel.
+
+- **Open source roots** — IRC has deep ties to the open source and free software movements. If you contribute to projects like the Linux kernel, Debian, Fedora, or Arch Linux, you will find their communities on IRC.
+
+- **Simplicity** — there are no algorithms deciding what you see, no ads in your sidebar, and no notifications engineered to maximize engagement. IRC is a place where you type messages and read messages. That is it.
+
+- **User control** — you choose your client, you choose your server, and you own your data. There is no vendor lock-in. If you do not like one client, switch to another. If you want to run your own server, you can.
+
+- **Privacy** — IRC does not require a phone number, email address, or real name. There is no telemetry, no tracking, and no data mining. Your conversations are between you, the server, and the people you are talking to.
+
+IRC is not trying to compete with modern platforms on features. Its strength is that it does one thing — real-time text chat — and does it well, with minimal overhead and maximum user freedom.

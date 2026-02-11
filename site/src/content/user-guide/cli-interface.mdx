@@ -1,0 +1,96 @@
+---
+title: The Interface
+description: Navigate the terminal UI — buffers, panels, and key bindings.
+order: 6
+section: CLI Client
+---
+
+> The CLI client is in active development. This page documents the designed interface.
+
+## Layout
+
+```
+┌─ irc-cli ─────────────────────────────────────────────────────────┐
+│ [libera] #rust | 342 users | Topic: Pair your braces...          │
+├───────────────────────────────────────────────────────────────────┤
+│ 14:32 <alice> Has anyone tried the new async traits?             │
+│ 14:32 <bob> Yeah, they're great for this use case                │
+│ 14:33 <charlie> @alice check out the examples in tokio           │
+│ 14:33 --> carol has joined #rust                                  │
+│ 14:33 <alice> thanks! will do                                     │
+│ 14:34 <-- dave has quit (Ping timeout)                           │
+│                                                                   │
+├─────────────────────────────────────────────────────────┬─────────┤
+│ [#rust] [#linux] [#vim] (status)                        │ @alice  │
+│                                                         │ @bob    │
+│                                                         │  carol  │
+│                                                         │  charlie│
+├─────────────────────────────────────────────────────────┴─────────┤
+│ > /msg alice hey, that tokio link?_                               │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+The interface is divided into five components:
+
+1. **Title Bar** — Shows the current server, channel name, user count, and topic
+2. **Message Area** — Scrollable message history with timestamps and nick colors
+3. **Buffer Tabs** — Shows all open buffers (channels, queries, status). Active buffer is highlighted
+4. **Nick List** — Channel members, sorted with operators (@) first, then voiced (+), then regular users. Collapsible with `Ctrl+L`
+5. **Input Line** — Where you type messages and commands. Shows `>` prompt
+
+## Buffers
+
+There are three types of buffers:
+
+- **Status** — Server messages, connection info, errors. One per connected server
+- **Channel** — A joined channel. Shows messages, joins, parts, and mode changes
+- **Query** — A private message conversation with another user
+
+## Switching Buffers
+
+| Key | Action |
+|---|---|
+| `Ctrl+N` / `Alt+→` | Next buffer |
+| `Ctrl+P` / `Alt+←` | Previous buffer |
+| `Alt+1` through `Alt+9` | Jump to buffer 1–9 |
+| `Alt+0` | Jump to buffer 10 |
+| `/window <n>` | Switch to buffer number `n` |
+
+## Scrolling
+
+| Key | Action |
+|---|---|
+| `Page Up` | Scroll up one page |
+| `Page Down` | Scroll down one page |
+| `Home` | Scroll to the top of the buffer |
+| `End` | Scroll to the bottom (latest messages) |
+
+## Toggling Panels
+
+| Key | Action |
+|---|---|
+| `Ctrl+L` | Toggle nick list visibility |
+| `Ctrl+T` | Toggle buffer tabs visibility |
+| `F1` | Show help overlay |
+| `Ctrl+Q` | Quit the client |
+
+## Input Editing
+
+| Key | Action |
+|---|---|
+| `Ctrl+A` | Move cursor to start of line |
+| `Ctrl+E` | Move cursor to end of line |
+| `Ctrl+W` | Delete word backwards |
+| `Ctrl+K` | Delete from cursor to end of line |
+| `Ctrl+U` | Delete from cursor to start of line |
+| `Up` / `Down` | Browse input history |
+| `Ctrl+R` | Reverse search through input history |
+| `Tab` | Nick/command completion |
+
+## Tab Completion
+
+Press `Tab` to complete nicknames and commands:
+
+- Start typing a nick and press `Tab` — it cycles through matching nicks in the channel
+- Start typing `/` and a command name, then press `Tab` — it completes the command
+- Press `Tab` multiple times to cycle through matches

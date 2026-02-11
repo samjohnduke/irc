@@ -215,21 +215,79 @@ body {
   --tw-prose-links: theme(--color-cyan-400);
   --tw-prose-bold: theme(--color-gray-100);
   --tw-prose-code: theme(--color-cyan-300);
-  --tw-prose-pre-bg: theme(--color-gray-900);
+  --tw-prose-pre-bg: var(--color-surface);
   --tw-prose-pre-code: theme(--color-gray-300);
   --tw-prose-counters: theme(--color-gray-400);
   --tw-prose-bullets: theme(--color-gray-500);
-  --tw-prose-hr: theme(--color-gray-800);
+  --tw-prose-hr: var(--color-border-dim);
   --tw-prose-quotes: theme(--color-gray-300);
   --tw-prose-quote-borders: theme(--color-cyan-700);
-  --tw-prose-th-borders: theme(--color-gray-700);
-  --tw-prose-td-borders: theme(--color-gray-800);
+  --tw-prose-th-borders: var(--color-border);
+  --tw-prose-td-borders: var(--color-border-dim);
 }
 
 .prose :where(code):not(:where(pre *)) {
-  @apply bg-gray-800/50 px-1.5 py-0.5 rounded text-sm font-normal before:content-none after:content-none;
+  @apply px-1.5 py-0.5 rounded text-sm font-normal before:content-none after:content-none;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-dim);
+  font-family: var(--font-mono);
 }
 
 .prose :where(a) {
-  @apply underline decoration-cyan-400/30 underline-offset-2 transition-colors hover:text-cyan-300 hover:decoration-cyan-300/50;
+  @apply underline decoration-cyan-400/20 underline-offset-2 transition-colors hover:text-cyan-300 hover:decoration-cyan-300/50;
+}
+
+/* Guide-specific prose refinements */
+.guide-prose :where(h2) {
+  @apply mt-14 mb-5 scroll-mt-28;
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.guide-prose :where(h3) {
+  @apply mt-10 mb-4 scroll-mt-28;
+}
+
+.guide-prose :where(pre) {
+  @apply rounded-xl border my-6;
+  border-color: var(--color-border-dim);
+  background: var(--color-surface) !important;
+}
+
+.guide-prose :where(blockquote) {
+  @apply rounded-r-xl border-l-2 bg-cyan-500/[0.03] py-1 pr-4 not-italic;
+  border-color: theme(--color-cyan-700);
+}
+
+.guide-prose :where(table) {
+  @apply text-sm;
+}
+
+.guide-prose :where(thead th) {
+  @apply font-mono text-[11px] uppercase tracking-wider text-gray-500;
+  font-weight: 500;
+}
+
+.guide-prose :where(tbody td) {
+  @apply text-gray-400;
+}
+
+.guide-prose :where(tbody tr) {
+  @apply transition-colors;
+}
+
+.guide-prose :where(tbody tr:hover) {
+  background: var(--color-surface-raised);
+}
+
+.guide-prose :where(hr) {
+  @apply my-14;
+}
+
+.guide-prose :where(ul > li)::marker {
+  color: theme(--color-cyan-600);
+}
+
+.guide-prose :where(strong) {
+  @apply text-white;
 }

@@ -1,0 +1,53 @@
+---
+title: GUI Client
+description: The graphical IRC client (in development).
+order: 18
+section: GUI Client
+---
+
+## Status
+
+The graphical IRC client (`irc-gui`) is in early development. The binary is included in the project but does not yet have a functional interface.
+
+## Planned Features
+
+When complete, the GUI client will provide:
+
+- **Visual channel list** — browse and join channels with a sidebar
+- **Multiple server connections** — connect to several servers in tabs
+- **Rich message display** — formatted text, clickable links, nick colors
+- **Inline images** — preview image links directly in chat (if supported by terminal)
+- **Desktop notifications** — system notifications for mentions and private messages
+- **User list panel** — see who's in the channel with status indicators
+- **Tab completion** — complete nicks, channels, and commands
+- **Scrollback** — browse message history with mouse or keyboard
+- **Drag and drop** — (planned) drag files to share links
+- **Search** — search through message history
+
+## Running
+
+```sh
+irc-gui
+```
+
+The binary currently starts but is non-functional. Check the project repository for development updates.
+
+## Configuration
+
+When complete, the GUI client will store its configuration at:
+
+```
+~/.config/irc/gui.toml
+```
+
+Server connections and window preferences will be saved automatically.
+
+## Development
+
+The GUI client is built with Rust. To build from source:
+
+```sh
+cargo build --release -p irc-gui
+```
+
+Follow the project repository for progress on GUI development.

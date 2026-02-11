@@ -1,0 +1,83 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import GuideSidebar from "../../components/GuideSidebar.astro";
+import { userGuideSections } from "../../data/navigation";
+
+const sectionIcons: Record<string, string> = {
+  "Introduction": `<svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><path d="M10 6v1"/><path d="M10 9v5"/></svg>`,
+  "Getting Started": `<svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L5 10l8 8"/><path d="M7 2l8 8-8 8" transform="translate(4 0)"/></svg>`,
+  "CLI Client": `<svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M5 9l3 2-3 2"/><path d="M10 13h5"/></svg>`,
+  "Concepts": `<svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h14"/><path d="M3 8h10"/><path d="M3 12h14"/><path d="M3 16h8"/></svg>`,
+  "GUI Client": `<svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="16" height="12" rx="2"/><path d="M5 18h10"/><path d="M10 15v3"/></svg>`,
+};
+
+const sectionDescriptions: Record<string, string> = {
+  "Introduction": "Learn what IRC is and why it matters.",
+  "Getting Started": "Install the suite and get up and running in minutes.",
+  "CLI Client": "Connect and chat from the terminal.",
+  "Concepts": "Understand IRC networks, modes, and protocol concepts.",
+  "GUI Client": "The graphical IRC client.",
+};
+---
+
+<BaseLayout title="User Guide — irc" description="Learn how to install and use the irc clients.">
+  <div class="relative pt-28 pb-20">
+    <div class="mx-auto max-w-[1280px] px-6">
+      <div class="lg:grid lg:grid-cols-[240px_1fr_200px] lg:gap-12">
+
+        {/* Sidebar */}
+        <aside class="hidden lg:block">
+          <div class="sticky top-28">
+            <GuideSidebar sections={userGuideSections} basePath="/user-guide" label="User Guide" />
+          </div>
+        </aside>
+
+        {/* Content */}
+        <div class="min-w-0">
+          {/* Header */}
+          <header class="mb-12 border-b border-border-dim pb-8">
+            <p class="mb-2 font-mono text-xs uppercase tracking-[0.15em] text-cyan-500">Documentation</p>
+            <h1 class="font-display text-4xl tracking-tight text-white sm:text-5xl">User Guide</h1>
+            <p class="mt-4 max-w-xl text-lg text-gray-500">
+              Everything you need to install the irc suite and connect with the terminal or GUI client.
+            </p>
+          </header>
+
+          {/* Section cards */}
+          <div class="space-y-6">
+            {userGuideSections.map((section) => (
+              <div class="rounded-xl border border-border-dim bg-surface p-6 transition-colors hover:border-border">
+                <div class="flex items-start gap-4">
+                  <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-cyan-500/[0.07] border border-cyan-500/10 text-cyan-400">
+                    <Fragment set:html={sectionIcons[section.title] ?? ""} />
+                  </div>
+                  <div class="min-w-0">
+                    <h2 class="text-lg font-semibold text-white">{section.title}</h2>
+                    <p class="mt-1 text-sm text-gray-500">{sectionDescriptions[section.title]}</p>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                      {section.items.map(({ label, slug }) => (
+                        <a
+                          href={`/user-guide/${slug}/`}
+                          class="group inline-flex items-center gap-1.5 rounded-lg border border-border-dim bg-surface-raised px-3.5 py-2 text-sm text-gray-400 transition-all duration-200 hover:border-border hover:text-white hover:bg-white/[0.03]"
+                        >
+                          {label}
+                          <svg class="h-3 w-3 text-gray-600 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-cyan-400" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M4 3l3 3-3 3" />
+                          </svg>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Empty right column for alignment */}
+        <div class="hidden lg:block"></div>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>

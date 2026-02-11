@@ -1,0 +1,47 @@
+---
+title: Project Overview
+description: What this project includes and how the components fit together.
+order: 1
+section: Overview
+---
+
+## The irc Suite
+
+This project is a modern IRC implementation written in Rust. It includes everything needed to run an IRC server and connect to it — server, clients, and the protocol library they share.
+
+## Components
+
+| Crate | Binary | Description | Status |
+|---|---|---|---|
+| `irc-proto` | — | Protocol parsing library. Handles IRC message parsing, validation, mode parsing, and command types. Used by all other crates. | Complete |
+| `irc-server` | `irc-server` | Full-featured IRC server. Handles connections, channels, user management, modes, operators, TLS, and SASL authentication. | Complete |
+| `irc-client-lib` | — | Client library. Provides connection management and event handling for building IRC clients. | Complete |
+| `irc-cli` | `irc` | Terminal IRC client. A TUI (terminal user interface) built with ratatui for chatting from the command line. | In development |
+| `irc-gui` | `irc-gui` | Graphical IRC client. A desktop application for a visual IRC experience. | In development |
+
+## How They Fit Together
+
+- `irc-proto` is the foundation — it defines how IRC messages are parsed and serialized, and both the server and client library depend on it
+- `irc-server` is a standalone binary — it uses `irc-proto` for protocol handling and provides a complete IRC server
+- `irc-client-lib` uses `irc-proto` to provide a client-side connection API
+- Both `irc-cli` and `irc-gui` are built on `irc-client-lib` — they provide different interfaces to the same underlying client logic
+
+The dependency flow is straightforward: `irc-proto` feeds into both `irc-server` and `irc-client-lib`, and `irc-client-lib` in turn feeds into `irc-cli` and `irc-gui`.
+
+## Design Goals
+
+- **RFC compliance** — Implements RFC 1459, RFC 2812, and select IRCv3 extensions (SASL, CAP negotiation)
+- **Performance** — Built with Rust and Tokio for async I/O. Lock-free concurrent state with DashMap
+- **Security** — TLS via rustls (no OpenSSL dependency), SASL PLAIN authentication with Argon2 password hashing
+- **Single binaries** — Each component compiles to a single static binary with no runtime dependencies
+- **Simplicity** — TOML configuration, sensible defaults, minimal setup required
+
+## Current Status
+
+The **server** is fully functional — it handles connections, registration, channels with full mode support, operators, KICK, BAN, INVITE, TOPIC, TLS encryption, SASL authentication, and all the standard IRC commands. You can connect to it right now with any IRC client.
+
+The **CLI client** is in active development. The architecture is designed (terminal UI with buffers, nick list, key bindings, and a full command set) but the binary currently prints a placeholder message. The documentation in this guide describes the designed interface.
+
+The **GUI client** is in early development.
+
+You can use the server today with any existing IRC client (irssi, WeeChat, HexChat, etc.) while the project's own clients are being built.

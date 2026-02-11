@@ -1,0 +1,113 @@
+---
+title: CLI Configuration
+description: Customize the terminal client with cli.toml.
+order: 9
+section: CLI Client
+---
+
+> The CLI client is in active development. This page documents the designed configuration format.
+
+## Config File Location
+
+The CLI reads its configuration from:
+
+```
+~/.config/irc/cli.toml
+```
+
+All settings are optional — the client works with sensible defaults when no config file is present.
+
+## UI Settings
+
+```toml
+[ui]
+timestamps = true              # Show timestamps on messages
+timestamp_format = "%H:%M"    # strftime format for timestamps
+show_joins = true              # Show join messages
+show_parts = true              # Show part messages
+show_quits = true              # Show quit messages
+nick_list = "right"           # Nick list position: "right", "left", "hidden"
+nick_list_width = 16          # Width of the nick list in columns
+buffer_tabs = "bottom"        # Buffer tabs position: "top", "bottom", "hidden"
+scrollback_lines = 10000      # Maximum messages kept per buffer
+input_history_size = 500      # Number of input lines to remember
+```
+
+## Colors
+
+```toml
+[colors]
+theme = "default"             # Color theme: "default", "solarized-dark", "solarized-light", "nord"
+highlights = [                # Regex patterns to highlight in messages
+  "\\byournick\\b",
+  "\\balert\\b"
+]
+highlight_color = "yellow"    # Color for highlighted text
+```
+
+## Notifications
+
+```toml
+[notifications]
+enabled = true                # Enable desktop notifications
+on_mention = true             # Notify when your nick is mentioned
+on_private = true             # Notify on private messages
+on_highlight = true           # Notify on highlight pattern matches
+```
+
+## Logging
+
+```toml
+[logging]
+enabled = false               # Log messages to files
+path = "~/.local/share/irc/logs"  # Directory for log files
+format = "%Y-%m-%d.log"      # Log file name format (per-channel, per-day)
+```
+
+## Runtime Settings
+
+You can change most settings at runtime with the `/set` command:
+
+```
+/set timestamps false
+/set nick_list hidden
+/set theme nord
+```
+
+Use `/set` with no arguments to see all current settings and their values.
+
+## Full Example
+
+Here's a complete example configuration:
+
+```toml
+# ~/.config/irc/cli.toml
+
+[ui]
+timestamps = true
+timestamp_format = "%H:%M:%S"
+show_joins = true
+show_parts = true
+show_quits = false
+nick_list = "right"
+nick_list_width = 20
+buffer_tabs = "bottom"
+scrollback_lines = 50000
+input_history_size = 1000
+
+[colors]
+theme = "nord"
+highlights = ["\\bmynick\\b", "\\burgent\\b"]
+highlight_color = "yellow"
+
+[notifications]
+enabled = true
+on_mention = true
+on_private = true
+on_highlight = true
+
+[logging]
+enabled = true
+path = "~/.local/share/irc/logs"
+format = "%Y-%m-%d.log"
+```

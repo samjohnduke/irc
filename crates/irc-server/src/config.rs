@@ -32,6 +32,10 @@ pub struct ServerConfig {
     /// Admin information
     #[serde(default)]
     pub admin: AdminConfig,
+
+    /// SASL accounts for authentication
+    #[serde(default)]
+    pub accounts: Vec<AccountConfig>,
 }
 
 /// Listener configuration.
@@ -161,6 +165,16 @@ pub struct OperConfig {
     pub host_mask: Option<String>,
 }
 
+/// SASL account configuration.
+#[derive(Debug, Clone, Deserialize)]
+pub struct AccountConfig {
+    /// Account name (username for authentication)
+    pub name: String,
+
+    /// Password hash (argon2)
+    pub password_hash: String,
+}
+
 /// Admin information configuration.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct AdminConfig {
@@ -189,6 +203,7 @@ impl Default for ServerConfig {
             limits: LimitsConfig::default(),
             operators: Vec::new(),
             admin: AdminConfig::default(),
+            accounts: Vec::new(),
         }
     }
 }

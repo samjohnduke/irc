@@ -8,6 +8,7 @@
 //! - SASL authentication
 //! - Built-in services (NickServ, ChanServ)
 
+pub mod cap;
 pub mod config;
 pub mod connection;
 pub mod error;

@@ -101,7 +101,12 @@ fn send_to_channel(
     );
 
     // Broadcast to all members except sender
-    ctx.state.broadcast_to_channel(&channel, msg, Some(client_id));
+    ctx.state.broadcast_to_channel(&channel, msg.clone(), Some(client_id));
+
+    // Echo back to sender if echo-message is enabled
+    if ctx.client.has_cap("echo-message")? {
+        ctx.client.send_with_tags(msg)?;
+    }
 
     tracing::debug!(
         from = ?ctx.client.nickname()?,
@@ -164,7 +169,7 @@ fn send_to_user(
     );
 
     // Send to target
-    match target_client.send(msg) {
+    match target_client.send(msg.clone()) {
         Ok(true) => {}
         Ok(false) => {
             // Client disconnected
@@ -181,6 +186,11 @@ fn send_to_user(
             tracing::debug!(target = %target, error = %e, "Failed to send message");
             return Err(e);
         }
+    }
+
+    // Echo back to sender if echo-message is enabled
+    if ctx.client.has_cap("echo-message")? {
+        ctx.client.send_with_tags(msg)?;
     }
 
     tracing::debug!(

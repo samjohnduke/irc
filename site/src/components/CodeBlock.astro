@@ -6,13 +6,17 @@ interface Props {
 const { title } = Astro.props;
 ---
 
-<div class="not-prose overflow-hidden rounded-lg border border-gray-800">
+<div class="not-prose overflow-hidden rounded-xl border border-border-dim">
   {title && (
-    <div class="border-b border-gray-800 bg-gray-900 px-4 py-2">
-      <span class="text-xs text-gray-500">{title}</span>
+    <div class="flex items-center gap-2 border-b border-border-dim bg-surface px-4 py-2.5">
+      <svg class="h-3.5 w-3.5 text-gray-600" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2" y="1" width="10" height="12" rx="1.5" />
+        <path d="M5 4h4M5 7h4M5 10h2" />
+      </svg>
+      <span class="font-mono text-[11px] text-gray-500">{title}</span>
     </div>
   )}
-  <div class="bg-gray-900">
+  <div class="bg-surface">
     <slot />
   </div>
 </div>

@@ -1,0 +1,138 @@
+---
+title: Modes Reference
+description: Complete reference for all channel and user modes.
+order: 17
+section: Concepts
+---
+
+## What Are Modes?
+
+Modes are settings that control the behavior of channels and users on IRC. Channel modes affect how a channel operates (who can join, who can speak, etc.), while user modes affect how the server treats an individual user.
+
+Modes are set with the `MODE` command. A `+` prefix adds a mode, and `-` removes it.
+
+## MODE Command Syntax
+
+For channels:
+
+```
+MODE #channel +<modes> [parameters...]
+MODE #channel -<modes> [parameters...]
+```
+
+For users (your own modes):
+
+```
+MODE yournick +<modes>
+MODE yournick -<modes>
+```
+
+## Channel Modes
+
+### Flag Modes
+
+These modes are simple on/off toggles with no parameters:
+
+| Flag | Name | Description |
+|---|---|---|
+| `i` | Invite Only | Users must be invited (or match an invite exception `+I`) to join |
+| `m` | Moderated | Only operators (`@`) and voiced (`+`) users can send messages |
+| `n` | No External Messages | Users must be in the channel to send messages to it |
+| `t` | Topic Lock | Only operators can change the channel topic |
+| `s` | Secret | Channel is hidden from LIST and doesn't appear in WHOIS for non-members |
+| `p` | Private | Channel is marked as private |
+
+### Parameter Modes
+
+These modes require a parameter when being set:
+
+| Flag | Name | Set Parameter | Unset Parameter | Description |
+|---|---|---|---|---|
+| `k` | Key | password | password | Require a password to join the channel |
+| `l` | Limit | number | — | Set a maximum number of users. No parameter needed to remove |
+
+### List Modes
+
+These modes maintain a list of masks. Each add/remove operates on one mask:
+
+| Flag | Name | Parameter | Description |
+|---|---|---|---|
+| `b` | Ban | `nick!user@host` | Prevent matching users from joining or speaking |
+| `e` | Ban Exception | `nick!user@host` | Exempt matching users from bans |
+| `I` | Invite Exception | `nick!user@host` | Allow matching users to join even when `+i` is set |
+
+Use `MODE #channel +b` (with no parameter) to view the current ban list. Same for `+e` and `+I`.
+
+### Membership Modes
+
+These modes grant status to individual users in a channel:
+
+| Flag | Name | Prefix | Parameter | Description |
+|---|---|---|---|---|
+| `o` | Operator | `@` | nick | Grant channel operator privileges |
+| `v` | Voice | `+` | nick | Allow speaking in moderated (`+m`) channels |
+
+## User Modes
+
+User modes are set on yourself and affect how the server treats you:
+
+| Flag | Name | Description |
+|---|---|---|
+| `i` | Invisible | Hides you from WHO and NAMES queries for users not in a shared channel |
+| `s` | Server Notices | Receive server notice messages |
+| `w` | Wallops | Receive WALLOPS messages (operator broadcasts) |
+| `o` | Operator | IRC operator status. Cannot be set with MODE — only gained through the OPER command |
+
+## Mask Format
+
+Ban masks, exception masks, and invite exception masks use the `nick!user@host` pattern with wildcards (`*` matches any number of characters):
+
+| Pattern | Meaning |
+|---|---|
+| `*!*@*` | Matches everyone |
+| `*!*@bad.host.com` | Matches anyone from `bad.host.com` |
+| `nick!*@*` | Matches anyone using nick `nick` |
+| `*!user@*` | Matches anyone with ident `user` |
+| `*!*@192.168.*` | Matches anyone from the `192.168.x.x` range |
+| `*!*@*.example.com` | Matches anyone from any subdomain of `example.com` |
+
+## Combining Modes
+
+You can set or remove multiple modes in a single command. Parameters are provided in order after the mode string:
+
+```
+MODE #channel +ov alice bob
+```
+
+This gives operator to `alice` and voice to `bob`.
+
+```
+MODE #channel +mnt
+```
+
+This sets moderated, no-external, and topic-lock all at once.
+
+```
+MODE #channel +ob alice *!*@bad.host
+```
+
+This gives operator to `alice` and bans `*!*@bad.host`.
+
+Mixed add/remove:
+
+```
+MODE #channel +o-v alice bob
+```
+
+This gives operator to `alice` and removes voice from `bob`.
+
+## ISUPPORT Tokens
+
+When you connect, the server advertises its mode support in the ISUPPORT (005) numeric:
+
+- `CHANMODES=beI,k,l,imnpst` — Channel modes grouped by type:
+  - Type A (list modes): `b`, `e`, `I`
+  - Type B (param always): `k`
+  - Type C (param on set): `l`
+  - Type D (no param): `i`, `m`, `n`, `p`, `s`, `t`
+- `PREFIX=(ov)@+` — Membership mode prefixes: `o` → `@`, `v` → `+`

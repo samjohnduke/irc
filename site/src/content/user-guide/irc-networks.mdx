@@ -1,0 +1,78 @@
+---
+title: IRC Networks
+description: How IRC networks work and what server linking means.
+order: 16
+section: Concepts
+---
+
+## The Network Model
+
+IRC was designed from the beginning as a networked protocol. An IRC **network** is a group of servers linked together so that they appear as one system to users. When you connect to any server in the network, you can see and talk to users connected to any other server in the same network.
+
+Major IRC networks like Libera.Chat, OFTC, and EFnet each consist of multiple servers spread across different locations, all linked together.
+
+## How Server Linking Works
+
+When IRC servers are linked, they maintain a spanning tree topology — each server connects to one or more other servers, forming a tree with no loops. Servers synchronize state by forwarding messages along these links:
+
+- When a user joins a channel, every server in the network learns about it
+- When a message is sent to a channel, it's relayed server-to-server until it reaches all members
+- Nick uniqueness is enforced across the entire network
+
+The protocols for server linking are defined in RFC 2810 (architecture) and RFC 2813 (server protocol), though most modern networks use custom extensions.
+
+## Why Networks Exist
+
+Multiple linked servers provide:
+
+- **Redundancy** — If one server goes down, users can connect to another and still reach the same channels and users
+- **Geographic distribution** — Servers placed in different regions reduce latency for users in those areas
+- **Load distribution** — Connection load is spread across multiple machines
+- **Administrative delegation** — Different organizations can run servers that participate in the same network
+
+## Netsplits
+
+A **netsplit** happens when the link between two servers in a network breaks. When this occurs:
+
+- The network splits into two (or more) groups of servers
+- Users on each side can only see users connected to their side
+- Channels appear to lose members that are on the other side
+- You'll see messages like `*.server1.net *.server2.net` in quit notices
+
+When the link is restored (a **netjoin**), the servers resynchronize — users and channels merge back together. During a netjoin you may see a flood of join messages.
+
+## Network Services
+
+Most IRC networks run **services** — specialized programs that connect to the network and provide features not built into the IRC protocol:
+
+- **NickServ** — Nickname registration and identification. Lets you "own" a nickname and protect it with a password
+- **ChanServ** — Channel registration. Preserves channel settings, op lists, and bans even when the channel is empty
+- **MemoServ** — Offline messaging between registered users
+- **BotServ** — Managed channel bots
+
+Services are external programs, not part of the IRC server itself. They connect as privileged clients (or pseudo-servers) and respond to user commands via private messages.
+
+## This Project
+
+This IRC server operates as a **single standalone server**. Server-to-server linking is not currently implemented — each instance of `irc-server` operates independently.
+
+What this means in practice:
+
+- Your server is its own self-contained network
+- All users must connect to the same server instance
+- There's no netsplit risk (since there's only one server)
+- Network services like NickServ/ChanServ would need to connect as regular clients or bots
+
+For most use cases — private teams, communities, local development — a single server is all you need. The server supports SASL authentication for user accounts, which covers the most common use case for NickServ (proving your identity).
+
+## Connecting to Public Networks
+
+You can use the IRC client (once complete) to connect to public IRC networks alongside your own server. Popular networks include:
+
+- **Libera.Chat** (`irc.libera.chat:6697`) — The largest network, home to many open source projects
+- **OFTC** (`irc.oftc.net:6697`) — Open and Free Technology Community, hosts Debian and other projects
+- **EFnet** (`irc.efnet.org:6697`) — One of the original IRC networks
+- **IRCnet** (`irc.ircnet.net:6697`) — Another original network, mainly European
+- **Rizon** (`irc.rizon.net:6697`) — General-purpose network
+
+All of these support TLS on port 6697.

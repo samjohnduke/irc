@@ -1,0 +1,82 @@
+---
+title: Command Reference
+description: Complete list of all CLI commands.
+order: 8
+section: CLI Client
+---
+
+> The CLI client is in active development. This page documents the designed command set.
+
+All commands start with `/`. Text that doesn't begin with `/` is sent as a message to the active buffer.
+
+## Connection Commands
+
+| Command | Description |
+|---|---|
+| `/connect <server>` | Connect to a server defined in your config |
+| `/disconnect [message]` | Disconnect from the current server |
+| `/server <host> [port]` | Quick connect to a server by hostname |
+| `/quit [message]` | Quit IRC and close all connections |
+
+## Channel Commands
+
+| Command | Description |
+|---|---|
+| `/join <channel> [key]` | Join a channel, optionally with a key |
+| `/part [channel] [message]` | Leave the current or specified channel |
+| `/topic [text]` | View or set the channel topic |
+| `/names` | Refresh the nick list for the current channel |
+| `/kick <nick> [reason]` | Kick a user from the current channel |
+| `/invite <nick>` | Invite a user to the current channel |
+| `/mode <modes> [params]` | Set channel or user modes |
+| `/list [pattern]` | List channels on the server |
+
+## Messaging Commands
+
+| Command | Description |
+|---|---|
+| `/msg <target> <message>` | Send a message to a user or channel |
+| `/notice <target> <message>` | Send a notice to a user or channel |
+| `/me <action>` | Send an action to the current buffer |
+| `/query <nick>` | Open a private message buffer with a user |
+| `/ctcp <nick> <command>` | Send a CTCP request (VERSION, PING, etc.) |
+
+## User Commands
+
+| Command | Description |
+|---|---|
+| `/nick <newnick>` | Change your nickname |
+| `/away [message]` | Set or clear your away status |
+| `/whois <nick>` | Look up information about a user |
+| `/who <mask>` | List users matching a pattern |
+
+## UI Commands
+
+| Command | Description |
+|---|---|
+| `/window <n>` | Switch to buffer number `n` |
+| `/close` | Close the current buffer |
+| `/clear` | Clear messages in the current buffer |
+| `/set <key> [value]` | View or change a runtime setting |
+| `/help [command]` | Show help, optionally for a specific command |
+
+## Raw Commands
+
+| Command | Description |
+|---|---|
+| `/raw <command>` | Send a raw IRC protocol command |
+| `/quote <command>` | Alias for `/raw` |
+
+### Examples
+
+Send a raw LUSERS command to see server statistics:
+
+```
+/raw LUSERS
+```
+
+Send a raw ADMIN command:
+
+```
+/quote ADMIN
+```

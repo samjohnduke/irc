@@ -1,0 +1,98 @@
+---
+title: Contributing
+description: Build from source, run tests, and contribute to the project.
+order: 2
+section: Development
+---
+
+## Prerequisites
+
+You'll need:
+
+- **Rust** (stable, 2024 edition) — install via [rustup](https://rustup.rs/)
+- **Git** — to clone the repository
+
+## Clone and Build
+
+```sh
+git clone https://github.com/example/irc.git
+cd irc
+cargo build
+```
+
+This builds the entire workspace — all five crates. Binaries end up in `target/debug/`.
+
+## Workspace Structure
+
+```
+irc/
+├── crates/
+│   ├── irc-proto/         # Protocol parsing library
+│   ├── irc-server/        # IRC server binary
+│   ├── irc-client-lib/    # Client connection library
+│   ├── irc-cli/           # Terminal client binary
+│   └── irc-gui/           # GUI client binary
+├── site/                  # Documentation site (Astro)
+└── Cargo.toml             # Workspace root
+```
+
+## Running Tests
+
+Run the full test suite:
+
+```sh
+cargo test
+```
+
+Run tests for a specific crate:
+
+```sh
+cargo test -p irc-proto
+cargo test -p irc-server
+```
+
+The server crate includes integration tests that spin up a real server on a random port and connect test clients to it. These are in `crates/irc-server/tests/`.
+
+## Running the Server Locally
+
+```sh
+cargo run -p irc-server
+```
+
+This starts the server with default settings on port 6667. Connect to it with any IRC client.
+
+To run with a config file:
+
+```sh
+cargo run -p irc-server -- --config server.toml
+```
+
+## Key Dependencies
+
+| Dependency | Used For |
+|---|---|
+| `tokio` | Async runtime and I/O |
+| `tokio-rustls` / `rustls` | TLS encryption (no OpenSSL) |
+| `dashmap` | Lock-free concurrent state |
+| `serde` / `toml` | Configuration parsing |
+| `tracing` | Structured logging |
+| `clap` | CLI argument parsing |
+| `ratatui` | Terminal UI (CLI client) |
+| `argon2` | Password hashing (SASL auth) |
+
+## Building the Documentation Site
+
+The site is an [Astro](https://astro.build/) project in the `site/` directory:
+
+```sh
+cd site
+npm install
+npm run dev      # Dev server at localhost:4321
+npm run build    # Production build to site/dist/
+```
+
+## Code Style
+
+- The project uses Rust 2024 edition
+- Run `cargo clippy` before submitting changes
+- Run `cargo fmt` to format code

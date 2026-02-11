@@ -1,0 +1,220 @@
+---
+title: Channel Management
+description: Understand channel modes, bans, and moderation tools.
+order: 5
+section: Administration
+---
+
+## Channel Basics
+
+Channels are chat rooms where multiple users can communicate. Channel names start with `#` (e.g., `#general`, `#help`).
+
+**Channel creation** is implicit — when a user joins a channel that doesn't exist, it's created automatically. The first user to join becomes the channel operator.
+
+**Channel destruction** is also automatic — when the last user leaves a channel, it's removed from the server.
+
+## Channel Modes
+
+Channel modes control how a channel behaves. Operators can set modes with the MODE command.
+
+### Flag Modes (no parameter)
+
+| Mode | Flag | Description |
+|---|---|---|
+| Invite Only | `+i` | Only invited users can join |
+| Moderated | `+m` | Only operators and voiced users can send messages |
+| No External Messages | `+n` | Only channel members can send messages to the channel |
+| Topic Lock | `+t` | Only operators can change the topic |
+| Secret | `+s` | Channel is hidden from LIST and WHOIS for non-members |
+| Private | `+p` | Channel is marked as private |
+
+### Parameter Modes
+
+| Mode | Flag | Parameter | Description |
+|---|---|---|---|
+| Key | `+k` | password | Require a password to join |
+| Limit | `+l` | number | Maximum number of users allowed in the channel |
+
+### List Modes
+
+| Mode | Flag | Parameter | Description |
+|---|---|---|---|
+| Ban | `+b` | mask | Ban users matching the mask from joining and speaking |
+| Exception | `+e` | mask | Exempt users matching the mask from bans |
+| Invite Exception | `+I` | mask | Allow users matching the mask to join even when +i is set |
+
+### Membership Modes
+
+| Mode | Flag | Parameter | Description |
+|---|---|---|---|
+| Operator | `+o` | nick | Grant channel operator status (shown as `@nick`) |
+| Voice | `+v` | nick | Grant voice status (shown as `+nick`) |
+
+## Using the MODE Command
+
+Set a single mode:
+
+```
+/mode #channel +m
+```
+
+Remove a mode:
+
+```
+/mode #channel -m
+```
+
+Combine multiple modes in one command:
+
+```
+/mode #channel +mnt
+/mode #channel +ov alice bob
+/mode #channel +b-o *!*@bad.host alice
+```
+
+View current channel modes:
+
+```
+/mode #channel
+```
+
+View ban list:
+
+```
+/mode #channel +b
+```
+
+## Bans
+
+Bans prevent users matching a host mask from joining the channel or sending messages.
+
+### Mask Format
+
+Ban masks use the `nick!user@host` format with wildcards:
+
+| Mask | Matches |
+|---|---|
+| `*!*@bad.host.com` | Anyone connecting from `bad.host.com` |
+| `badnick!*@*` | Anyone using the nick `badnick` |
+| `*!baduser@*` | Anyone with the username `baduser` |
+| `*!*@*.example.com` | Anyone from any subdomain of `example.com` |
+| `*!*@192.168.1.*` | Anyone from the 192.168.1.x subnet |
+
+### Managing Bans
+
+Set a ban:
+
+```
+/mode #channel +b *!*@troll.example.com
+```
+
+Remove a ban:
+
+```
+/mode #channel -b *!*@troll.example.com
+```
+
+View the ban list:
+
+```
+/mode #channel +b
+```
+
+### Ban Exceptions
+
+Ban exceptions (`+e`) override bans for specific users:
+
+```
+/mode #channel +b *!*@example.com
+/mode #channel +e *!trusted@example.com
+```
+
+This bans everyone from `example.com` except the user with ident `trusted`.
+
+### Invite Exceptions
+
+Invite exceptions (`+I`) allow specific users to join invite-only channels without an explicit invite:
+
+```
+/mode #channel +i
+/mode #channel +I *!*@trusted.example.com
+```
+
+## Moderation
+
+### Moderated Channels (+m)
+
+In a moderated channel, only operators (`@`) and voiced (`+`) users can send messages. This is useful for Q&A sessions, announcements, or controlling a disruptive channel.
+
+To moderate a channel:
+
+```
+/mode #channel +m
+```
+
+To allow a specific user to speak:
+
+```
+/mode #channel +v alice
+```
+
+### No External Messages (+n)
+
+By default, users who are not in a channel can still send messages to it. Setting `+n` prevents this:
+
+```
+/mode #channel +n
+```
+
+Most channels should have `+n` set.
+
+## KICK and INVITE
+
+### Kicking Users
+
+Remove a user from the channel:
+
+```
+/kick #channel baduser
+/kick #channel baduser Please follow the channel rules
+```
+
+Only channel operators can kick users. The optional reason is shown to the kicked user and other channel members.
+
+### Inviting Users
+
+Invite a user to join the channel:
+
+```
+/invite alice #channel
+```
+
+If the channel is invite-only (`+i`), the invitation allows the user to join once. The server also adds an invite exception for the user.
+
+## Topics
+
+### Viewing the Topic
+
+```
+/topic #channel
+```
+
+### Setting the Topic
+
+```
+/topic #channel Welcome to the discussion — be respectful
+```
+
+### Topic Lock (+t)
+
+When `+t` is set, only channel operators can change the topic. This is common for public channels:
+
+```
+/mode #channel +t
+```
+
+## Channel Lifecycle
+
+1. **Creation** — A user joins a channel name that doesn't exist. The channel is created and the user is automatically granted operator status (`@`).
+2. **Normal operation** — Users join, chat, and leave. Operators manage modes and moderation.
+3. **Destruction** — When the last user parts or disconnects, the channel is removed. All modes, bans, and topic are lost.

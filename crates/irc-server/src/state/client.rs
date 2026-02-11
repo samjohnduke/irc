@@ -5,10 +5,11 @@ use std::net::SocketAddr;
 use std::sync::RwLock;
 
 use chrono::{DateTime, Utc};
-use irc_proto::{Command, Message, Prefix};
+use irc_proto::{Command, Message, Prefix, Tags};
 use tokio::sync::mpsc;
 use unicase::UniCase;
 
+use crate::cap::ClientCapState;
 use crate::error::{Error, Result};
 use crate::lock::RwLockExt;
 
@@ -140,6 +141,9 @@ pub struct Client {
 
     /// Password sent with PASS (before registration).
     password: RwLock<Option<String>>,
+
+    /// IRCv3 capability state.
+    cap_state: RwLock<ClientCapState>,
 }
 
 impl Client {
@@ -167,6 +171,7 @@ impl Client {
             connected_at: Utc::now(),
             tls,
             password: RwLock::new(None),
+            cap_state: RwLock::new(ClientCapState::new()),
         }
     }
 
@@ -333,5 +338,92 @@ impl Client {
             .iter()
             .map(|c| c.to_string())
             .collect())
+    }
+
+    // ========================================
+    // IRCv3 Capability Methods
+    // ========================================
+
+    /// Check if a capability is enabled for this client.
+    pub fn has_cap(&self, name: &str) -> Result<bool> {
+        Ok(self.cap_state.read_lock("cap_state")?.has_cap(name))
+    }
+
+    /// Enable a capability for this client.
+    pub fn enable_cap(&self, name: &str) -> Result<()> {
+        self.cap_state.write_lock("cap_state")?.enable(name);
+        Ok(())
+    }
+
+    /// Disable a capability for this client.
+    pub fn disable_cap(&self, name: &str) -> Result<()> {
+        self.cap_state.write_lock("cap_state")?.disable(name);
+        Ok(())
+    }
+
+    /// Get the list of enabled capabilities.
+    pub fn enabled_caps(&self) -> Result<Vec<String>> {
+        Ok(self
+            .cap_state
+            .read_lock("cap_state")?
+            .enabled
+            .iter()
+            .cloned()
+            .collect())
+    }
+
+    /// Start capability negotiation.
+    pub fn start_cap_negotiation(&self) -> Result<()> {
+        self.cap_state.write_lock("cap_state")?.start_negotiation();
+        Ok(())
+    }
+
+    /// End capability negotiation.
+    pub fn end_cap_negotiation(&self) -> Result<()> {
+        self.cap_state.write_lock("cap_state")?.end_negotiation();
+        Ok(())
+    }
+
+    /// Check if capability negotiation is in progress.
+    pub fn is_cap_negotiating(&self) -> Result<bool> {
+        Ok(self.cap_state.read_lock("cap_state")?.is_negotiating())
+    }
+
+    /// Get the formatted list of enabled capabilities.
+    pub fn format_cap_list(&self) -> Result<String> {
+        Ok(self.cap_state.read_lock("cap_state")?.format_list())
+    }
+
+    /// Get the account name (if authenticated via SASL).
+    pub fn account(&self) -> Result<Option<String>> {
+        Ok(self.cap_state.read_lock("cap_state")?.account.clone())
+    }
+
+    /// Set the account name after successful SASL authentication.
+    pub fn set_account(&self, account: String) -> Result<()> {
+        self.cap_state.write_lock("cap_state")?.account = Some(account);
+        Ok(())
+    }
+
+    /// Get the current SASL state.
+    pub fn sasl_state(&self) -> Result<Option<crate::cap::sasl::SaslState>> {
+        Ok(self.cap_state.read_lock("cap_state")?.sasl_state.clone())
+    }
+
+    /// Set the SASL state.
+    pub fn set_sasl_state(&self, state: Option<crate::cap::sasl::SaslState>) -> Result<()> {
+        self.cap_state.write_lock("cap_state")?.sasl_state = state;
+        Ok(())
+    }
+
+    /// Send a message to this client, adding server-time tag if capability is enabled.
+    pub fn send_with_tags(&self, mut message: Message) -> Result<bool> {
+        // Add server-time tag if the client has it enabled
+        if self.has_cap("server-time")? {
+            let time = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+            let tags = message.tags.get_or_insert_with(Tags::new);
+            tags.set("time", time);
+        }
+        self.send(message)
     }
 }

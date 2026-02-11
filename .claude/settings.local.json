@@ -28,7 +28,12 @@
       "WebFetch(domain:evilmartians.com)",
       "WebFetch(domain:www.warp.dev)",
       "WebFetch(domain:zed.dev)",
-      "WebFetch(domain:ghostty.org)"
+      "WebFetch(domain:ghostty.org)",
+      "Bash(cargo run:*)",
+      "Bash(grep:*)",
+      "Bash(sort:*)",
+      "Bash(python3 -c \"\nimport os, glob\nmatches = glob.glob\\(''site/src/pages/guide/[[]...id].astro''\\)\nprint\\(''matches:'', matches\\)\nfor m in matches:\n    os.remove\\(m\\)\n    print\\(''removed:'', m\\)\n\")",
+      "Bash(echo:*)"
     ]
   }
 }

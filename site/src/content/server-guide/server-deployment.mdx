@@ -1,0 +1,214 @@
+---
+title: Deployment
+description: Deploy the server in production with systemd and best practices.
+order: 6
+section: Production
+---
+
+## Dedicated User
+
+Create a system user for the IRC server:
+
+```sh
+sudo useradd -r -s /usr/sbin/nologin -d /var/lib/irc irc
+```
+
+## File Layout
+
+A recommended directory structure:
+
+```
+/usr/local/bin/irc-server    # Server binary
+/etc/irc/server.toml         # Configuration
+/etc/irc/cert.pem            # TLS certificate
+/etc/irc/key.pem             # TLS private key
+/etc/irc/motd.txt            # Message of the day
+/var/lib/irc/                # Server home directory
+```
+
+Set permissions:
+
+```sh
+sudo mkdir -p /etc/irc /var/lib/irc
+sudo chown irc:irc /var/lib/irc
+sudo chmod 750 /etc/irc
+sudo chmod 640 /etc/irc/server.toml     # Config may contain password hashes
+sudo chmod 640 /etc/irc/key.pem         # Private key must be protected
+```
+
+## systemd Service
+
+Create `/etc/systemd/system/irc-server.service`:
+
+```ini
+[Unit]
+Description=IRC Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=irc
+Group=irc
+ExecStart=/usr/local/bin/irc-server -c /etc/irc/server.toml -f
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/etc/irc
+ReadWritePaths=/var/lib/irc
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl enable --now irc-server
+```
+
+Check status:
+
+```sh
+sudo systemctl status irc-server
+sudo journalctl -u irc-server -f
+```
+
+## MOTD File
+
+Create a Message of the Day file displayed to users on connect:
+
+```sh
+sudo tee /etc/irc/motd.txt << 'EOF'
+Welcome to ExampleNet IRC!
+
+Rules:
+- Be respectful
+- No spam or flooding
+- English in public channels
+
+Admin contact: admin@example.com
+EOF
+```
+
+Reference it in the config:
+
+```toml
+motd_file = "/etc/irc/motd.txt"
+```
+
+## Admin Information
+
+The `[admin]` section provides contact information returned by the `/ADMIN` command:
+
+```toml
+[admin]
+location1 = "Example Organization"
+location2 = "San Francisco, CA, US"
+email = "admin@example.com"
+```
+
+## Firewall
+
+Open the standard IRC ports:
+
+```sh
+# iptables
+sudo iptables -A INPUT -p tcp --dport 6667 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 6697 -j ACCEPT
+
+# ufw
+sudo ufw allow 6667/tcp
+sudo ufw allow 6697/tcp
+
+# firewalld
+sudo firewall-cmd --permanent --add-port=6667/tcp
+sudo firewall-cmd --permanent --add-port=6697/tcp
+sudo firewall-cmd --reload
+```
+
+If you only run TLS, you can skip opening port 6667.
+
+## Performance Tuning
+
+### Server Limits
+
+Adjust the `[limits]` section based on your expected load:
+
+```toml
+[limits]
+max_clients = 4096           # Increase for larger servers
+ping_timeout = 180           # Seconds before disconnecting idle clients
+registration_timeout = 30    # Reduce to reject slow/stalled connections faster
+send_buffer_size = 1024      # Increase for clients on slow connections
+```
+
+### System Limits
+
+For high connection counts, increase the file descriptor limit. The systemd unit above sets `LimitNOFILE=65536`. You can also set it system-wide:
+
+```sh
+# /etc/security/limits.d/irc.conf
+irc    soft    nofile    65536
+irc    hard    nofile    65536
+```
+
+### Kernel Tuning
+
+For servers expecting thousands of connections:
+
+```sh
+# /etc/sysctl.d/99-irc.conf
+net.core.somaxconn = 4096
+net.ipv4.tcp_max_syn_backlog = 4096
+```
+
+Apply with `sudo sysctl --system`.
+
+## Monitoring
+
+### Logs
+
+View live logs with journalctl:
+
+```sh
+sudo journalctl -u irc-server -f
+```
+
+Increase verbosity for debugging:
+
+```sh
+# In the systemd unit, add to ExecStart:
+ExecStart=/usr/local/bin/irc-server -c /etc/irc/server.toml -f -v
+```
+
+### IRC Commands
+
+Connect as an operator and use built-in commands to monitor the server:
+
+- `LUSERS` — Show current connection counts
+- `VERSION` — Show server version information
+- `ADMIN` — Show admin contact information
+- `STATS` — Show server statistics
+- `MOTD` — Re-display the Message of the Day
+
+### ISUPPORT
+
+When clients connect, the server sends an ISUPPORT (005) numeric listing supported features and limits. This includes:
+
+- `NETWORK=` — Network name
+- `NICKLEN=` — Maximum nick length
+- `CHANNELLEN=` — Maximum channel name length
+- `TOPICLEN=` — Maximum topic length
+- `CHANLIMIT=` — Maximum channels per user
+- `CHANMODES=` — Supported channel modes by category
+- `PREFIX=` — Channel membership prefixes (op, voice)

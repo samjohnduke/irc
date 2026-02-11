@@ -16,6 +16,7 @@ use dashmap::DashMap;
 use irc_proto::Message;
 use unicase::UniCase;
 
+use crate::cap::CapabilityRegistry;
 use crate::config::ServerConfig;
 use crate::error::Result;
 use crate::lock::RwLockExt;
@@ -71,6 +72,9 @@ pub struct ServerState {
 
     /// WHOWAS history buffer.
     pub whowas_history: RwLock<VecDeque<WhowasEntry>>,
+
+    /// IRCv3 capability registry.
+    pub capabilities: CapabilityRegistry,
 }
 
 impl ServerState {
@@ -85,6 +89,7 @@ impl ServerState {
             client_counter: AtomicU64::new(1),
             motd: tokio::sync::RwLock::new(None),
             whowas_history: RwLock::new(VecDeque::new()),
+            capabilities: CapabilityRegistry::new(),
         }
     }
 

@@ -224,6 +224,11 @@ pub fn handle_quit(ctx: &HandlerContext, message: Option<&str>) -> Result<()> {
 
 /// Check if registration is complete and send welcome burst if so.
 fn check_registration_complete(ctx: &HandlerContext) -> Result<()> {
+    // Don't complete registration if CAP negotiation is in progress
+    if ctx.client.is_cap_negotiating()? {
+        return Ok(());
+    }
+
     if ctx.client.registration_phase()? == RegistrationPhase::Registered {
         tracing::info!(
             client_id = %ctx.client.id,

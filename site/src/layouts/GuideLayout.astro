@@ -2,33 +2,119 @@
 import BaseLayout from "./BaseLayout.astro";
 import GuideSidebar from "../components/GuideSidebar.astro";
 import TableOfContents from "../components/TableOfContents.astro";
+import type { NavSection } from "../data/navigation";
 
 interface Props {
   title: string;
   description?: string;
   headings?: { depth: number; slug: string; text: string }[];
+  sections: NavSection[];
+  basePath: string;
+  guideLabel: string;
 }
 
-const { title, description, headings = [] } = Astro.props;
+const { title, description, headings = [], sections, basePath, guideLabel } = Astro.props;
+
+// Find prev/next pages for navigation
+const allPages = sections.flatMap((s) => s.items);
+const currentSlug = Astro.url.pathname.replace(new RegExp(`^${basePath}/`), "").replace(/\/$/, "");
+const currentIndex = allPages.findIndex((p) => p.slug === currentSlug);
+const prevPage = currentIndex > 0 ? allPages[currentIndex - 1] : null;
+const nextPage = currentIndex < allPages.length - 1 ? allPages[currentIndex + 1] : null;
 ---
 
-<BaseLayout title={`${title} — irc Guide`} description={description}>
-  <div class="mx-auto max-w-7xl px-6 py-10">
-    <div class="lg:grid lg:grid-cols-[220px_1fr_180px] lg:gap-10">
-      <aside class="hidden lg:block">
-        <div class="sticky top-24">
-          <GuideSidebar />
+<BaseLayout title={`${title} — irc ${guideLabel}`} description={description}>
+  <div class="relative pt-28 pb-20">
+    <div class="mx-auto max-w-[1280px] px-6">
+      <div class="lg:grid lg:grid-cols-[240px_1fr_200px] lg:gap-12">
+
+        {/* ===== SIDEBAR ===== */}
+        <aside class="hidden lg:block">
+          <div class="sticky top-28">
+            <GuideSidebar sections={sections} basePath={basePath} label={guideLabel} />
+          </div>
+        </aside>
+
+        {/* ===== MOBILE SIDEBAR TOGGLE ===== */}
+        <div class="mb-6 lg:hidden">
+          <details class="group rounded-xl border border-border-dim bg-surface">
+            <summary class="flex cursor-pointer items-center justify-between px-4 py-3 text-sm text-gray-400">
+              <span class="flex items-center gap-2">
+                <svg class="h-4 w-4 text-cyan-500" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M3 4h10M3 8h6M3 12h8" />
+                </svg>
+                Navigation
+              </span>
+              <svg class="h-4 w-4 transition-transform duration-200 group-open:rotate-180" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M4 6l4 4 4-4" />
+              </svg>
+            </summary>
+            <div class="border-t border-border-dim px-4 py-4">
+              <GuideSidebar sections={sections} basePath={basePath} label={guideLabel} />
+            </div>
+          </details>
         </div>
-      </aside>
-      <article class="prose prose-lg max-w-none">
-        <h1>{title}</h1>
-        <slot />
-      </article>
-      <aside class="hidden lg:block">
-        <div class="sticky top-24">
-          {headings.length > 0 && <TableOfContents headings={headings} />}
-        </div>
-      </aside>
+
+        {/* ===== CONTENT ===== */}
+        <article class="min-w-0">
+          {/* Page header */}
+          <header class="mb-10 border-b border-border-dim pb-8">
+            {description && (
+              <p class="mb-2 font-mono text-xs uppercase tracking-[0.15em] text-cyan-500">{description}</p>
+            )}
+            <h1 class="font-display text-4xl tracking-tight text-white sm:text-5xl">{title}</h1>
+          </header>
+
+          {/* Prose content */}
+          <div class="guide-prose prose prose-lg max-w-none">
+            <slot />
+          </div>
+
+          {/* Prev / Next navigation */}
+          {(prevPage || nextPage) && (
+            <nav class="mt-16 grid gap-4 sm:grid-cols-2" aria-label="Page navigation">
+              {prevPage ? (
+                <a
+                  href={`${basePath}/${prevPage.slug}/`}
+                  class="group flex flex-col items-start rounded-xl border border-border-dim bg-surface p-5 transition-all duration-300 hover:border-border hover:bg-surface-raised"
+                >
+                  <span class="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-gray-600">
+                    <svg class="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M7 3L4 6l3 3" />
+                    </svg>
+                    Previous
+                  </span>
+                  <span class="mt-2 text-sm font-medium text-gray-400 transition-colors group-hover:text-white">{prevPage.label}</span>
+                </a>
+              ) : (
+                <div></div>
+              )}
+              {nextPage && (
+                <a
+                  href={`${basePath}/${nextPage.slug}/`}
+                  class="group flex flex-col items-end rounded-xl border border-border-dim bg-surface p-5 transition-all duration-300 hover:border-border hover:bg-surface-raised"
+                >
+                  <span class="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-gray-600">
+                    Next
+                    <svg class="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M5 3l3 3-3 3" />
+                    </svg>
+                  </span>
+                  <span class="mt-2 text-sm font-medium text-gray-400 transition-colors group-hover:text-white">{nextPage.label}</span>
+                </a>
+              )}
+            </nav>
+          )}
+        </article>
+
+        {/* ===== TABLE OF CONTENTS ===== */}
+        <aside class="hidden lg:block">
+          <div class="sticky top-28">
+            {headings.length > 0 && <TableOfContents headings={headings} />}
+          </div>
+        </aside>
+
+      </div>
     </div>
   </div>
 </BaseLayout>
