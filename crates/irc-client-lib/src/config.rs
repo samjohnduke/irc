@@ -51,6 +51,19 @@ pub struct ClientConfig {
 
     /// Channels to auto-join on connect.
     pub autojoin: Vec<String>,
+
+    // === Reconnection ===
+    /// Automatically reconnect on disconnect.
+    pub reconnect: bool,
+
+    /// Initial delay before reconnecting (seconds).
+    pub reconnect_delay: u64,
+
+    /// Maximum delay between reconnect attempts (seconds).
+    pub reconnect_max_delay: u64,
+
+    /// Maximum number of reconnect attempts (0 = unlimited).
+    pub reconnect_max_attempts: u32,
 }
 
 impl Default for ClientConfig {
@@ -69,6 +82,10 @@ impl Default for ClientConfig {
             request_chathistory: true,
             chathistory_limit: 100,
             autojoin: Vec::new(),
+            reconnect: true,
+            reconnect_delay: 5,
+            reconnect_max_delay: 300,
+            reconnect_max_attempts: 0,
         }
     }
 }

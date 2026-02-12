@@ -21,3 +21,7 @@ crossterm = { version = "0.28", features = ["event-stream"] }
 futures.workspace = true
 unicode-width = "0.2"
 chrono.workspace = true
+dirs = "5"
+toml = "0.8"
+serde = { workspace = true, features = ["derive"] }
+whoami = "1"

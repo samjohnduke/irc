@@ -8,6 +8,7 @@ use ratatui::{
     widgets::Widget,
 };
 
+use crate::completion::CompletionState;
 use crate::style::Theme;
 
 /// Input line state.
@@ -27,6 +28,9 @@ pub struct InputState {
 
     /// Saved current input when browsing history.
     pub saved_input: Option<String>,
+
+    /// Tab completion state.
+    pub completion: CompletionState,
 }
 
 impl Default for InputState {
@@ -43,17 +47,27 @@ impl InputState {
             history: Vec::new(),
             history_index: None,
             saved_input: None,
+            completion: CompletionState::new(),
         }
     }
 
     /// Insert a character at the cursor.
     pub fn insert(&mut self, c: char) {
+        self.completion.reset(); // Reset completion on any input
         self.text.insert(self.cursor, c);
         self.cursor += c.len_utf8();
     }
 
+    /// Apply a completion to the current input.
+    pub fn apply_completion(&mut self, completion: &str, start_pos: usize) {
+        // Replace from start_pos to cursor with the completion
+        self.text.replace_range(start_pos..self.cursor, completion);
+        self.cursor = start_pos + completion.len();
+    }
+
     /// Delete the character before the cursor.
     pub fn backspace(&mut self) {
+        self.completion.reset();
         if self.cursor > 0 {
             // Find the previous character boundary
             let prev = self.text[..self.cursor]
@@ -68,6 +82,7 @@ impl InputState {
 
     /// Delete the character at the cursor.
     pub fn delete(&mut self) {
+        self.completion.reset();
         if self.cursor < self.text.len() {
             let next = self.text[self.cursor..]
                 .char_indices()

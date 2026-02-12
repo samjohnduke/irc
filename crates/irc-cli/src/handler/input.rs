@@ -23,6 +23,10 @@ pub enum KeyAction {
     ScrollDown(usize),
     /// Scroll to bottom.
     ScrollBottom,
+    /// Tab completion requested.
+    TabComplete,
+    /// Reverse tab completion (Shift+Tab).
+    TabCompleteReverse,
 }
 
 /// Handle a key event, updating input state and returning any action.
@@ -42,13 +46,17 @@ pub fn handle_key_event(event: KeyEvent, input: &mut InputState) -> KeyAction {
         (KeyCode::Char('c'), KeyModifiers::CONTROL) => KeyAction::Quit,
         (KeyCode::Char('d'), KeyModifiers::CONTROL) if input.text.is_empty() => KeyAction::Quit,
 
+        // Tab completion
+        (KeyCode::Tab, KeyModifiers::NONE) => KeyAction::TabComplete,
+        (KeyCode::BackTab, _) => KeyAction::TabCompleteReverse,
+
         // Buffer switching
         (KeyCode::Char('n'), KeyModifiers::CONTROL) => KeyAction::NextBuffer,
         (KeyCode::Char('p'), KeyModifiers::CONTROL) => KeyAction::PrevBuffer,
         (KeyCode::Down, KeyModifiers::ALT) => KeyAction::NextBuffer,
         (KeyCode::Up, KeyModifiers::ALT) => KeyAction::PrevBuffer,
-        (KeyCode::Tab, KeyModifiers::NONE) => KeyAction::NextBuffer,
-        (KeyCode::BackTab, _) => KeyAction::PrevBuffer,
+        (KeyCode::Right, KeyModifiers::ALT) => KeyAction::NextBuffer,
+        (KeyCode::Left, KeyModifiers::ALT) => KeyAction::PrevBuffer,
 
         // Scrolling
         (KeyCode::PageUp, _) => KeyAction::ScrollUp(10),

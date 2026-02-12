@@ -10,6 +10,7 @@ use ratatui::Terminal;
 
 use irc_client_lib::{Client, ClientConfig, Event as IrcEvent};
 
+use crate::completion::{find_completion_word, format_nick_completion, get_candidates, CompletionContext};
 use crate::handler::command::{command_help, parse_command, Command};
 use crate::handler::input::{handle_key_event, KeyAction};
 use crate::state::{BufferKind, BufferList, DisplayMessage};
@@ -21,6 +22,9 @@ use crate::ui::layout::{draw_layout, LayoutConfig};
 pub struct App {
     /// IRC client.
     client: Client,
+
+    /// Client configuration (for reconnection).
+    config: ClientConfig,
 
     /// Buffer list.
     buffers: BufferList,
@@ -42,15 +46,33 @@ pub struct App {
 
     /// Layout configuration.
     layout: LayoutConfig,
+
+    /// Reconnection state.
+    reconnect_state: ReconnectState,
+}
+
+/// Reconnection state tracking.
+#[derive(Debug, Clone)]
+struct ReconnectState {
+    /// Number of reconnect attempts.
+    attempts: u32,
+    /// Current delay in seconds.
+    current_delay: u64,
+    /// Whether we're actively trying to reconnect.
+    reconnecting: bool,
+    /// Time of next reconnect attempt (if reconnecting).
+    next_attempt: Option<std::time::Instant>,
 }
 
 impl App {
     /// Create a new application with the given config.
     pub fn new(config: ClientConfig) -> Self {
         let nick = config.nicknames.first().cloned().unwrap_or_else(|| "user".into());
+        let reconnect_delay = config.reconnect_delay;
 
         Self {
-            client: Client::new(config),
+            client: Client::new(config.clone()),
+            config,
             buffers: BufferList::new(),
             input: InputState::new(),
             nick,
@@ -58,6 +80,12 @@ impl App {
             should_quit: false,
             theme: Theme::default(),
             layout: LayoutConfig::default(),
+            reconnect_state: ReconnectState {
+                attempts: 0,
+                current_delay: reconnect_delay,
+                reconnecting: false,
+                next_attempt: None,
+            },
         }
     }
 
@@ -107,6 +135,13 @@ impl App {
                 );
             })?;
 
+            // Check if we need to reconnect
+            if self.should_attempt_reconnect() {
+                self.try_reconnect().await;
+                // Re-subscribe to new client's events
+                irc_events = self.client.subscribe();
+            }
+
             // Wait for events
             tokio::select! {
                 // Terminal events
@@ -121,8 +156,8 @@ impl App {
                     self.handle_irc_event(event).await;
                 }
 
-                // Check quit flag
-                _ = tokio::time::sleep(Duration::from_millis(50)) => {
+                // Periodic tick for reconnection checks
+                _ = tokio::time::sleep(Duration::from_millis(100)) => {
                     if self.should_quit {
                         break;
                     }
@@ -170,6 +205,201 @@ impl App {
             KeyAction::ScrollBottom => {
                 self.buffers.active_mut().scroll_to_bottom();
             }
+
+            KeyAction::TabComplete => {
+                self.handle_tab_complete(false);
+            }
+
+            KeyAction::TabCompleteReverse => {
+                self.handle_tab_complete(true);
+            }
+        }
+    }
+
+    /// Handle tab completion.
+    fn handle_tab_complete(&mut self, reverse: bool) {
+        // If completion is already active, cycle through candidates
+        if self.input.completion.is_active() {
+            let start_pos = self.input.completion.start_pos();
+            let completion = if reverse {
+                self.input.completion.prev()
+            } else {
+                self.input.completion.next()
+            };
+
+            if let Some(completion) = completion {
+                let completion = completion.to_string();
+                self.input.apply_completion(&completion, start_pos);
+            }
+            return;
+        }
+
+        // Start new completion
+        let (word_start, prefix) = find_completion_word(&self.input.text, self.input.cursor);
+
+        if prefix.is_empty() {
+            return;
+        }
+
+        // Get completion context
+        let members = self.get_channel_members();
+        let buffer_names = self.get_buffer_names();
+
+        let context = CompletionContext {
+            members: &members,
+            buffers: &buffer_names,
+        };
+
+        let candidates = get_candidates(prefix, &context);
+
+        if candidates.is_empty() {
+            return;
+        }
+
+        // Format candidates (add suffix for nicks)
+        let at_start = word_start == 0;
+        let formatted_candidates: Vec<String> = candidates
+            .into_iter()
+            .map(|c| {
+                if c.starts_with('/') || c.starts_with('#') || c.starts_with('&') {
+                    format!("{} ", c)
+                } else {
+                    format_nick_completion(&c, at_start)
+                }
+            })
+            .collect();
+
+        // Start completion
+        self.input.completion.start(
+            prefix.to_string(),
+            word_start,
+            self.input.cursor,
+            formatted_candidates,
+        );
+
+        // Apply first completion
+        if let Some(completion) = self.input.completion.current() {
+            let completion = completion.to_string();
+            self.input.apply_completion(&completion, word_start);
+        }
+    }
+
+    /// Get channel members for current buffer.
+    fn get_channel_members(&self) -> Vec<String> {
+        let active = self.buffers.active();
+        if !active.is_channel() {
+            return Vec::new();
+        }
+
+        // Get members from client state
+        let state = self.client.state();
+        if let Ok(state) = state.try_read() {
+            if let Some(channel) = state.channel(&active.name) {
+                return channel.member_nicks().map(String::from).collect();
+            }
+        }
+
+        Vec::new()
+    }
+
+    /// Get all buffer names.
+    fn get_buffer_names(&self) -> Vec<String> {
+        self.buffers
+            .all()
+            .iter()
+            .filter(|b| b.is_channel())
+            .map(|b| b.name.clone())
+            .collect()
+    }
+
+    /// Start the reconnection process.
+    fn start_reconnect(&mut self) {
+        // Check if we've exceeded max attempts
+        if self.config.reconnect_max_attempts > 0
+            && self.reconnect_state.attempts >= self.config.reconnect_max_attempts
+        {
+            self.buffers.add_message(
+                "Server",
+                DisplayMessage::error("Maximum reconnect attempts reached. Use /reconnect to try again."),
+                true,
+            );
+            self.reconnect_state.reconnecting = false;
+            return;
+        }
+
+        self.reconnect_state.attempts += 1;
+        self.reconnect_state.reconnecting = true;
+
+        let delay = self.reconnect_state.current_delay;
+        self.reconnect_state.next_attempt = Some(
+            std::time::Instant::now() + Duration::from_secs(delay),
+        );
+
+        // Increase delay for next attempt (exponential backoff)
+        self.reconnect_state.current_delay = (delay * 2).min(self.config.reconnect_max_delay);
+
+        self.buffers.add_message(
+            "Server",
+            DisplayMessage::server(format!(
+                "Reconnecting in {} seconds (attempt {})...",
+                delay, self.reconnect_state.attempts
+            )),
+            true,
+        );
+    }
+
+    /// Attempt to reconnect.
+    async fn try_reconnect(&mut self) {
+        self.reconnect_state.next_attempt = None;
+
+        self.buffers.add_message(
+            "Server",
+            DisplayMessage::server("Attempting to reconnect..."),
+            true,
+        );
+
+        // Create a new client with the same config
+        self.client = Client::new(self.config.clone());
+
+        match self.client.connect().await {
+            Ok(()) => {
+                self.connected = true;
+                self.nick = self.client.nick().await;
+                self.reconnect_state.reconnecting = false;
+                self.reconnect_state.attempts = 0;
+                self.reconnect_state.current_delay = self.config.reconnect_delay;
+
+                self.buffers.add_message(
+                    "Server",
+                    DisplayMessage::server("Reconnected successfully!"),
+                    true,
+                );
+            }
+            Err(e) => {
+                self.buffers.add_message(
+                    "Server",
+                    DisplayMessage::error(format!("Reconnect failed: {}", e)),
+                    true,
+                );
+
+                // Schedule next attempt
+                if self.config.reconnect {
+                    self.start_reconnect();
+                }
+            }
+        }
+    }
+
+    /// Check if it's time to reconnect.
+    fn should_attempt_reconnect(&self) -> bool {
+        if !self.reconnect_state.reconnecting {
+            return false;
+        }
+
+        if let Some(next_attempt) = self.reconnect_state.next_attempt {
+            std::time::Instant::now() >= next_attempt
+        } else {
+            false
         }
     }
 
@@ -312,6 +542,43 @@ impl App {
                 self.buffers.switch_to("Server");
             }
 
+            Command::Reconnect => {
+                if self.connected {
+                    self.buffers.add_message(
+                        "Server",
+                        DisplayMessage::server("Already connected. Use /disconnect first."),
+                        true,
+                    );
+                } else {
+                    // Reset reconnect state and try immediately
+                    self.reconnect_state.attempts = 0;
+                    self.reconnect_state.current_delay = self.config.reconnect_delay;
+                    self.reconnect_state.reconnecting = false;
+                    self.try_reconnect().await;
+                }
+            }
+
+            Command::Disconnect => {
+                if self.connected {
+                    let _ = self.client.quit(Some("Disconnecting")).await;
+                    self.connected = false;
+                    self.reconnect_state.reconnecting = false;
+                    self.buffers.add_message(
+                        "Server",
+                        DisplayMessage::server("Disconnected."),
+                        true,
+                    );
+                } else {
+                    // Stop any reconnection attempts
+                    self.reconnect_state.reconnecting = false;
+                    self.buffers.add_message(
+                        "Server",
+                        DisplayMessage::server("Not connected."),
+                        true,
+                    );
+                }
+            }
+
             Command::Message { text } => {
                 let target = self.buffers.active_name().to_string();
                 if target != "Server" {
@@ -348,12 +615,17 @@ impl App {
 
             IrcEvent::Disconnected { reason, .. } => {
                 self.connected = false;
-                let msg = reason.unwrap_or_else(|| "Connection closed".into());
+                let msg = reason.clone().unwrap_or_else(|| "Connection closed".into());
                 self.buffers.add_message(
                     "Server",
                     DisplayMessage::error(format!("Disconnected: {}", msg)),
                     true,
                 );
+
+                // Start reconnection if enabled
+                if self.config.reconnect {
+                    self.start_reconnect();
+                }
             }
 
             IrcEvent::Privmsg { source, target, message, meta } => {

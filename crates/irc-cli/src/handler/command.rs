@@ -82,6 +82,12 @@ pub enum Command {
         topic: Option<String>,
     },
 
+    /// /reconnect - Manual reconnect
+    Reconnect,
+
+    /// /disconnect - Disconnect without quitting
+    Disconnect,
+
     /// Regular message (not a command)
     Message {
         text: String,
@@ -247,6 +253,10 @@ pub fn parse_command(input: &str) -> Command {
                 Some(args.to_string())
             },
         },
+
+        "reconnect" | "connect" => Command::Reconnect,
+
+        "disconnect" => Command::Disconnect,
 
         _ => {
             // Unknown command - try to send as raw
