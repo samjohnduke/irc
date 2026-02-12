@@ -171,12 +171,22 @@ pub fn handle_whois(ctx: &HandlerContext, nicknames: &[String]) -> Result<()> {
             )?;
 
             // 313 RPL_WHOISOPERATOR (if oper)
-            if target.modes.read_lock("modes")?.operator {
+            let modes = target.modes.read_lock("modes")?;
+            if modes.operator {
                 ctx.reply(
                     RPL_WHOISOPERATOR,
                     vec![target_nick.clone(), "is an IRC operator".into()],
                 )?;
             }
+
+            // 335 RPL_WHOISBOT (if bot mode is set)
+            if modes.bot {
+                ctx.reply(
+                    RPL_WHOISBOT,
+                    vec![target_nick.clone(), "is a Bot".into()],
+                )?;
+            }
+            drop(modes);
 
             // 317 RPL_WHOISIDLE
             // <nick> <integer> <integer> :seconds idle, signon time

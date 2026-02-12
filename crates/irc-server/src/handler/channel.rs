@@ -956,7 +956,27 @@ pub fn handle_invite(ctx: &HandlerContext, nickname: &str, channel_name: &str) -
             channel: channel_name.to_string(),
         },
     );
-    target.send(invite_msg)?;
+    target.send(invite_msg.clone())?;
+
+    // Send invite-notify to channel ops (and halfops) with invite-notify enabled
+    {
+        let channel = channel_arc.read_lock("channel")?;
+        for (member_id, status) in &channel.members {
+            // Don't send to the inviter (they already know)
+            if *member_id == client_id {
+                continue;
+            }
+            // Only send to operators
+            if !status.operator {
+                continue;
+            }
+            if let Some(member) = ctx.state.clients.get(member_id) {
+                if member.has_cap("invite-notify")? {
+                    let _ = member.send(invite_msg.clone());
+                }
+            }
+        }
+    }
 
     // Check if target is away
     if let Some(away_msg) = target.away_message()? {
@@ -1009,6 +1029,8 @@ fn send_topic_to_client(ctx: &HandlerContext, channel: &Channel) -> Result<()> {
 fn send_names_to_client(ctx: &HandlerContext, channel: &Channel) -> Result<()> {
     // Check if client has multi-prefix capability
     let multi_prefix = ctx.client.has_cap("multi-prefix")?;
+    // Check if client has userhost-in-names capability
+    let userhost_in_names = ctx.client.has_cap("userhost-in-names")?;
 
     // Build names list with prefixes
     let mut names = Vec::new();
@@ -1021,7 +1043,15 @@ fn send_names_to_client(ctx: &HandlerContext, channel: &Channel) -> Result<()> {
                 status.voice,
                 multi_prefix,
             );
-            names.push(format!("{}{}", prefix, nick));
+            let name = if userhost_in_names {
+                // Format: @nick!user@host
+                let user = client.username()?.unwrap_or_else(|| "unknown".to_string());
+                let host = client.hostname()?;
+                format!("{}{}!{}@{}", prefix, nick, user, host)
+            } else {
+                format!("{}{}", prefix, nick)
+            };
+            names.push(name);
         }
     }
 

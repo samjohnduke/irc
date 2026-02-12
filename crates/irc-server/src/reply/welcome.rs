@@ -52,15 +52,15 @@ pub async fn send_welcome_burst(client: &Arc<Client>, state: &Arc<ServerState>) 
     );
 
     // 004 RPL_MYINFO
-    // <servername> <version> <available user modes> <available channel modes>
+    // <servername> <version> <available user modes> <available channel modes> [<channel modes with params>]
     rb.send(
         client,
         RPL_MYINFO,
         vec![
             config.server_name.clone(),
             "irc-server-0.1.0".into(),
-            "iow".into(),   // user modes
-            "imnst".into(), // channel modes (basic set)
+            "ioBrw".into(),      // user modes: invisible, oper, Bot, registered, wallops
+            "beiIklmnstoOv".into(), // channel modes: ban, exception, invite-only, Invex, key, limit, moderated, no-external, secret, topic-lock, op, protected, voice
         ],
     );
 
@@ -75,32 +75,50 @@ pub async fn send_welcome_burst(client: &Arc<Client>, state: &Arc<ServerState>) 
 }
 
 /// Send ISUPPORT (005) messages.
+///
+/// Tokens are organized per modern IRC client protocol specification.
+/// See: https://modern.ircdocs.horse/#rplisupport-parameters
 async fn send_isupport(client: &Arc<Client>, state: &Arc<ServerState>) {
     let config = &state.config;
     let rb = ReplyBuilder::new(&config.server_name, client);
 
-    // First ISUPPORT line
+    // First ISUPPORT line - network and basic limits
     let isupport1 = vec![
         format!("NETWORK={}", config.network_name),
         format!("NICKLEN={}", config.limits.max_nick_length),
         format!("CHANNELLEN={}", config.limits.max_channel_length),
+        format!("USERLEN={}", 18), // max username length
+        format!("HOSTLEN={}", 64), // max hostname length
         "CASEMAPPING=rfc1459".into(),
-        format!("CHANTYPES={}", "#&"),
-        format!("PREFIX={}", "(ov)@+"),
         "are supported by this server".into(),
     ];
     rb.send(client, RPL_ISUPPORT, isupport1);
 
-    // Second ISUPPORT line
+    // Second ISUPPORT line - channel types and prefixes
     let isupport2 = vec![
-        format!("CHANMODES={}", "b,k,l,imnst"),
+        "CHANTYPES=#&".into(),
+        "PREFIX=(ov)@+".into(), // op (@) and voice (+)
+        // CHANMODES: A=list, B=param always, C=param on set, D=no param
+        "CHANMODES=beI,k,l,imnst".into(),
         format!("MODES={}", 4),
-        format!("TOPICLEN={}", config.limits.max_topic_length),
-        format!("KICKLEN={}", config.limits.max_kick_length),
-        format!("AWAYLEN={}", config.limits.max_away_length),
+        "EXCEPTS=e".into(), // ban exception mode
+        "INVEX=I".into(),   // invite exception mode
         "are supported by this server".into(),
     ];
     rb.send(client, RPL_ISUPPORT, isupport2);
+
+    // Third ISUPPORT line - message/topic limits and features
+    let isupport3 = vec![
+        format!("TOPICLEN={}", config.limits.max_topic_length),
+        format!("KICKLEN={}", config.limits.max_kick_length),
+        format!("AWAYLEN={}", config.limits.max_away_length),
+        format!("CHANLIMIT=#&:{}", config.limits.max_channels),
+        format!("MAXTARGETS={}", 4),
+        "SAFELIST".into(), // LIST won't flood
+        format!("MONITOR={}", config.limits.max_monitor),
+        "are supported by this server".into(),
+    ];
+    rb.send(client, RPL_ISUPPORT, isupport3);
 }
 
 /// Send LUSERS information.

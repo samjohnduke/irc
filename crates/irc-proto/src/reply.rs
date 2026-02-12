@@ -66,6 +66,8 @@ pub mod reply {
     pub const RPL_WHOISCHANNELS: u16 = 319;
     /// WHOIS account
     pub const RPL_WHOISACCOUNT: u16 = 330;
+    /// WHOIS bot status (non-standard, used by some IRCds)
+    pub const RPL_WHOISBOT: u16 = 335;
     /// WHOIS actually (real host)
     pub const RPL_WHOISACTUALLY: u16 = 338;
 
@@ -218,6 +220,29 @@ pub mod reply {
     pub const RPL_HELPTXT: u16 = 705;
     /// End of help
     pub const RPL_ENDOFHELP: u16 = 706;
+
+    // === Account Registration (draft/account-registration) ===
+
+    /// Registration success
+    pub const RPL_REG_SUCCESS: u16 = 920;
+    /// Registration verification needed (email verification)
+    pub const RPL_REG_VERIFICATION_REQUIRED: u16 = 927;
+}
+
+/// Account registration error codes.
+pub mod register_errors {
+    /// Already authenticated/registered
+    pub const ERR_REG_ALREADY_REGISTERED: u16 = 921;
+    /// Account name unavailable
+    pub const ERR_REG_ACCOUNT_EXISTS: u16 = 922;
+    /// Need more params
+    pub const ERR_REG_NEED_MORE_PARAMS: u16 = 923;
+    /// Unacceptable email
+    pub const ERR_REG_UNACCEPTABLE_EMAIL: u16 = 924;
+    /// Unacceptable password
+    pub const ERR_REG_UNACCEPTABLE_PASSWORD: u16 = 925;
+    /// Invalid account name
+    pub const ERR_REG_INVALID_ACCOUNT: u16 = 926;
 }
 
 /// Error codes (400-599)

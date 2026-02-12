@@ -110,8 +110,12 @@ fn send_to_channel(
     let sender_account = ctx.client.account()?;
     crate::cap::extensions::add_account_tag(&mut msg, sender_account.as_deref());
 
+    // Add msgid tag (used by message-ids capability and history)
+    let _msgid = crate::cap::extensions::add_msgid_tag(&mut msg);
+
     // Broadcast to all members except sender
     // Only include account tag for clients with account-tag capability
+    // Only include msgid tag for clients with message-ids capability
     for member_id in channel.members.keys() {
         if *member_id == client_id {
             continue;
@@ -124,13 +128,26 @@ fn send_to_channel(
             {
                 tags.remove("account");
             }
+            // Remove msgid tag if member doesn't have the cap
+            if !member.has_cap("message-ids")?
+                && let Some(ref mut tags) = member_msg.tags
+            {
+                tags.remove("msgid");
+            }
             let _ = member.send_with_tags(member_msg);
         }
     }
 
     // Echo back to sender if echo-message is enabled
     if ctx.client.has_cap("echo-message")? {
-        ctx.client.send_with_tags(msg)?;
+        // Keep msgid in echo for sender if they support message-ids
+        let mut echo_msg = msg.clone();
+        if !ctx.client.has_cap("message-ids")?
+            && let Some(ref mut tags) = echo_msg.tags
+        {
+            tags.remove("msgid");
+        }
+        ctx.client.send_with_tags(echo_msg)?;
     }
 
     tracing::debug!(
@@ -197,12 +214,20 @@ fn send_to_user(
     let sender_account = ctx.client.account()?;
     crate::cap::extensions::add_account_tag(&mut msg, sender_account.as_deref());
 
-    // Prepare message for target (remove account tag if they don't support it)
+    // Add msgid tag (used by message-ids capability and history)
+    let _msgid = crate::cap::extensions::add_msgid_tag(&mut msg);
+
+    // Prepare message for target (remove tags they don't support)
     let mut target_msg = msg.clone();
     if !target_client.has_cap("account-tag")?
         && let Some(ref mut tags) = target_msg.tags
     {
         tags.remove("account");
+    }
+    if !target_client.has_cap("message-ids")?
+        && let Some(ref mut tags) = target_msg.tags
+    {
+        tags.remove("msgid");
     }
 
     // Send to target
@@ -227,7 +252,14 @@ fn send_to_user(
 
     // Echo back to sender if echo-message is enabled
     if ctx.client.has_cap("echo-message")? {
-        ctx.client.send_with_tags(msg)?;
+        // Keep msgid in echo for sender if they support message-ids
+        let mut echo_msg = msg.clone();
+        if !ctx.client.has_cap("message-ids")?
+            && let Some(ref mut tags) = echo_msg.tags
+        {
+            tags.remove("msgid");
+        }
+        ctx.client.send_with_tags(echo_msg)?;
     }
 
     tracing::debug!(

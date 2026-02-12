@@ -48,6 +48,7 @@ pub use s2s_command::{
 pub use reply::describe as describe_numeric;
 pub use reply::error as errors;
 pub use reply::reply as replies;
+pub use reply::register_errors;
 
 /// Codec for streaming message parsing (tokio compatible)
 pub use parse::MessageCodec;

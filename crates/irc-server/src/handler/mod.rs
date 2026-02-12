@@ -11,6 +11,8 @@ mod misc;
 mod monitor;
 mod oper;
 mod query;
+mod read_marker;
+mod register;
 mod registration;
 mod sasl;
 mod server;
@@ -46,12 +48,19 @@ pub struct HandlerContext<'a> {
     pub client: &'a Arc<Client>,
     /// Server state.
     pub state: &'a Arc<ServerState>,
+    /// Label tag from incoming message (for labeled-response capability).
+    pub label: Option<String>,
 }
 
 impl<'a> HandlerContext<'a> {
     /// Create a new handler context.
     pub fn new(client: &'a Arc<Client>, state: &'a Arc<ServerState>) -> Self {
-        Self { client, state }
+        Self { client, state, label: None }
+    }
+
+    /// Create a new handler context with a label.
+    pub fn with_label(client: &'a Arc<Client>, state: &'a Arc<ServerState>, label: Option<String>) -> Self {
+        Self { client, state, label }
     }
 
     /// Get the server name.
@@ -66,7 +75,23 @@ impl<'a> HandlerContext<'a> {
 
     /// Send a numeric reply to the client.
     pub fn reply(&self, code: u16, params: Vec<String>) -> Result<()> {
-        self.client.send_numeric(self.server_name(), code, params)?;
+        let target = self.client.nickname()?.unwrap_or_else(|| "*".to_string());
+        let mut msg = Message::with_prefix(
+            self.server_prefix(),
+            Command::Numeric {
+                code,
+                target,
+                params,
+            },
+        );
+        // Add label tag if client supports labeled-response
+        if let Some(ref label) = self.label
+            && self.client.has_cap("labeled-response")?
+        {
+            let tags = msg.tags.get_or_insert_with(irc_proto::Tags::new);
+            tags.set("label", label);
+        }
+        self.client.send(msg)?;
         Ok(())
     }
 
@@ -92,7 +117,14 @@ impl<'a> HandlerContext<'a> {
 
     /// Send a message from the server to the client.
     pub fn send_server_message(&self, command: Command) -> Result<()> {
-        let msg = Message::with_prefix(self.server_prefix(), command);
+        let mut msg = Message::with_prefix(self.server_prefix(), command);
+        // Add label tag if client supports labeled-response
+        if let Some(ref label) = self.label
+            && self.client.has_cap("labeled-response")?
+        {
+            let tags = msg.tags.get_or_insert_with(irc_proto::Tags::new);
+            tags.set("label", label);
+        }
         self.client.send(msg)?;
         Ok(())
     }
@@ -104,7 +136,9 @@ pub async fn handle_message(
     state: &Arc<ServerState>,
     message: Message,
 ) -> Result<()> {
-    let ctx = HandlerContext::new(client, state);
+    // Extract label tag from incoming message for labeled-response
+    let label = message.tags.as_ref().and_then(|tags| tags.get("label").map(|s| s.to_string()));
+    let ctx = HandlerContext::with_label(client, state, label);
 
     match &message.command {
         // Registration commands (allowed before registration)
@@ -124,6 +158,11 @@ pub async fn handle_message(
 
         // SASL authentication (IRCv3)
         Command::Authenticate { data } => sasl::handle_authenticate(&ctx, data),
+
+        // Account registration (draft/account-registration, allowed before connect)
+        Command::Register { account, email, password } => {
+            register::handle_register(&ctx, account, email, password)
+        }
 
         // Commands requiring registration
         _ => {
@@ -206,12 +245,74 @@ pub async fn handle_message(
                 // HELP command
                 Command::Help { topic } => handle_help(&ctx, topic.as_deref()),
 
+                // MARKREAD command (draft/read-marker)
+                Command::Markread { target, timestamp } => {
+                    read_marker::handle_markread(&ctx, target, timestamp.as_deref())
+                }
+
                 Command::Mode { target, modes, params } => {
                     if is_channel(target) {
                         handle_channel_mode(&ctx, target, modes.as_deref(), params)
                     } else {
-                        // User mode
-                        if modes.is_none() {
+                        // User mode - must be targeting self
+                        let client_nick = client.nickname()?.unwrap_or_default();
+                        if !irc_proto::irc_eq(target, &client_nick) {
+                            ctx.reply(
+                                irc_proto::errors::ERR_USERSDONTMATCH,
+                                vec!["Can't change mode for other users".into()],
+                            )?;
+                            return Ok(());
+                        }
+
+                        if let Some(mode_str) = modes {
+                            // Parse and apply user mode changes
+                            let mut adding = true;
+                            let mut applied = String::new();
+                            let mut modes_guard = client.modes.write_lock("modes")?;
+
+                            for c in mode_str.chars() {
+                                match c {
+                                    '+' => adding = true,
+                                    '-' => adding = false,
+                                    'i' => {
+                                        modes_guard.invisible = adding;
+                                        applied.push(c);
+                                    }
+                                    'w' => {
+                                        modes_guard.wallops = adding;
+                                        applied.push(c);
+                                    }
+                                    'B' => {
+                                        // Bot mode - only allow if client has 'bot' capability
+                                        if client.has_cap("bot")? {
+                                            modes_guard.bot = adding;
+                                            applied.push(c);
+                                        }
+                                    }
+                                    'o' if !adding => {
+                                        // Can de-oper yourself but not op yourself
+                                        modes_guard.operator = false;
+                                        applied.push(c);
+                                    }
+                                    _ => {} // Silently ignore unknown modes
+                                }
+                            }
+
+                            // Send MODE reply to confirm changes
+                            if !applied.is_empty() {
+                                let prefix_str = if adding { "+" } else { "-" };
+                                let mode_response = format!("{}{}", prefix_str, applied);
+                                let msg = Message::with_prefix(
+                                    client.prefix()?,
+                                    Command::Mode {
+                                        target: client_nick,
+                                        modes: Some(mode_response),
+                                        params: vec![],
+                                    },
+                                );
+                                let _ = client.send(msg);
+                            }
+                        } else {
                             // Query user modes
                             let mode_str = client.modes.read_lock("modes")?.to_string();
                             ctx.reply(irc_proto::replies::RPL_UMODEIS, vec![mode_str])?;

@@ -43,6 +43,17 @@ impl CapabilityRegistry {
         registry.register("draft/chathistory", None);
         registry.register("batch", None);
 
+        // Phase 7 capabilities (IRCv3.2+)
+        registry.register("cap-notify", None);
+        registry.register("message-ids", None);
+        registry.register("userhost-in-names", None);
+        registry.register("invite-notify", None);
+        registry.register("labeled-response", None);
+        registry.register("chghost", None);
+        registry.register("bot", None);
+        registry.register("draft/account-registration", Some("before-connect"));
+        registry.register("draft/read-marker", None);
+
         registry
     }
 
@@ -106,6 +117,8 @@ pub struct ClientCapState {
     pub sasl_state: Option<sasl::SaslState>,
     /// Logged-in account name (after successful SASL).
     pub account: Option<String>,
+    /// CAP LS version (302 or higher enables cap-notify).
+    pub cap_version: Option<u32>,
 }
 
 impl ClientCapState {

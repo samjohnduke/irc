@@ -32,7 +32,15 @@ fn handle_cap_ls(ctx: &HandlerContext, params: &[String]) -> Result<()> {
     ctx.client.start_cap_negotiation()?;
 
     // Check for CAP 302 (capability negotiation version)
-    let _version = params.first().and_then(|p| p.parse::<u32>().ok());
+    let version = params.first().and_then(|p| p.parse::<u32>().ok());
+
+    // If version >= 302, enable cap-notify automatically and store the version
+    if let Some(v) = version
+        && v >= 302
+    {
+        ctx.client.set_cap_version(v)?;
+        ctx.client.enable_cap("cap-notify")?;
+    }
 
     // Get available capabilities
     let caps = ctx.state.capabilities.format_ls();

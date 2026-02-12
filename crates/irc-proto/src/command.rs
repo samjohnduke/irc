@@ -308,6 +308,16 @@ pub enum Command {
         timestamp: Option<String>,
     },
 
+    /// REGISTER - Account registration (draft/account-registration)
+    Register {
+        /// Account name (* to use current nick)
+        account: String,
+        /// Email address (* for none)
+        email: String,
+        /// Password
+        password: String,
+    },
+
     // === Numeric Replies ===
     /// Numeric reply (001-999)
     Numeric {
@@ -379,6 +389,7 @@ impl Command {
             Command::Chathistory { .. } => "CHATHISTORY",
             Command::Monitor { .. } => "MONITOR",
             Command::Markread { .. } => "MARKREAD",
+            Command::Register { .. } => "REGISTER",
             Command::Numeric { .. } => "NUMERIC",
             Command::Unknown { command, .. } => command,
         }
@@ -669,6 +680,9 @@ impl fmt::Display for Command {
                     write!(f, " {}", ts)?;
                 }
                 Ok(())
+            }
+            Command::Register { account, email, password } => {
+                write!(f, "REGISTER {} {} :{}", account, email, password)
             }
             Command::Numeric {
                 code,

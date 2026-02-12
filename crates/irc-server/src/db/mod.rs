@@ -12,6 +12,7 @@ pub mod bans;
 pub mod channels;
 pub mod history;
 pub mod nicks;
+pub mod read_markers;
 
 use std::path::Path;
 
@@ -146,6 +147,17 @@ impl Database {
 
             CREATE INDEX IF NOT EXISTS idx_history_target ON message_history(target, timestamp);
             CREATE INDEX IF NOT EXISTS idx_history_msgid ON message_history(msgid);
+
+            -- Read markers table (draft/read-marker)
+            CREATE TABLE IF NOT EXISTS read_markers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                target TEXT NOT NULL,
+                timestamp INTEGER NOT NULL,
+                UNIQUE(account_id, target)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_read_markers_account ON read_markers(account_id);
 
             -- Enable foreign keys
             PRAGMA foreign_keys = ON;

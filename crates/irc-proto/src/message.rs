@@ -602,6 +602,16 @@ fn parse_command_with_params(command: &str, params: Vec<String>) -> Result<Comma
             })
         }
 
+        "REGISTER" => {
+            // REGISTER <account> <email> <password>
+            let mut iter = params.into_iter();
+            Ok(Command::Register {
+                account: iter.next().unwrap_or_else(|| "*".to_string()),
+                email: iter.next().unwrap_or_else(|| "*".to_string()),
+                password: iter.next().unwrap_or_default(),
+            })
+        }
+
         "LUSERS" => {
             let mut iter = params.into_iter();
             Ok(Command::Lusers {

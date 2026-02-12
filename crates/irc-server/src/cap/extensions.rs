@@ -165,3 +165,41 @@ pub fn add_account_tag(msg: &mut Message, account: Option<&str>) {
         tags.set("account", account_name.to_string());
     }
 }
+
+/// Generate and add a message ID tag to a message.
+///
+/// Returns the generated msgid for use in echo-message and history storage.
+pub fn add_msgid_tag(msg: &mut Message) -> String {
+    let msgid = crate::db::history::generate_msgid();
+    let tags = msg.tags.get_or_insert_with(irc_proto::Tags::new);
+    tags.set("msgid", &msgid);
+    msgid
+}
+
+/// Broadcast CHGHOST notification to common channel members.
+///
+/// This is sent when a user changes their username or hostname.
+/// Format: `:nick!user@host CHGHOST <newuser> <newhost>`
+pub fn broadcast_chghost(ctx: &HandlerContext, new_user: &str, new_host: &str) -> Result<()> {
+    let msg = Message::with_prefix(
+        ctx.client.prefix()?,
+        Command::Chghost {
+            user: new_user.to_string(),
+            host: new_host.to_string(),
+        },
+    );
+
+    // Get all clients that share channels with this user
+    let common_members = ctx.state.get_common_channel_members(ctx.client.id)?;
+
+    for member_id in common_members {
+        if let Some(member) = ctx.state.clients.get(&member_id) {
+            // Only send to clients that have chghost enabled
+            if member.has_cap("chghost")? {
+                let _ = member.send(msg.clone());
+            }
+        }
+    }
+
+    Ok(())
+}

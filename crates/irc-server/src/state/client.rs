@@ -74,22 +74,27 @@ pub struct UserModes {
     pub wallops: bool,
     /// Registered with services (+r).
     pub registered: bool,
+    /// Bot mode (+B) - marks the user as a bot.
+    pub bot: bool,
 }
 
 impl std::fmt::Display for UserModes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut modes = String::from("+");
+        if self.bot {
+            modes.push('B');
+        }
         if self.invisible {
             modes.push('i');
         }
         if self.operator {
             modes.push('o');
         }
-        if self.wallops {
-            modes.push('w');
-        }
         if self.registered {
             modes.push('r');
+        }
+        if self.wallops {
+            modes.push('w');
         }
         if modes.len() == 1 {
             write!(f, "")
@@ -526,6 +531,17 @@ impl Client {
     pub fn set_sasl_state(&self, state: Option<crate::cap::sasl::SaslState>) -> Result<()> {
         self.cap_state.write_lock("cap_state")?.sasl_state = state;
         Ok(())
+    }
+
+    /// Set the CAP LS version.
+    pub fn set_cap_version(&self, version: u32) -> Result<()> {
+        self.cap_state.write_lock("cap_state")?.cap_version = Some(version);
+        Ok(())
+    }
+
+    /// Get the CAP LS version.
+    pub fn cap_version(&self) -> Result<Option<u32>> {
+        Ok(self.cap_state.read_lock("cap_state")?.cap_version)
     }
 
     /// Send a message to this client, adding server-time tag if capability is enabled.
