@@ -34,7 +34,8 @@
       "Bash(sort:*)",
       "Bash(python3 -c \"\nimport os, glob\nmatches = glob.glob\\(''site/src/pages/guide/[[]...id].astro''\\)\nprint\\(''matches:'', matches\\)\nfor m in matches:\n    os.remove\\(m\\)\n    print\\(''removed:'', m\\)\n\")",
       "Bash(echo:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(cargo check:*)"
     ]
   }
 }

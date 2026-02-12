@@ -990,6 +990,7 @@ checksum = "829d955a0bb380ef178a640b91779e3987da38c9aea133b20614cfed8cdea9c6"
 dependencies = [
  "bitflags 2.10.0",
  "crossterm_winapi",
+ "futures-core",
  "mio",
  "parking_lot 0.12.5",
  "rustix 0.38.44",
@@ -2079,21 +2080,26 @@ dependencies = [
 name = "irc-cli"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "clap",
  "crossterm",
+ "futures",
  "irc-client-lib",
  "irc-proto",
  "ratatui",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "unicode-width 0.2.0",
 ]
 
 [[package]]
 name = "irc-client-lib"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "chrono",
+ "futures",
  "irc-proto",
  "rustls",
  "serde",
