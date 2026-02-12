@@ -133,6 +133,15 @@ pub struct Client {
     /// Client's nickname (once set).
     nickname: RwLock<Option<String>>,
 
+    /// UID for S2S protocol (SID + 6 chars).
+    uid: RwLock<Option<String>>,
+
+    /// Nick timestamp for collision resolution (Unix epoch).
+    nick_ts: RwLock<i64>,
+
+    /// Whether this is a local client (vs. remote via S2S).
+    is_local: bool,
+
     /// Client's username (from USER command).
     username: RwLock<Option<String>>,
 
@@ -171,7 +180,7 @@ pub struct Client {
 }
 
 impl Client {
-    /// Create a new client.
+    /// Create a new local client.
     pub fn new(
         id: ClientId,
         addr: SocketAddr,
@@ -179,6 +188,7 @@ impl Client {
         tls: bool,
     ) -> Self {
         let hostname = addr.ip().to_string();
+        let now = Utc::now();
 
         Self {
             id,
@@ -186,14 +196,55 @@ impl Client {
             sender,
             registration: RwLock::new(RegistrationPhase::Unregistered),
             nickname: RwLock::new(None),
+            uid: RwLock::new(None),
+            nick_ts: RwLock::new(now.timestamp()),
+            is_local: true,
             username: RwLock::new(None),
             realname: RwLock::new(None),
             hostname: RwLock::new(hostname),
             modes: RwLock::new(UserModes::default()),
             channels: RwLock::new(HashSet::new()),
             away: RwLock::new(None),
-            connected_at: Utc::now(),
+            connected_at: now,
             tls,
+            password: RwLock::new(None),
+            cap_state: RwLock::new(ClientCapState::new()),
+            rate_limit: RwLock::new(RateLimitState::default()),
+            monitor_list: RwLock::new(HashSet::new()),
+        }
+    }
+
+    /// Create a new remote client (from S2S link).
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_remote(
+        id: ClientId,
+        uid: String,
+        nickname: String,
+        nick_ts: i64,
+        username: String,
+        hostname: String,
+        realname: String,
+        sender: mpsc::Sender<Message>,
+    ) -> Self {
+        use chrono::TimeZone;
+
+        Self {
+            id,
+            addr: "0.0.0.0:0".parse().unwrap(),
+            sender,
+            registration: RwLock::new(RegistrationPhase::Registered),
+            nickname: RwLock::new(Some(nickname)),
+            uid: RwLock::new(Some(uid)),
+            nick_ts: RwLock::new(nick_ts),
+            is_local: false,
+            username: RwLock::new(Some(username)),
+            realname: RwLock::new(Some(realname)),
+            hostname: RwLock::new(hostname),
+            modes: RwLock::new(UserModes::default()),
+            channels: RwLock::new(HashSet::new()),
+            away: RwLock::new(None),
+            connected_at: Utc.timestamp_opt(nick_ts, 0).single().unwrap_or_else(Utc::now),
+            tls: false,
             password: RwLock::new(None),
             cap_state: RwLock::new(ClientCapState::new()),
             rate_limit: RwLock::new(RateLimitState::default()),
@@ -219,7 +270,36 @@ impl Client {
     /// Set the client's nickname.
     pub fn set_nickname(&self, nick: String) -> Result<()> {
         *self.nickname.write_lock("nickname")? = Some(nick);
+        // Update nick timestamp
+        *self.nick_ts.write_lock("nick_ts")? = Utc::now().timestamp();
         Ok(())
+    }
+
+    /// Get the client's UID.
+    pub fn uid(&self) -> Result<Option<String>> {
+        Ok(self.uid.read_lock("uid")?.clone())
+    }
+
+    /// Set the client's UID.
+    pub fn set_uid(&self, uid: String) -> Result<()> {
+        *self.uid.write_lock("uid")? = Some(uid);
+        Ok(())
+    }
+
+    /// Get the nick timestamp.
+    pub fn nick_ts(&self) -> Result<i64> {
+        Ok(*self.nick_ts.read_lock("nick_ts")?)
+    }
+
+    /// Set the nick timestamp.
+    pub fn set_nick_ts(&self, ts: i64) -> Result<()> {
+        *self.nick_ts.write_lock("nick_ts")? = ts;
+        Ok(())
+    }
+
+    /// Check if this is a local client.
+    pub fn is_local(&self) -> bool {
+        self.is_local
     }
 
     /// Mark that NICK was received.

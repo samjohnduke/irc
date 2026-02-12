@@ -158,6 +158,10 @@ pub enum Error {
     /// Banned from server
     #[error("Banned: {0}")]
     Banned(String),
+
+    /// S2S protocol error
+    #[error("Protocol error: {0}")]
+    Protocol(String),
 }
 
 impl Error {

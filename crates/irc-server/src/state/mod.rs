@@ -24,6 +24,7 @@ use crate::db::Database;
 use crate::db::bans::ServerBan;
 use crate::error::Result;
 use crate::lock::RwLockExt;
+use crate::s2s::state::ServerLink;
 
 /// Shutdown signal for server admin commands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -111,6 +112,20 @@ pub struct ServerState {
 
     /// Connection count per IP address.
     pub connections_per_ip: DashMap<IpAddr, usize>,
+
+    // === S2S State ===
+
+    /// This server's SID (Server ID) for S2S protocol.
+    pub sid: Option<String>,
+
+    /// Connected servers, indexed by SID.
+    pub servers: DashMap<String, Arc<ServerLink>>,
+
+    /// UID to client mapping for fast lookup.
+    pub uid_to_client: DashMap<String, ClientId>,
+
+    /// Counter for generating UIDs.
+    uid_counter: AtomicU64,
 }
 
 impl ServerState {
@@ -136,6 +151,9 @@ impl ServerState {
 
         let (shutdown_tx, shutdown_rx) = watch::channel(ShutdownSignal::Running);
 
+        // Get SID from S2S config if present
+        let sid = config.s2s.as_ref().map(|s| s.sid.clone());
+
         Self {
             config: Arc::new(config),
             clients: DashMap::new(),
@@ -152,6 +170,10 @@ impl ServerState {
             klines: DashMap::new(),
             zlines: DashMap::new(),
             connections_per_ip: DashMap::new(),
+            sid,
+            servers: DashMap::new(),
+            uid_to_client: DashMap::new(),
+            uid_counter: AtomicU64::new(0),
         }
     }
 
@@ -159,6 +181,9 @@ impl ServerState {
     pub fn with_memory_db(config: ServerConfig) -> Result<Self> {
         let db = Database::in_memory()?;
         let (shutdown_tx, shutdown_rx) = watch::channel(ShutdownSignal::Running);
+
+        // Get SID from S2S config if present
+        let sid = config.s2s.as_ref().map(|s| s.sid.clone());
 
         Ok(Self {
             config: Arc::new(config),
@@ -176,6 +201,10 @@ impl ServerState {
             klines: DashMap::new(),
             zlines: DashMap::new(),
             connections_per_ip: DashMap::new(),
+            sid,
+            servers: DashMap::new(),
+            uid_to_client: DashMap::new(),
+            uid_counter: AtomicU64::new(0),
         })
     }
 
@@ -549,5 +578,66 @@ impl ServerState {
             }
         }
         Ok(monitors)
+    }
+
+    // ========================================
+    // S2S / UID Support
+    // ========================================
+
+    /// Generate the next UID for a local user.
+    pub fn next_uid(&self) -> Option<String> {
+        let sid = self.sid.as_ref()?;
+        let counter = self.uid_counter.fetch_add(1, Ordering::Relaxed);
+        Some(crate::s2s::generate_uid(sid, counter))
+    }
+
+    /// Register a UID for a client.
+    pub fn register_uid(&self, uid: &str, client_id: ClientId) {
+        self.uid_to_client.insert(uid.to_string(), client_id);
+    }
+
+    /// Unregister a UID.
+    pub fn unregister_uid(&self, uid: &str) {
+        self.uid_to_client.remove(uid);
+    }
+
+    /// Find a client by UID.
+    pub fn find_client_by_uid(&self, uid: &str) -> Option<Arc<Client>> {
+        self.uid_to_client
+            .get(uid)
+            .and_then(|id| self.clients.get(&id).map(|c| Arc::clone(&c)))
+    }
+
+    /// Find a client by UID or nickname.
+    pub fn find_client_by_uid_or_nick(&self, target: &str) -> Option<Arc<Client>> {
+        // Try as UID first (9 chars, alphanumeric)
+        if target.len() == 9
+            && target.chars().all(|c| c.is_ascii_alphanumeric())
+            && let Some(client) = self.find_client_by_uid(target)
+        {
+            return Some(client);
+        }
+        // Fall back to nickname
+        self.find_client_by_nick(target)
+    }
+
+    /// Add a server link.
+    pub fn add_server(&self, link: Arc<ServerLink>) {
+        self.servers.insert(link.sid.clone(), link);
+    }
+
+    /// Remove a server link.
+    pub fn remove_server(&self, sid: &str) -> Option<Arc<ServerLink>> {
+        self.servers.remove(sid).map(|(_, v)| v)
+    }
+
+    /// Get a server link by SID.
+    pub fn get_server(&self, sid: &str) -> Option<Arc<ServerLink>> {
+        self.servers.get(sid).map(|v| Arc::clone(&v))
+    }
+
+    /// Check if S2S is enabled.
+    pub fn is_s2s_enabled(&self) -> bool {
+        self.sid.is_some()
     }
 }

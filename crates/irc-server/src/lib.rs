@@ -16,6 +16,7 @@ pub mod error;
 pub mod handler;
 pub mod lock;
 pub mod reply;
+pub mod s2s;
 pub mod server;
 pub mod services;
 pub mod state;

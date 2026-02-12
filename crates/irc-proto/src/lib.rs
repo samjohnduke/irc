@@ -27,6 +27,7 @@ mod mode;
 mod parse;
 mod prefix;
 mod reply;
+pub mod s2s_command;
 mod tags;
 mod validate;
 
@@ -37,6 +38,11 @@ pub use mode::{ChannelMode, ModeChange, ModeChanges, UserMode};
 pub use prefix::Prefix;
 pub use tags::Tags;
 pub use validate::{is_channel, irc_eq, validate_channel, validate_nickname};
+
+// Re-export S2S types
+pub use s2s_command::{
+    validate_sid, validate_uid, uid_to_sid, S2SCommand, S2SMessage, SjoinMember,
+};
 
 // Re-export reply modules with their original names
 pub use reply::describe as describe_numeric;

@@ -40,6 +40,10 @@ pub struct ServerConfig {
     /// Services configuration (NickServ, ChanServ)
     #[serde(default)]
     pub services: ServicesConfig,
+
+    /// Server-to-Server (S2S) configuration
+    #[serde(default)]
+    pub s2s: Option<S2SConfig>,
 }
 
 /// Listener configuration.
@@ -254,6 +258,62 @@ pub struct AdminConfig {
     pub email: Option<String>,
 }
 
+/// Server-to-Server (S2S) configuration.
+#[derive(Debug, Clone, Deserialize)]
+pub struct S2SConfig {
+    /// This server's unique 3-character ID (e.g., "00A").
+    /// Must be alphanumeric and unique across the network.
+    pub sid: String,
+
+    /// Address to listen for incoming S2S connections.
+    /// If not specified, the server won't accept incoming S2S connections.
+    pub listen_address: Option<String>,
+
+    /// Port to listen for incoming S2S connections.
+    pub listen_port: Option<u16>,
+
+    /// TLS configuration for S2S connections.
+    pub tls: Option<TlsConfig>,
+
+    /// Linked server configurations.
+    #[serde(default)]
+    pub links: Vec<LinkConfig>,
+}
+
+/// Configuration for a linked server.
+#[derive(Debug, Clone, Deserialize)]
+pub struct LinkConfig {
+    /// Name of the remote server (e.g., "irc.server-b.local").
+    pub name: String,
+
+    /// Address of the remote server.
+    pub address: String,
+
+    /// Port of the remote server's S2S listener.
+    pub port: u16,
+
+    /// Password to send when connecting to the remote server.
+    pub send_password: String,
+
+    /// Password expected from the remote server when it connects to us.
+    pub receive_password: String,
+
+    /// Whether to automatically connect to this server on startup.
+    #[serde(default)]
+    pub auto_connect: bool,
+
+    /// Whether to accept incoming connections from this server.
+    #[serde(default = "default_true")]
+    pub accept_incoming: bool,
+
+    /// TLS configuration for connecting to this server (optional).
+    pub tls: Option<TlsConfig>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
@@ -271,6 +331,7 @@ impl Default for ServerConfig {
             admin: AdminConfig::default(),
             accounts: Vec::new(),
             services: ServicesConfig::default(),
+            s2s: None,
         }
     }
 }

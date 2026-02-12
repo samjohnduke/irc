@@ -112,6 +112,36 @@ impl Channel {
         }
     }
 
+    /// Create a new channel with a specific creation timestamp.
+    pub fn with_ts(name: String, ts: i64) -> Self {
+        use chrono::TimeZone;
+        Self {
+            name,
+            topic: None,
+            topic_set_by: None,
+            topic_set_at: None,
+            modes: ChannelModes::default(),
+            members: HashMap::new(),
+            bans: Vec::new(),
+            exceptions: Vec::new(),
+            invites: Vec::new(),
+            created_at: Utc.timestamp_opt(ts, 0).single().unwrap_or_else(Utc::now),
+        }
+    }
+
+    /// Get the channel creation timestamp (Unix epoch).
+    pub fn ts(&self) -> i64 {
+        self.created_at.timestamp()
+    }
+
+    /// Set the channel creation timestamp.
+    pub fn set_ts(&mut self, ts: i64) {
+        use chrono::TimeZone;
+        if let Some(dt) = Utc.timestamp_opt(ts, 0).single() {
+            self.created_at = dt;
+        }
+    }
+
     /// Get the number of members.
     pub fn member_count(&self) -> usize {
         self.members.len()
