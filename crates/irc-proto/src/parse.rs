@@ -87,8 +87,9 @@ impl Decoder for MessageCodec {
                 // No complete line yet
                 if src.len() > self.max_length {
                     // Line is too long, will never be valid
+                    let len = src.len();
                     src.clear();
-                    return Err(ParseError::MessageTooLong(src.len()));
+                    return Err(ParseError::MessageTooLong(len));
                 }
                 Ok(None)
             }

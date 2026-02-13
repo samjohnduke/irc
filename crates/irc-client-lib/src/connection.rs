@@ -16,7 +16,7 @@ use tokio_rustls::rustls::{ClientConfig as TlsConfig, RootCertStore};
 use tokio_rustls::TlsConnector;
 use tokio_util::codec::Framed;
 
-use irc_proto::{Message, MessageCodec};
+use irc_proto::{Message, MessageCodec, MAX_MESSAGE_LEN_IRCV3};
 
 use crate::config::ClientConfig;
 use crate::error::{ConnectionError, TlsError};
@@ -68,12 +68,15 @@ impl Connection {
             }
         })?;
 
+        // Use IRCv3 max length to support message-tags (servers can send up to 8191 bytes)
+        let codec = MessageCodec::with_max_length(MAX_MESSAGE_LEN_IRCV3);
+
         if config.tls {
             let tls_stream = establish_tls(tcp_stream, &config.server, config.tls_accept_invalid).await?;
-            let framed = Framed::new(tls_stream, MessageCodec::new());
+            let framed = Framed::new(tls_stream, codec);
             Ok(Connection::Tls(framed))
         } else {
-            let framed = Framed::new(tcp_stream, MessageCodec::new());
+            let framed = Framed::new(tcp_stream, codec);
             Ok(Connection::Plain(framed))
         }
     }

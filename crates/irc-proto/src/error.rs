@@ -5,8 +5,8 @@ use thiserror::Error;
 /// Errors that can occur when parsing IRC messages.
 #[derive(Debug, Error)]
 pub enum ParseError {
-    /// Message exceeds maximum length (512 bytes including CRLF)
-    #[error("message too long (max 512 bytes, got {0})")]
+    /// Message exceeds maximum length
+    #[error("message too long ({0} bytes)")]
     MessageTooLong(usize),
 
     /// Message is empty

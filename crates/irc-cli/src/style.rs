@@ -3,13 +3,13 @@
 use ratatui::style::{Color, Modifier, Style};
 
 /// Application theme colors.
+#[allow(dead_code)]
 pub struct Theme {
     /// Background color for main areas.
     pub bg: Color,
     /// Default foreground text color.
     pub fg: Color,
     /// Accent/highlight color.
-    #[allow(dead_code)]
     pub accent: Color,
     /// Error/warning color.
     pub error: Color,
@@ -25,27 +25,42 @@ pub struct Theme {
     pub join_part: Color,
     /// Selected item background.
     pub selection_bg: Color,
+    /// Selected item foreground.
+    pub selection_fg: Color,
     /// Unread indicator color.
     pub unread: Color,
     /// Input prompt color.
     pub prompt: Color,
+    /// Border color.
+    pub border: Color,
+    /// Title color.
+    pub title: Color,
+    /// Status bar background.
+    pub statusbar_bg: Color,
+    /// Status bar foreground.
+    pub statusbar_fg: Color,
 }
 
 impl Default for Theme {
     fn default() -> Self {
         Self {
-            bg: Color::Reset,
-            fg: Color::Reset,
-            accent: Color::Cyan,
-            error: Color::Red,
-            muted: Color::DarkGray,
-            timestamp: Color::DarkGray,
-            server: Color::Yellow,
-            action: Color::Magenta,
-            join_part: Color::DarkGray,
-            selection_bg: Color::DarkGray,
-            unread: Color::Green,
-            prompt: Color::Cyan,
+            bg: Color::Rgb(20, 20, 28),
+            fg: Color::Rgb(220, 220, 230),
+            accent: Color::Rgb(100, 180, 255),
+            error: Color::Rgb(255, 100, 100),
+            muted: Color::Rgb(100, 100, 120),
+            timestamp: Color::Rgb(80, 80, 100),
+            server: Color::Rgb(200, 180, 100),
+            action: Color::Rgb(200, 150, 255),
+            join_part: Color::Rgb(80, 120, 80),
+            selection_bg: Color::Rgb(50, 60, 80),
+            selection_fg: Color::Rgb(255, 255, 255),
+            unread: Color::Rgb(100, 200, 100),
+            prompt: Color::Rgb(100, 180, 255),
+            border: Color::Rgb(50, 55, 70),
+            title: Color::Rgb(150, 180, 220),
+            statusbar_bg: Color::Rgb(35, 40, 55),
+            statusbar_fg: Color::Rgb(180, 185, 200),
         }
     }
 }
@@ -72,6 +87,7 @@ impl Theme {
     }
 
     /// Style for join/part messages.
+    #[allow(dead_code)]
     pub fn join_part_style(&self) -> Style {
         Style::default().fg(self.join_part)
     }
@@ -82,8 +98,12 @@ impl Theme {
     }
 
     /// Style for selected items.
+    #[allow(dead_code)]
     pub fn selected_style(&self) -> Style {
-        Style::default().bg(self.selection_bg).add_modifier(Modifier::BOLD)
+        Style::default()
+            .bg(self.selection_bg)
+            .fg(self.selection_fg)
+            .add_modifier(Modifier::BOLD)
     }
 
     /// Style for unread indicators.
@@ -92,6 +112,7 @@ impl Theme {
     }
 
     /// Style for the input prompt.
+    #[allow(dead_code)]
     pub fn prompt_style(&self) -> Style {
         Style::default().fg(self.prompt).add_modifier(Modifier::BOLD)
     }
@@ -101,27 +122,45 @@ impl Theme {
         Style::default().fg(self.muted)
     }
 
+    /// Style for borders.
+    pub fn border_style(&self) -> Style {
+        Style::default().fg(self.border)
+    }
+
+    /// Style for titles.
+    pub fn title_style(&self) -> Style {
+        Style::default().fg(self.title).add_modifier(Modifier::BOLD)
+    }
+
+    /// Style for status bar.
+    pub fn statusbar_style(&self) -> Style {
+        Style::default().bg(self.statusbar_bg).fg(self.statusbar_fg)
+    }
 }
 
 /// Generate a consistent color for a nickname.
 ///
 /// Uses a simple hash to assign colors so the same nick always
-/// gets the same color.
+/// gets the same color. Uses softer, more readable colors.
 pub fn nick_color(nick: &str) -> Color {
-    // IRC-style nick colors
-    const NICK_COLORS: [Color; 12] = [
-        Color::Red,
-        Color::Green,
-        Color::Yellow,
-        Color::Blue,
-        Color::Magenta,
-        Color::Cyan,
-        Color::LightRed,
-        Color::LightGreen,
-        Color::LightYellow,
-        Color::LightBlue,
-        Color::LightMagenta,
-        Color::LightCyan,
+    // Modern IRC-style nick colors (softer, more readable)
+    const NICK_COLORS: [Color; 16] = [
+        Color::Rgb(255, 120, 120), // Soft red
+        Color::Rgb(120, 220, 120), // Soft green
+        Color::Rgb(255, 200, 100), // Soft yellow
+        Color::Rgb(120, 160, 255), // Soft blue
+        Color::Rgb(220, 140, 255), // Soft magenta
+        Color::Rgb(100, 220, 220), // Soft cyan
+        Color::Rgb(255, 160, 120), // Soft orange
+        Color::Rgb(180, 220, 140), // Lime
+        Color::Rgb(255, 180, 200), // Pink
+        Color::Rgb(140, 200, 255), // Sky blue
+        Color::Rgb(200, 160, 255), // Lavender
+        Color::Rgb(140, 230, 200), // Teal
+        Color::Rgb(255, 200, 150), // Peach
+        Color::Rgb(180, 180, 255), // Periwinkle
+        Color::Rgb(200, 255, 200), // Mint
+        Color::Rgb(255, 220, 180), // Cream
     ];
 
     // Simple DJB2 hash

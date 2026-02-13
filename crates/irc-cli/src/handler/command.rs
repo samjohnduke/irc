@@ -88,6 +88,11 @@ pub enum Command {
     /// /disconnect - Disconnect without quitting
     Disconnect,
 
+    /// /list [filter] - List channels (with optional filter)
+    List {
+        filter: Option<String>,
+    },
+
     /// Regular message (not a command)
     Message {
         text: String,
@@ -257,6 +262,14 @@ pub fn parse_command(input: &str) -> Command {
         "reconnect" | "connect" => Command::Reconnect,
 
         "disconnect" => Command::Disconnect,
+
+        "list" => Command::List {
+            filter: if args.is_empty() {
+                None
+            } else {
+                Some(args.to_string())
+            },
+        },
 
         _ => {
             // Unknown command - try to send as raw

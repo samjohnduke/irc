@@ -9,6 +9,7 @@ use crossterm::{
 };
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use irc_client_lib::ClientConfig;
 
@@ -78,6 +79,14 @@ struct Args {
     /// Channel to auto-join (can be specified multiple times)
     #[arg(short = 'c', long = "channel")]
     channels: Vec<String>,
+
+    /// Enable debug logging to ~/.local/share/irc/debug.log
+    #[arg(long)]
+    debug: bool,
+
+    /// Verbose debug output (trace level)
+    #[arg(short, long)]
+    verbose: bool,
 }
 
 fn setup_terminal() -> io::Result<Terminal<CrosstermBackend<io::Stdout>>> {
@@ -86,6 +95,61 @@ fn setup_terminal() -> io::Result<Terminal<CrosstermBackend<io::Stdout>>> {
     execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     Terminal::new(backend)
+}
+
+/// Setup logging to file.
+fn setup_logging(debug: bool, verbose: bool) -> Option<tracing_appender::non_blocking::WorkerGuard> {
+    if !debug {
+        return None;
+    }
+
+    // Create log directory
+    let log_dir = dirs::data_local_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("irc");
+
+    if let Err(e) = std::fs::create_dir_all(&log_dir) {
+        eprintln!("Warning: Could not create log directory: {}", e);
+        return None;
+    }
+
+    let log_path = log_dir.join("debug.log");
+
+    // Open log file (append mode)
+    let log_file = match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+    {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("Warning: Could not open log file: {}", e);
+            return None;
+        }
+    };
+
+    let (non_blocking, guard) = tracing_appender::non_blocking(log_file);
+
+    let level = if verbose { "trace" } else { "debug" };
+    let filter = EnvFilter::try_new(format!("irc_client_lib={},irc_cli={}", level, level))
+        .unwrap_or_else(|_| EnvFilter::new("debug"));
+
+    tracing_subscriber::registry()
+        .with(
+            fmt::layer()
+                .with_writer(non_blocking)
+                .with_ansi(false)
+                .with_target(true)
+                .with_thread_ids(false)
+                .with_file(true)
+                .with_line_number(true)
+        )
+        .with(filter)
+        .init();
+
+    eprintln!("Logging to: {}", log_path.display());
+
+    Some(guard)
 }
 
 fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
@@ -98,6 +162,9 @@ fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
+
+    // Setup logging if requested
+    let _log_guard = setup_logging(args.debug, args.verbose);
 
     // Handle --gen-config
     if args.gen_config {

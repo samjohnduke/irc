@@ -59,8 +59,8 @@ impl Message {
 
     /// Parse a message from bytes.
     pub fn parse(input: &[u8]) -> Result<Self, ParseError> {
-        // Check maximum length
-        if input.len() > crate::MAX_MESSAGE_LEN {
+        // Check maximum length (use IRCv3 limit which allows message-tags)
+        if input.len() > crate::MAX_MESSAGE_LEN_IRCV3 {
             return Err(ParseError::MessageTooLong(input.len()));
         }
 

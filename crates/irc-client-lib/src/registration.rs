@@ -157,7 +157,20 @@ impl RegistrationState {
     pub fn process(&mut self, msg: &Message, config: &ClientConfig) -> RegistrationAction {
         match &msg.command {
             Command::Cap { subcommand, params } => {
-                self.handle_cap(subcommand, params, config)
+                // Server CAP responses have format: CAP <target> <subcommand> [params]
+                // The target is typically "*" during pre-registration
+                // Our parser puts target in subcommand and real subcommand in params[0]
+                let (actual_subcommand, actual_params) = if subcommand == "*" || subcommand.contains('.') {
+                    // This is a target, real subcommand is in params
+                    if let Some((first, rest)) = params.split_first() {
+                        (first.as_str(), rest.to_vec())
+                    } else {
+                        (subcommand.as_str(), params.clone())
+                    }
+                } else {
+                    (subcommand.as_str(), params.clone())
+                };
+                self.handle_cap(actual_subcommand, &actual_params, config)
             }
 
             Command::Authenticate { data } => {
@@ -184,24 +197,28 @@ impl RegistrationState {
     fn handle_cap(
         &mut self,
         subcommand: &str,
-        params: &[String],
+        params: &Vec<String>,
         config: &ClientConfig,
     ) -> RegistrationAction {
+        tracing::debug!("handle_cap: subcommand={}, params={:?}", subcommand, params);
         match subcommand.to_uppercase().as_str() {
             "LS" => {
                 // Parse available caps
                 if let Some(caps_str) = params.last() {
+                    tracing::debug!("CAP LS caps: {}", caps_str);
                     self.caps.parse_ls(caps_str);
                 }
 
                 // Check for multi-line (starts with *)
                 if params.first().map(|s| s == "*").unwrap_or(false) {
+                    tracing::debug!("Multi-line CAP LS, waiting for more");
                     // More caps coming
                     return RegistrationAction::Continue;
                 }
 
                 // All caps received, request what we want
                 let mut to_request = self.caps.caps_to_request();
+                tracing::debug!("Caps to request: {:?}", to_request);
 
                 // Add SASL if configured and available
                 if config.sasl.is_some() && self.caps.sasl_available() {
@@ -225,21 +242,25 @@ impl RegistrationState {
             "ACK" => {
                 // Parse acknowledged caps
                 if let Some(caps_str) = params.last() {
+                    tracing::debug!("CAP ACK: {}", caps_str);
                     self.caps.parse_ack(caps_str);
                 }
 
                 // Start SASL if configured and cap is enabled
                 if self.sasl_state == SaslState::Pending && self.caps.is_enabled("sasl") {
+                    tracing::debug!("Starting SASL authentication");
                     return self.start_sasl(config);
                 }
 
                 // Otherwise finish cap negotiation
+                tracing::debug!("CAP negotiation complete, finishing registration");
                 self.finish_cap_and_register(config)
             }
 
             "NAK" => {
                 // Caps rejected, continue anyway
                 if let Some(caps_str) = params.last() {
+                    tracing::warn!("CAP NAK: {}", caps_str);
                     self.caps.parse_nak(caps_str);
                 }
 

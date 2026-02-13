@@ -53,11 +53,15 @@ pub use reply::register_errors;
 /// Codec for streaming message parsing (tokio compatible)
 pub use parse::MessageCodec;
 
-/// Maximum length of an IRC message (including CRLF)
+/// Maximum length of an IRC message (including CRLF) - classic RFC 1459
 pub const MAX_MESSAGE_LEN: usize = 512;
 
 /// Maximum length of message content (excluding CRLF)
 pub const MAX_MESSAGE_CONTENT_LEN: usize = 510;
+
+/// Maximum length of an IRCv3 message with tags (including CRLF)
+/// IRCv3.2 allows 4096 bytes for tags + 512 for message body
+pub const MAX_MESSAGE_LEN_IRCV3: usize = 8191;
 
 /// Maximum length of a nickname (default, can be overridden by ISUPPORT)
 pub const MAX_NICK_LEN: usize = 9;

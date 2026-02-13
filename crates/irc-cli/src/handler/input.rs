@@ -27,11 +27,20 @@ pub enum KeyAction {
     TabComplete,
     /// Reverse tab completion (Shift+Tab).
     TabCompleteReverse,
+    /// Toggle help overlay.
+    ToggleHelp,
+    /// Close help overlay (Esc key).
+    CloseHelp,
 }
 
 /// Handle a key event, updating input state and returning any action.
 pub fn handle_key_event(event: KeyEvent, input: &mut InputState) -> KeyAction {
     match (event.code, event.modifiers) {
+        // Help
+        (KeyCode::F(1), _) => KeyAction::ToggleHelp,
+        (KeyCode::Char('?'), KeyModifiers::NONE) if input.text.is_empty() => KeyAction::ToggleHelp,
+        (KeyCode::Esc, _) => KeyAction::CloseHelp, // Close help with Esc (only if open)
+
         // Submit
         (KeyCode::Enter, _) => {
             let text = input.submit();

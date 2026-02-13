@@ -20,10 +20,12 @@ use crate::registration::{RegistrationAction, RegistrationState};
 use crate::state::SessionState;
 
 /// Event channel capacity.
-const EVENT_CHANNEL_SIZE: usize = 256;
+/// Needs to be large enough to handle bursts like LIST responses.
+const EVENT_CHANNEL_SIZE: usize = 4096;
 
 /// Command channel capacity.
-const COMMAND_CHANNEL_SIZE: usize = 64;
+/// Needs headroom for PONG responses during heavy traffic.
+const COMMAND_CHANNEL_SIZE: usize = 256;
 
 /// An IRC client.
 pub struct Client {
@@ -63,9 +65,29 @@ impl Client {
 
         // Emit connecting event
         let _ = self.event_tx.send(Event::Connecting);
+        let _ = self.event_tx.send(Event::ConnectionProgress {
+            phase: "connecting".into(),
+            message: format!("Connecting to {}:{}...", self.config.server, self.config.port),
+        });
 
         // Establish connection
-        let connection = Connection::connect(&self.config).await?;
+        let connection = match Connection::connect(&self.config).await {
+            Ok(conn) => {
+                let tls_info = if self.config.tls { " (TLS)" } else { "" };
+                let _ = self.event_tx.send(Event::ConnectionProgress {
+                    phase: "connected".into(),
+                    message: format!("TCP connection established{}", tls_info),
+                });
+                conn
+            }
+            Err(e) => {
+                let _ = self.event_tx.send(Event::ConnectionProgress {
+                    phase: "error".into(),
+                    message: format!("Connection failed: {}", e),
+                });
+                return Err(Error::Connection(e));
+            }
+        };
         let (reader, writer) = connection.split();
 
         // Create command channel
@@ -91,6 +113,11 @@ impl Client {
         });
 
         // Start registration
+        let _ = self.event_tx.send(Event::ConnectionProgress {
+            phase: "capabilities".into(),
+            message: "Negotiating capabilities (CAP LS 302)...".into(),
+        });
+
         let mut reg_state = RegistrationState::new();
         let initial_messages = reg_state.start(&self.config);
 
@@ -318,24 +345,58 @@ async fn read_loop(
     command_tx: mpsc::Sender<Message>,
     config: ClientConfig,
 ) {
+    tracing::debug!("Read loop started");
     let mut batch_collector = BatchCollector::new();
     let mut reg_state = RegistrationState::new();
     reg_state.start(&config);
+    tracing::debug!("Registration state initialized, phase: {:?}", reg_state.phase());
 
     loop {
         match reader.recv().await {
             Some(Ok(msg)) => {
-                tracing::trace!("Received: {}", msg);
+                tracing::debug!("Received message: {:?}", msg.command);
 
                 // Handle registration
                 if !reg_state.is_complete() && !reg_state.is_failed() {
+                    let old_phase = reg_state.phase();
+                    tracing::debug!("Processing registration, current phase: {:?}", old_phase);
                     match reg_state.process(&msg, &config) {
                         RegistrationAction::Send(messages) => {
+                            tracing::debug!("Registration action: Send {} messages", messages.len());
+                            // Check for phase transitions and emit progress
+                            let new_phase = reg_state.phase();
+                            tracing::debug!("Phase transition: {:?} -> {:?}", old_phase, new_phase);
+                            if old_phase != new_phase {
+                                let (phase, message) = match new_phase {
+                                    crate::registration::RegistrationPhase::WaitingCapAck => {
+                                        ("capabilities", "Received server capabilities, requesting...")
+                                    }
+                                    crate::registration::RegistrationPhase::SaslAuth => {
+                                        ("authenticating", "Starting SASL PLAIN authentication...")
+                                    }
+                                    crate::registration::RegistrationPhase::WaitingWelcome => {
+                                        ("registering", "Completing registration (NICK/USER)...")
+                                    }
+                                    _ => ("", ""),
+                                };
+                                if !phase.is_empty() {
+                                    let _ = event_tx.send(Event::ConnectionProgress {
+                                        phase: phase.into(),
+                                        message: message.into(),
+                                    });
+                                }
+                            }
+
                             for m in messages {
                                 let _ = command_tx.send(m).await;
                             }
                         }
                         RegistrationAction::Complete { nick, server, welcome } => {
+                            tracing::info!("Registration complete: nick={}, server={}", nick, server);
+                            let _ = event_tx.send(Event::ConnectionProgress {
+                                phase: "complete".into(),
+                                message: format!("Registered as {}", nick),
+                            });
                             let _ = event_tx.send(Event::Connected {
                                 nick,
                                 server,
@@ -343,22 +404,31 @@ async fn read_loop(
                             });
                         }
                         RegistrationAction::Failed(e) => {
+                            tracing::error!("Registration failed: {}", e);
+                            let _ = event_tx.send(Event::ConnectionProgress {
+                                phase: "error".into(),
+                                message: format!("Registration failed: {}", e),
+                            });
                             let _ = event_tx.send(Event::Error {
                                 message: e.to_string(),
                             });
                             break;
                         }
-                        RegistrationAction::Continue => {}
+                        RegistrationAction::Continue => {
+                            tracing::trace!("Registration action: Continue");
+                        }
                     }
                 }
 
-                // Auto-reply to PING
+                // Auto-reply to PING (critical for staying connected)
                 if let Command::Ping { server1, .. } = &msg.command {
                     let pong = Message::new(Command::Pong {
                         server1: server1.clone(),
                         server2: None,
                     });
-                    let _ = command_tx.send(pong).await;
+                    if let Err(e) = command_tx.send(pong).await {
+                        tracing::error!("Failed to send PONG: {} - connection may drop!", e);
+                    }
                 }
 
                 // Process through batch collector
@@ -407,6 +477,11 @@ async fn write_loop(mut writer: ConnectionWriter, mut command_rx: mpsc::Receiver
         tracing::trace!("Sending: {}", msg);
         if let Err(e) = writer.send(msg).await {
             tracing::error!("Send error: {}", e);
+            break;
+        }
+        // Flush after each message to ensure it's sent immediately
+        if let Err(e) = writer.flush().await {
+            tracing::error!("Flush error: {}", e);
             break;
         }
     }

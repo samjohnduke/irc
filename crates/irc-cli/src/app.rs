@@ -7,6 +7,7 @@ use crossterm::event::{self, Event as TermEvent, EventStream};
 use futures::StreamExt;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
+use tracing::{debug, trace, info, warn};
 
 use irc_client_lib::{Client, ClientConfig, Event as IrcEvent};
 
@@ -15,8 +16,45 @@ use crate::handler::command::{command_help, parse_command, Command};
 use crate::handler::input::{handle_key_event, KeyAction};
 use crate::state::{BufferKind, BufferList, DisplayMessage};
 use crate::style::Theme;
+use crate::ui::channel_list::{ChannelEntry, ChannelListState, ChannelListWidget};
+use crate::ui::help::HelpWidget;
 use crate::ui::input::InputState;
 use crate::ui::layout::{draw_layout, LayoutConfig};
+use crate::ui::splash::{ConnectionPhase, LogEntry, SplashWidget};
+use crate::ui::userlist::ChannelUser;
+
+/// Application state for the splash screen.
+#[derive(Debug, Clone)]
+pub struct SplashState {
+    /// Current connection phase.
+    pub phase: ConnectionPhase,
+    /// Connection log entries.
+    pub log: Vec<LogEntry>,
+    /// Animation frame counter.
+    pub frame: usize,
+}
+
+impl SplashState {
+    pub fn new() -> Self {
+        Self {
+            phase: ConnectionPhase::Starting,
+            log: Vec::new(),
+            frame: 0,
+        }
+    }
+
+    pub fn log_info(&mut self, msg: impl Into<String>) {
+        self.log.push(LogEntry::info(msg));
+    }
+
+    pub fn log_success(&mut self, msg: impl Into<String>) {
+        self.log.push(LogEntry::success(msg));
+    }
+
+    pub fn log_error(&mut self, msg: impl Into<String>) {
+        self.log.push(LogEntry::error(msg));
+    }
+}
 
 /// Main application state.
 pub struct App {
@@ -49,6 +87,15 @@ pub struct App {
 
     /// Reconnection state.
     reconnect_state: ReconnectState,
+
+    /// Splash screen state (shown during initial connection).
+    splash: Option<SplashState>,
+
+    /// Whether to show the help overlay.
+    show_help: bool,
+
+    /// Channel list modal state.
+    channel_list: ChannelListState,
 }
 
 /// Reconnection state tracking.
@@ -86,6 +133,19 @@ impl App {
                 reconnecting: false,
                 next_attempt: None,
             },
+            splash: Some(SplashState::new()),
+            show_help: false,
+            channel_list: ChannelListState::new(),
+        }
+    }
+
+    /// Check if echo-message capability is enabled.
+    /// When enabled, the server echoes our messages back, so we shouldn't add them locally.
+    fn echo_message_enabled(&self) -> bool {
+        if let Ok(state) = self.client.state().try_read() {
+            state.caps().echo_message_enabled()
+        } else {
+            false
         }
     }
 
@@ -94,70 +154,165 @@ impl App {
         &mut self,
         terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     ) -> io::Result<()> {
-        // Add initial server message
-        self.buffers.add_message(
-            "Server",
-            DisplayMessage::server("Connecting..."),
-            true,
-        );
+        info!("Starting IRC client application");
+        debug!("Splash screen active: {}", self.splash.is_some());
 
-        // Connect to IRC
-        if let Err(e) = self.client.connect().await {
-            self.buffers.add_message(
-                "Server",
-                DisplayMessage::error(format!("Connection failed: {}", e)),
-                true,
-            );
-            // Still run the UI so user can see the error
-        } else {
-            self.connected = true;
-            self.nick = self.client.nick().await;
-        }
-
-        // Subscribe to IRC events
+        // Subscribe to events BEFORE connecting
         let mut irc_events = self.client.subscribe();
+        debug!("Subscribed to client events");
 
         // Terminal event stream
         let mut term_events = EventStream::new();
 
+        // Update splash state
+        if let Some(ref mut splash) = self.splash {
+            splash.log_info(format!("Connecting to {}:{}...", self.config.server, self.config.port));
+            splash.phase = ConnectionPhase::Connecting;
+        }
+
+        // Spawn the connection task
+        debug!("Taking client for connection task");
+        let mut client = std::mem::take(&mut self.client);
+        let (connect_tx, mut connect_rx) = tokio::sync::oneshot::channel::<Result<Client, (Client, String)>>();
+
+        debug!("Spawning connection task");
+        tokio::spawn(async move {
+            debug!("Connection task started");
+            match client.connect().await {
+                Ok(()) => {
+                    debug!("Connection task: connect() succeeded");
+                    let _ = connect_tx.send(Ok(client));
+                }
+                Err(e) => {
+                    debug!("Connection task: connect() failed: {}", e);
+                    let _ = connect_tx.send(Err((client, e.to_string())));
+                }
+            }
+        });
+
+        // Track if we've received the client back
+        let mut waiting_for_connect = true;
+
+        debug!("Entering main event loop, splash active: {}", self.splash.is_some());
+
         // Main event loop
         loop {
             // Draw UI
+            trace!("Drawing frame, splash active: {}", self.splash.is_some());
             terminal.draw(|frame| {
-                draw_layout(
-                    frame,
-                    &self.buffers,
-                    &self.input,
-                    &self.nick,
-                    self.connected,
-                    &self.theme,
-                    &self.layout,
-                );
+                if let Some(ref splash) = self.splash {
+                    // Draw splash screen
+                    let widget = SplashWidget::new(
+                        &self.config.server,
+                        self.config.port,
+                        &splash.phase,
+                        &splash.log,
+                        splash.frame,
+                        &self.theme,
+                    );
+                    frame.render_widget(widget, frame.area());
+                } else {
+                    // Get channel users for user list
+                    let channel_users = self.get_channel_users();
+
+                    // Draw normal layout
+                    draw_layout(
+                        frame,
+                        &self.buffers,
+                        &self.input,
+                        &self.nick,
+                        self.connected,
+                        &self.theme,
+                        &self.layout,
+                        &channel_users,
+                    );
+
+                    // Draw channel list modal if active
+                    if self.channel_list.visible {
+                        frame.render_widget(
+                            ChannelListWidget::new(&self.channel_list, &self.theme),
+                            frame.area(),
+                        );
+                    }
+
+                    // Draw help overlay if active
+                    if self.show_help {
+                        frame.render_widget(HelpWidget::new(), frame.area());
+                    }
+                }
             })?;
 
             // Check if we need to reconnect
-            if self.should_attempt_reconnect() {
+            if self.splash.is_none() && self.should_attempt_reconnect() {
                 self.try_reconnect().await;
                 // Re-subscribe to new client's events
                 irc_events = self.client.subscribe();
             }
 
-            // Wait for events
+            // Wait for events with a short timeout for animation
             tokio::select! {
+                // Check for connect completion
+                result = &mut connect_rx, if waiting_for_connect => {
+                    debug!("Received connect_rx result");
+                    waiting_for_connect = false;
+                    match result {
+                        Ok(Ok(client)) => {
+                            debug!("connect_rx: success");
+                            self.client = client;
+                            // Don't re-subscribe - the original subscription is still valid
+                            // and has the Connected event buffered
+                        }
+                        Ok(Err((client, error))) => {
+                            debug!("connect_rx: error: {}", error);
+                            self.client = client;
+                            irc_events = self.client.subscribe();
+                            if let Some(ref mut splash) = self.splash {
+                                splash.phase = ConnectionPhase::Failed(error.clone());
+                                splash.log_error(&error);
+                            }
+                            // Transition to main UI so user can /reconnect
+                            debug!("Dismissing splash screen due to error");
+                            self.splash = None;
+                            self.buffers.add_message(
+                                "Server",
+                                DisplayMessage::error(format!("Connection failed: {}", error)),
+                                true,
+                            );
+                        }
+                        Err(_) => {
+                            warn!("connect_rx channel closed unexpectedly");
+                        }
+                    }
+                }
+
                 // Terminal events
                 Some(Ok(event)) = term_events.next() => {
                     if let TermEvent::Key(key) = event {
-                        self.handle_key(key).await;
+                        // Allow quit during splash
+                        if self.splash.is_some() {
+                            if key.code == crossterm::event::KeyCode::Char('c')
+                                && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL)
+                            {
+                                self.should_quit = true;
+                            }
+                            // Ignore other keys during splash
+                        } else {
+                            self.handle_key(key).await;
+                        }
                     }
                 }
 
                 // IRC events
                 Ok(event) = irc_events.recv() => {
+                    debug!("Received IRC event: {:?}", std::mem::discriminant(&event));
                     self.handle_irc_event(event).await;
                 }
 
-                // Periodic tick for reconnection checks
-                _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                // Animation tick (50ms = 20fps)
+                _ = tokio::time::sleep(Duration::from_millis(50)) => {
+                    if let Some(ref mut splash) = self.splash {
+                        splash.frame = splash.frame.wrapping_add(1);
+                    }
                     if self.should_quit {
                         break;
                     }
@@ -174,6 +329,50 @@ impl App {
 
     /// Handle a keyboard event.
     async fn handle_key(&mut self, key: event::KeyEvent) {
+        use crossterm::event::KeyCode;
+
+        // Handle channel list modal if open
+        if self.channel_list.visible {
+            match key.code {
+                KeyCode::Esc => {
+                    self.channel_list.close();
+                }
+                KeyCode::Up => {
+                    self.channel_list.select_prev();
+                }
+                KeyCode::Down => {
+                    self.channel_list.select_next();
+                }
+                KeyCode::Enter => {
+                    let filtered = self.channel_list.filtered_channels();
+                    if filtered.is_empty() || self.channel_list.channels.is_empty() {
+                        // No results - send a new search
+                        self.send_list_search().await;
+                    } else if let Some(channel) = self.channel_list.selected_channel() {
+                        // Join selected channel
+                        let channel_name = channel.name.clone();
+                        self.channel_list.close();
+                        let _ = self.client.join(&channel_name).await;
+                    }
+                }
+                KeyCode::Tab => {
+                    // Tab triggers a new server search with current filter
+                    self.send_list_search().await;
+                }
+                KeyCode::Backspace => {
+                    self.channel_list.filter_backspace();
+                }
+                KeyCode::Char('u') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                    self.channel_list.filter_clear();
+                }
+                KeyCode::Char(c) => {
+                    self.channel_list.filter_insert(c);
+                }
+                _ => {}
+            }
+            return;
+        }
+
         match handle_key_event(key, &mut self.input) {
             KeyAction::None => {}
 
@@ -212,6 +411,17 @@ impl App {
 
             KeyAction::TabCompleteReverse => {
                 self.handle_tab_complete(true);
+            }
+
+            KeyAction::ToggleHelp => {
+                self.show_help = !self.show_help;
+            }
+
+            KeyAction::CloseHelp => {
+                // Only close, don't open (Esc key behavior)
+                if self.show_help {
+                    self.show_help = false;
+                }
             }
         }
     }
@@ -284,7 +494,7 @@ impl App {
         }
     }
 
-    /// Get channel members for current buffer.
+    /// Get channel members for current buffer (for completion).
     fn get_channel_members(&self) -> Vec<String> {
         let active = self.buffers.active();
         if !active.is_channel() {
@@ -296,6 +506,61 @@ impl App {
         if let Ok(state) = state.try_read() {
             if let Some(channel) = state.channel(&active.name) {
                 return channel.member_nicks().map(String::from).collect();
+            }
+        }
+
+        Vec::new()
+    }
+
+    /// Send a LIST command with the current filter.
+    async fn send_list_search(&mut self) {
+        let filter = self.channel_list.get_search_filter();
+
+        // Start new search (clears existing results)
+        self.channel_list.start_search();
+
+        // Build and send LIST command
+        let list_cmd = irc_proto::Message::new(irc_proto::Command::List {
+            channels: filter.map(|f| vec![f]),
+        });
+
+        let _ = self.client.send_raw(list_cmd).await;
+    }
+
+    /// Get channel users with status for the user list widget.
+    fn get_channel_users(&self) -> Vec<ChannelUser> {
+        use crate::ui::userlist::UserStatus;
+
+        let active = self.buffers.active();
+        if !active.is_channel() {
+            return Vec::new();
+        }
+
+        let state = self.client.state();
+        if let Ok(state) = state.try_read() {
+            if let Some(channel) = state.channel(&active.name) {
+                return channel.members.iter().map(|(nick, info)| {
+                    // Determine the highest status from prefixes
+                    let status = if info.prefixes.contains('~') {
+                        UserStatus::Owner
+                    } else if info.prefixes.contains('&') {
+                        UserStatus::Admin
+                    } else if info.prefixes.contains('@') {
+                        UserStatus::Op
+                    } else if info.prefixes.contains('%') {
+                        UserStatus::HalfOp
+                    } else if info.prefixes.contains('+') {
+                        UserStatus::Voice
+                    } else {
+                        UserStatus::Normal
+                    };
+
+                    ChannelUser {
+                        nick: nick.to_string(),
+                        status,
+                        away: false, // TODO: track away status
+                    }
+                }).collect();
             }
         }
 
@@ -352,6 +617,14 @@ impl App {
     async fn try_reconnect(&mut self) {
         self.reconnect_state.next_attempt = None;
 
+        // Collect channels to rejoin before reconnecting
+        let channels_to_rejoin: Vec<String> = self.buffers
+            .all()
+            .iter()
+            .filter(|b| b.is_channel())
+            .map(|b| b.name.clone())
+            .collect();
+
         self.buffers.add_message(
             "Server",
             DisplayMessage::server("Attempting to reconnect..."),
@@ -374,6 +647,28 @@ impl App {
                     DisplayMessage::server("Reconnected successfully!"),
                     true,
                 );
+
+                // Rejoin channels that were open
+                if !channels_to_rejoin.is_empty() {
+                    self.buffers.add_message(
+                        "Server",
+                        DisplayMessage::server(format!(
+                            "Rejoining {} channel(s)...",
+                            channels_to_rejoin.len()
+                        )),
+                        true,
+                    );
+
+                    for channel in channels_to_rejoin {
+                        if let Err(e) = self.client.join(&channel).await {
+                            self.buffers.add_message(
+                                "Server",
+                                DisplayMessage::error(format!("Failed to rejoin {}: {}", channel, e)),
+                                true,
+                            );
+                        }
+                    }
+                }
             }
             Err(e) => {
                 self.buffers.add_message(
@@ -432,12 +727,15 @@ impl App {
             Command::Msg { target, text } => {
                 let _ = self.client.privmsg(&target, &text).await;
 
-                // Add to our buffer if echo-message is not enabled
-                self.buffers.add_message(
-                    &target,
-                    DisplayMessage::privmsg(&self.nick, &text).echo(),
-                    self.buffers.active_name().eq_ignore_ascii_case(&target),
-                );
+                // Add to our buffer only if echo-message is not enabled
+                // (otherwise server will echo it back to us)
+                if !self.echo_message_enabled() {
+                    self.buffers.add_message(
+                        &target,
+                        DisplayMessage::privmsg(&self.nick, &text).echo(),
+                        self.buffers.active_name().eq_ignore_ascii_case(&target),
+                    );
+                }
 
                 // Switch to that buffer
                 if !self.buffers.switch_to(&target) {
@@ -451,12 +749,14 @@ impl App {
                 if target != "Server" {
                     let _ = self.client.action(&target, &text).await;
 
-                    // Add to our buffer
-                    self.buffers.add_message(
-                        &target,
-                        DisplayMessage::action(&self.nick, &text).echo(),
-                        true,
-                    );
+                    // Add to our buffer only if echo-message is not enabled
+                    if !self.echo_message_enabled() {
+                        self.buffers.add_message(
+                            &target,
+                            DisplayMessage::action(&self.nick, &text).echo(),
+                            true,
+                        );
+                    }
                 }
             }
 
@@ -579,17 +879,50 @@ impl App {
                 }
             }
 
+            Command::List { filter } => {
+                // Warn about unfiltered LIST on large networks
+                if filter.is_none() {
+                    self.buffers.add_message(
+                        "Server",
+                        DisplayMessage::server("Note: Unfiltered /list on large networks may cause disconnection."),
+                        self.buffers.active_name() == "Server",
+                    );
+                    self.buffers.add_message(
+                        "Server",
+                        DisplayMessage::server("Consider using /list <pattern> (e.g., /list *rust*)"),
+                        self.buffers.active_name() == "Server",
+                    );
+                }
+
+                // Open the channel list modal
+                self.channel_list.open();
+
+                // If there's a filter, pre-populate it
+                if let Some(ref f) = filter {
+                    self.channel_list.set_filter(f.clone());
+                }
+
+                // Build LIST command (optionally with server-side filter)
+                let list_cmd = irc_proto::Message::new(irc_proto::Command::List {
+                    channels: filter.map(|f| vec![f]),
+                });
+
+                let _ = self.client.send_raw(list_cmd).await;
+            }
+
             Command::Message { text } => {
                 let target = self.buffers.active_name().to_string();
                 if target != "Server" {
                     let _ = self.client.privmsg(&target, &text).await;
 
-                    // Add to our buffer
-                    self.buffers.add_message(
-                        &target,
-                        DisplayMessage::privmsg(&self.nick, &text).echo(),
-                        true,
-                    );
+                    // Add to our buffer only if echo-message is not enabled
+                    if !self.echo_message_enabled() {
+                        self.buffers.add_message(
+                            &target,
+                            DisplayMessage::privmsg(&self.nick, &text).echo(),
+                            true,
+                        );
+                    }
                 }
             }
         }
@@ -598,9 +931,57 @@ impl App {
     /// Handle an IRC event.
     async fn handle_irc_event(&mut self, event: IrcEvent) {
         match event {
+            IrcEvent::ConnectionProgress { phase, message } => {
+                if let Some(ref mut splash) = self.splash {
+                    // Update splash screen based on progress
+                    match phase.as_str() {
+                        "connecting" => {
+                            splash.phase = ConnectionPhase::Connecting;
+                            splash.log_info(&message);
+                        }
+                        "connected" => {
+                            splash.log_success(&message);
+                        }
+                        "capabilities" => {
+                            splash.phase = ConnectionPhase::Capabilities;
+                            splash.log_info(&message);
+                        }
+                        "authenticating" => {
+                            splash.phase = ConnectionPhase::Authenticating;
+                            splash.log_info(&message);
+                        }
+                        "registering" => {
+                            splash.phase = ConnectionPhase::Registering;
+                            splash.log_info(&message);
+                        }
+                        "complete" => {
+                            splash.phase = ConnectionPhase::Connected;
+                            splash.log_success(&message);
+                        }
+                        "error" => {
+                            splash.phase = ConnectionPhase::Failed(message.clone());
+                            splash.log_error(&message);
+                        }
+                        _ => {
+                            splash.log_info(&message);
+                        }
+                    }
+                }
+            }
+
             IrcEvent::Connected { nick, server, welcome } => {
+                info!("Connected event received: nick={}, server={}", nick, server);
                 self.connected = true;
-                self.nick = nick;
+                self.nick = nick.clone();
+
+                // Transition from splash to main UI
+                if self.splash.is_some() {
+                    debug!("Dismissing splash screen after successful connection");
+                    // Small delay to show "Connected!" message
+                    tokio::time::sleep(Duration::from_millis(500)).await;
+                    self.splash = None;
+                }
+
                 self.buffers.add_message(
                     "Server",
                     DisplayMessage::server(format!("Connected to {}", server)),
@@ -615,6 +996,12 @@ impl App {
 
             IrcEvent::Disconnected { reason, .. } => {
                 self.connected = false;
+
+                // Close channel list modal if open
+                if self.channel_list.visible {
+                    self.channel_list.close();
+                }
+
                 let msg = reason.clone().unwrap_or_else(|| "Connection closed".into());
                 self.buffers.add_message(
                     "Server",
@@ -861,9 +1248,51 @@ impl App {
                 // Handled automatically by client
             }
 
+            IrcEvent::Numeric { code, params } => {
+                // Handle specific numerics
+                match code {
+                    // RPL_LISTSTART (321) - List header
+                    321 => {
+                        // Channel list is starting - modal should already be open
+                        trace!("LIST started");
+                    }
+
+                    // RPL_LIST (322) - Channel entry
+                    // Format: 322 <target> <channel> <visible> :<topic>
+                    // target is separate, so params = [channel, visible, topic]
+                    322 => {
+                        if params.len() >= 2 {
+                            let channel_name = params[0].clone();
+                            let users: u32 = params[1].parse().unwrap_or(0);
+                            let topic = params.get(2).cloned().unwrap_or_default();
+
+                            // Add to channel list modal
+                            self.channel_list.add_channel(ChannelEntry::new(
+                                channel_name,
+                                users,
+                                topic,
+                            ));
+                        }
+                    }
+
+                    // RPL_LISTEND (323) - End of list
+                    323 => {
+                        // Mark loading as complete
+                        self.channel_list.finish_loading();
+                        trace!("LIST complete: {} channels", self.channel_list.channels.len());
+                    }
+
+                    // Other numerics - ignore or log
+                    _ => {
+                        trace!("Unhandled numeric {}: {:?}", code, params);
+                    }
+                }
+            }
+
             _ => {
                 // Other events - could log for debugging
             }
         }
     }
 }
+

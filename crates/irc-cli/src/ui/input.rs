@@ -1,15 +1,6 @@
-//! Input line widget.
-
-use ratatui::{
-    buffer::Buffer,
-    layout::Rect,
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::Widget,
-};
+//! Input line state and widget.
 
 use crate::completion::CompletionState;
-use crate::style::Theme;
 
 /// Input line state.
 #[derive(Debug, Clone)]
@@ -229,39 +220,11 @@ impl InputState {
     }
 
     /// Get cursor position in characters (for display).
+    #[allow(dead_code)]
     pub fn cursor_char_pos(&self) -> usize {
         self.text[..self.cursor].chars().count()
     }
 }
 
-/// Widget for the input line.
-pub struct InputWidget<'a> {
-    state: &'a InputState,
-    prompt: &'a str,
-    theme: &'a Theme,
-}
-
-impl<'a> InputWidget<'a> {
-    pub fn new(state: &'a InputState, prompt: &'a str, theme: &'a Theme) -> Self {
-        Self { state, prompt, theme }
-    }
-}
-
-impl Widget for InputWidget<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let prompt_span = Span::styled(self.prompt, self.theme.prompt_style());
-        let text_span = Span::raw(&self.state.text);
-
-        let line = Line::from(vec![prompt_span, text_span]);
-        buf.set_line(area.x, area.y, &line, area.width);
-
-        // Set cursor position
-        let cursor_x = area.x + self.prompt.len() as u16 + self.state.cursor_char_pos() as u16;
-        if cursor_x < area.x + area.width {
-            buf[(cursor_x, area.y)].set_style(
-                Style::default()
-                    .add_modifier(Modifier::REVERSED),
-            );
-        }
-    }
-}
+// Note: InputWidget has been removed - rendering is now handled directly
+// in layout.rs for better control over the input area styling.

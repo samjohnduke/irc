@@ -130,6 +130,7 @@ impl AppConfig {
     }
 
     /// Get a server profile by name.
+    #[allow(dead_code)]
     pub fn server(&self, name: &str) -> Option<&ServerProfile> {
         self.servers.get(name)
     }

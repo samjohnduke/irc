@@ -15,6 +15,14 @@ pub enum Event {
     /// Registration in progress (CAP/SASL/NICK/USER).
     Registering,
 
+    /// Detailed connection progress for UI display.
+    ConnectionProgress {
+        /// Phase description.
+        phase: String,
+        /// Detail message.
+        message: String,
+    },
+
     /// Successfully registered with the server.
     Connected {
         /// Our confirmed nickname.
