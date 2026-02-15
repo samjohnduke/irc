@@ -78,7 +78,11 @@ impl HistoryMessage {
 
         // Add time and msgid tags
         let mut tags = irc_proto::Tags::new();
-        tags.set("time", self.timestamp.to_rfc3339_opts(chrono::SecondsFormat::Millis, true));
+        tags.set(
+            "time",
+            self.timestamp
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        );
         tags.set("msgid", &self.msgid);
         if let Some(ref account) = self.sender.account {
             tags.set("account", account);
@@ -115,7 +119,11 @@ pub fn store_message(conn: &PooledConnection, msg: &HistoryMessage) -> Result<()
 }
 
 /// Get the latest messages for a target.
-pub fn get_latest(conn: &PooledConnection, target: &str, limit: usize) -> Result<Vec<HistoryMessage>> {
+pub fn get_latest(
+    conn: &PooledConnection,
+    target: &str,
+    limit: usize,
+) -> Result<Vec<HistoryMessage>> {
     let mut stmt = conn
         .prepare(
             "SELECT id, msgid, timestamp, sender_account, sender_nick, sender_user,
@@ -172,7 +180,10 @@ pub fn get_before(
         .map_err(|e| Error::Database(format!("Failed to prepare statement: {}", e)))?;
 
     let messages = stmt
-        .query_map(rusqlite::params![target, reference_ts, limit as i64], row_to_message)
+        .query_map(
+            rusqlite::params![target, reference_ts, limit as i64],
+            row_to_message,
+        )
         .map_err(|e| Error::Database(format!("Failed to get messages: {}", e)))?
         .collect::<std::result::Result<Vec<_>, _>>()
         .map_err(|e| Error::Database(format!("Failed to collect messages: {}", e)))?;
@@ -214,7 +225,10 @@ pub fn get_after(
         .map_err(|e| Error::Database(format!("Failed to prepare statement: {}", e)))?;
 
     let messages = stmt
-        .query_map(rusqlite::params![target, reference_ts, limit as i64], row_to_message)
+        .query_map(
+            rusqlite::params![target, reference_ts, limit as i64],
+            row_to_message,
+        )
         .map_err(|e| Error::Database(format!("Failed to get messages: {}", e)))?
         .collect::<std::result::Result<Vec<_>, _>>()
         .map_err(|e| Error::Database(format!("Failed to collect messages: {}", e)))?;
@@ -264,7 +278,10 @@ pub fn get_between(
         .map_err(|e| Error::Database(format!("Failed to prepare statement: {}", e)))?;
 
     let messages = stmt
-        .query_map(rusqlite::params![target, start_ts, end_ts, limit as i64], row_to_message)
+        .query_map(
+            rusqlite::params![target, start_ts, end_ts, limit as i64],
+            row_to_message,
+        )
         .map_err(|e| Error::Database(format!("Failed to get messages: {}", e)))?
         .collect::<std::result::Result<Vec<_>, _>>()
         .map_err(|e| Error::Database(format!("Failed to collect messages: {}", e)))?;
@@ -314,7 +331,10 @@ fn row_to_message(row: &rusqlite::Row) -> rusqlite::Result<HistoryMessage> {
     let command: String = row.get(9)?;
     let message: String = row.get(10)?;
 
-    let timestamp = Utc.timestamp_millis_opt(timestamp_ms).single().unwrap_or_else(Utc::now);
+    let timestamp = Utc
+        .timestamp_millis_opt(timestamp_ms)
+        .single()
+        .unwrap_or_else(Utc::now);
     let target_type = TargetType::parse(&target_type_str).unwrap_or(TargetType::Channel);
 
     Ok(HistoryMessage {

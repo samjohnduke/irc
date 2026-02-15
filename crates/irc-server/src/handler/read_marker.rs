@@ -15,7 +15,11 @@ use crate::error::Result;
 /// Formats:
 /// - MARKREAD <target> - Query read position
 /// - MARKREAD <target> timestamp=<timestamp> - Set read position
-pub fn handle_markread(ctx: &HandlerContext, target: &str, timestamp_param: Option<&str>) -> Result<()> {
+pub fn handle_markread(
+    ctx: &HandlerContext,
+    target: &str,
+    timestamp_param: Option<&str>,
+) -> Result<()> {
     // Check if client has the capability enabled
     if !ctx.client.has_cap("draft/read-marker")? {
         ctx.reply(
@@ -32,14 +36,21 @@ pub fn handle_markread(ctx: &HandlerContext, target: &str, timestamp_param: Opti
             // Send error - need to be logged in
             ctx.reply(
                 irc_proto::errors::ERR_NOTREGISTERED,
-                vec!["MARKREAD".into(), "You must be logged in to use MARKREAD".into()],
+                vec![
+                    "MARKREAD".into(),
+                    "You must be logged in to use MARKREAD".into(),
+                ],
             )?;
             return Ok(());
         }
     };
 
     // Look up account ID
-    let db = ctx.state.db.as_ref().ok_or(crate::error::Error::ServicesUnavailable)?;
+    let db = ctx
+        .state
+        .db
+        .as_ref()
+        .ok_or(crate::error::Error::ServicesUnavailable)?;
     let conn = db.connection()?;
     let account = match accounts::find_by_name(&conn, &account_name)? {
         Some(acc) => acc,
@@ -124,7 +135,11 @@ fn parse_timestamp(s: &str) -> Result<DateTime<Utc>> {
 }
 
 /// Send MARKREAD response.
-fn send_markread_response(ctx: &HandlerContext, target: &str, timestamp: DateTime<Utc>) -> Result<()> {
+fn send_markread_response(
+    ctx: &HandlerContext,
+    target: &str,
+    timestamp: DateTime<Utc>,
+) -> Result<()> {
     let ts_str = format!(
         "timestamp={}",
         timestamp.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)

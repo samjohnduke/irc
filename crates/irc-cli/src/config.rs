@@ -146,20 +146,18 @@ impl AppConfig {
             return Ok(Self::default());
         }
 
-        let content = std::fs::read_to_string(&path)
-            .map_err(|e| ConfigError::Read(path.clone(), e))?;
+        let content =
+            std::fs::read_to_string(&path).map_err(|e| ConfigError::Read(path.clone(), e))?;
 
-        toml::from_str(&content)
-            .map_err(|e| ConfigError::Parse(path, e))
+        toml::from_str(&content).map_err(|e| ConfigError::Parse(path, e))
     }
 
     /// Load configuration from a specific path.
     pub fn load_from(path: &std::path::Path) -> Result<Self, ConfigError> {
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| ConfigError::Read(path.to_path_buf(), e))?;
+        let content =
+            std::fs::read_to_string(path).map_err(|e| ConfigError::Read(path.to_path_buf(), e))?;
 
-        toml::from_str(&content)
-            .map_err(|e| ConfigError::Parse(path.to_path_buf(), e))
+        toml::from_str(&content).map_err(|e| ConfigError::Parse(path.to_path_buf(), e))
     }
 
     /// Get a server profile by name.
@@ -184,7 +182,9 @@ impl AppConfig {
         let defaults = &self.defaults;
 
         // Build nicknames list
-        let nick = profile.nick.clone()
+        let nick = profile
+            .nick
+            .clone()
             .or_else(|| defaults.nick.clone())
             .unwrap_or_else(|| whoami::username());
 
@@ -196,9 +196,7 @@ impl AppConfig {
         }
 
         // Determine TLS and port
-        let tls = profile.tls
-            .or(defaults.tls)
-            .unwrap_or(true);
+        let tls = profile.tls.or(defaults.tls).unwrap_or(true);
 
         let port = profile.port.unwrap_or(if tls { 6697 } else { 6667 });
 
@@ -208,24 +206,25 @@ impl AppConfig {
             tls,
             tls_accept_invalid: profile.tls_accept_invalid.unwrap_or(false),
             nicknames,
-            username: profile.username.clone()
+            username: profile
+                .username
+                .clone()
                 .or_else(|| defaults.username.clone())
                 .unwrap_or_else(|| nick.clone()),
-            realname: profile.realname.clone()
+            realname: profile
+                .realname
+                .clone()
                 .or_else(|| defaults.realname.clone())
                 .unwrap_or_else(|| nick.clone()),
             server_password: profile.password.clone(),
             sasl: None,
             autojoin: profile.channels.clone(),
-            reconnect: profile.reconnect
-                .or(defaults.reconnect)
-                .unwrap_or(true),
-            reconnect_delay: profile.reconnect_delay
+            reconnect: profile.reconnect.or(defaults.reconnect).unwrap_or(true),
+            reconnect_delay: profile
+                .reconnect_delay
                 .or(defaults.reconnect_delay)
                 .unwrap_or(5),
-            request_chathistory: profile.chathistory
-                .or(defaults.chathistory)
-                .unwrap_or(true),
+            request_chathistory: profile.chathistory.or(defaults.chathistory).unwrap_or(true),
             ..ClientConfig::default()
         };
 

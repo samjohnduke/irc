@@ -1,8 +1,8 @@
 //! NickServ service for nickname registration and identification.
 
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
 
 use super::ServiceContext;
@@ -22,7 +22,10 @@ pub fn handle_command(sctx: &ServiceContext, args: &[&str]) -> Result<()> {
         Some("DROP") => cmd_drop(sctx, &args[1..]),
         Some("GHOST") => cmd_ghost(sctx, &args[1..]),
         Some(cmd) => {
-            sctx.error(&format!("Unknown command: {}. Use HELP for a list of commands.", cmd))?;
+            sctx.error(&format!(
+                "Unknown command: {}. Use HELP for a list of commands.",
+                cmd
+            ))?;
             Ok(())
         }
         None => cmd_help(sctx),
@@ -301,7 +304,10 @@ fn cmd_set(sctx: &ServiceContext, args: &[&str]) -> Result<()> {
             tracing::info!(account = %account_name, "Password changed via NickServ");
         }
         Some(setting) => {
-            sctx.error(&format!("Unknown setting: {}. Use SET PASSWORD <newpass>.", setting))?;
+            sctx.error(&format!(
+                "Unknown setting: {}. Use SET PASSWORD <newpass>.",
+                setting
+            ))?;
         }
         None => {
             sctx.error("Usage: SET PASSWORD <newpassword>")?;

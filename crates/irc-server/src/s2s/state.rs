@@ -1,15 +1,15 @@
 //! Server link state management.
 
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::RwLock;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use chrono::{DateTime, Utc};
 use irc_proto::S2SMessage;
 use tokio::sync::mpsc;
 
-use crate::lock::RwLockExt;
 use crate::error::Result;
+use crate::lock::RwLockExt;
 
 /// State of a server link.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,11 +70,7 @@ pub struct ServerLink {
 
 impl ServerLink {
     /// Create a new server link.
-    pub fn new(
-        sid: String,
-        name: String,
-        sender: mpsc::Sender<S2SMessage>,
-    ) -> Self {
+    pub fn new(sid: String, name: String, sender: mpsc::Sender<S2SMessage>) -> Self {
         Self {
             uplink_sid: sid.clone(),
             sid,
@@ -143,7 +139,9 @@ impl ServerLink {
 
     /// Add a capability.
     pub fn add_capability(&self, cap: &str) -> Result<()> {
-        self.capabilities.write_lock("capabilities")?.insert(cap.to_string());
+        self.capabilities
+            .write_lock("capabilities")?
+            .insert(cap.to_string());
         Ok(())
     }
 
@@ -154,7 +152,9 @@ impl ServerLink {
 
     /// Add a user UID to this server's user list.
     pub fn add_user(&self, uid: &str) -> Result<()> {
-        self.user_uids.write_lock("user_uids")?.insert(uid.to_string());
+        self.user_uids
+            .write_lock("user_uids")?
+            .insert(uid.to_string());
         Ok(())
     }
 
@@ -170,7 +170,9 @@ impl ServerLink {
 
     /// Add a child server SID.
     pub fn add_child(&self, sid: &str) -> Result<()> {
-        self.child_sids.write_lock("child_sids")?.insert(sid.to_string());
+        self.child_sids
+            .write_lock("child_sids")?
+            .insert(sid.to_string());
         Ok(())
     }
 

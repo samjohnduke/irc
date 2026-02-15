@@ -56,7 +56,11 @@ where
     reader.read_line(&mut line).await?;
     let pass_msg = S2SMessage::parse(line.trim())?;
     let (password, remote_ts_version, remote_sid) = match pass_msg.command {
-        S2SCommand::Pass { password, ts_version, sid } => (password, ts_version, sid),
+        S2SCommand::Pass {
+            password,
+            ts_version,
+            sid,
+        } => (password, ts_version, sid),
         _ => return Err(Error::Protocol("Expected PASS command".into())),
     };
 
@@ -92,7 +96,10 @@ where
     // Check required capabilities
     for cap in REQUIRED_CAPAB {
         if !remote_caps.iter().any(|c| c.eq_ignore_ascii_case(cap)) {
-            return Err(Error::Protocol(format!("Missing required capability: {}", cap)));
+            return Err(Error::Protocol(format!(
+                "Missing required capability: {}",
+                cap
+            )));
         }
     }
 
@@ -101,7 +108,11 @@ where
     reader.read_line(&mut line).await?;
     let server_msg = S2SMessage::parse(line.trim())?;
     let (remote_name, _remote_hopcount, _remote_desc) = match server_msg.command {
-        S2SCommand::Server { name, hopcount, description } => (name, hopcount, description),
+        S2SCommand::Server {
+            name,
+            hopcount,
+            description,
+        } => (name, hopcount, description),
         _ => return Err(Error::Protocol("Expected SERVER command".into())),
     };
 
@@ -114,7 +125,11 @@ where
     }
 
     // Create the server link
-    let link = Arc::new(ServerLink::new(remote_sid.clone(), remote_name.clone(), tx.clone()));
+    let link = Arc::new(ServerLink::new(
+        remote_sid.clone(),
+        remote_name.clone(),
+        tx.clone(),
+    ));
     link.set_state(LinkState::Authenticating)?;
 
     // Send our PASS, CAPAB, SERVER
@@ -142,7 +157,11 @@ where
     reader.read_line(&mut line).await?;
     let svinfo_msg = S2SMessage::parse(line.trim())?;
     match svinfo_msg.command {
-        S2SCommand::SvInfo { ts_version, ts_min: _, current_time } => {
+        S2SCommand::SvInfo {
+            ts_version,
+            ts_min: _,
+            current_time,
+        } => {
             if ts_version < TS_MIN_VERSION {
                 return Err(Error::Protocol("TS version too old".into()));
             }
@@ -220,7 +239,11 @@ pub async fn initiate_outgoing_link(
     reader.read_line(&mut line).await?;
     let pass_msg = S2SMessage::parse(line.trim())?;
     let (password, remote_ts_version, remote_sid) = match pass_msg.command {
-        S2SCommand::Pass { password, ts_version, sid } => (password, ts_version, sid),
+        S2SCommand::Pass {
+            password,
+            ts_version,
+            sid,
+        } => (password, ts_version, sid),
         _ => return Err(Error::Protocol("Expected PASS command".into())),
     };
 
@@ -246,7 +269,10 @@ pub async fn initiate_outgoing_link(
     // Check required capabilities
     for cap in REQUIRED_CAPAB {
         if !remote_caps.iter().any(|c| c.eq_ignore_ascii_case(cap)) {
-            return Err(Error::Protocol(format!("Missing required capability: {}", cap)));
+            return Err(Error::Protocol(format!(
+                "Missing required capability: {}",
+                cap
+            )));
         }
     }
 
@@ -255,12 +281,20 @@ pub async fn initiate_outgoing_link(
     reader.read_line(&mut line).await?;
     let server_msg = S2SMessage::parse(line.trim())?;
     let (remote_name, _, _remote_desc) = match server_msg.command {
-        S2SCommand::Server { name, hopcount, description } => (name, hopcount, description),
+        S2SCommand::Server {
+            name,
+            hopcount,
+            description,
+        } => (name, hopcount, description),
         _ => return Err(Error::Protocol("Expected SERVER command".into())),
     };
 
     // Create the server link
-    let link = Arc::new(ServerLink::new(remote_sid.clone(), remote_name.clone(), tx.clone()));
+    let link = Arc::new(ServerLink::new(
+        remote_sid.clone(),
+        remote_name.clone(),
+        tx.clone(),
+    ));
     link.set_state(LinkState::Authenticating)?;
 
     // Send SVINFO

@@ -37,18 +37,18 @@ pub use message::Message;
 pub use mode::{ChannelMode, ModeChange, ModeChanges, UserMode};
 pub use prefix::Prefix;
 pub use tags::Tags;
-pub use validate::{is_channel, irc_eq, validate_channel, validate_nickname};
+pub use validate::{irc_eq, is_channel, validate_channel, validate_nickname};
 
 // Re-export S2S types
 pub use s2s_command::{
-    validate_sid, validate_uid, uid_to_sid, S2SCommand, S2SMessage, SjoinMember,
+    S2SCommand, S2SMessage, SjoinMember, uid_to_sid, validate_sid, validate_uid,
 };
 
 // Re-export reply modules with their original names
 pub use reply::describe as describe_numeric;
 pub use reply::error as errors;
-pub use reply::reply as replies;
 pub use reply::register_errors;
+pub use reply::reply as replies;
 
 /// Codec for streaming message parsing (tokio compatible)
 pub use parse::MessageCodec;

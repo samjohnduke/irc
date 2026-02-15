@@ -1,7 +1,7 @@
 //! Account database operations.
 
 use chrono::{DateTime, TimeZone, Utc};
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 
 use super::PooledConnection;
 use crate::error::{Error, Result};
@@ -61,7 +61,9 @@ pub fn find_by_name(conn: &PooledConnection, name: &str) -> Result<Option<Accoun
                 password_hash: row.get(2)?,
                 email: row.get(3)?,
                 registered_at: Utc.timestamp_opt(row.get::<_, i64>(4)?, 0).unwrap(),
-                last_seen: row.get::<_, Option<i64>>(5)?.map(|ts| Utc.timestamp_opt(ts, 0).unwrap()),
+                last_seen: row
+                    .get::<_, Option<i64>>(5)?
+                    .map(|ts| Utc.timestamp_opt(ts, 0).unwrap()),
             })
         })
         .optional()
@@ -87,7 +89,9 @@ pub fn find_by_id(conn: &PooledConnection, id: i64) -> Result<Option<Account>> {
                 password_hash: row.get(2)?,
                 email: row.get(3)?,
                 registered_at: Utc.timestamp_opt(row.get::<_, i64>(4)?, 0).unwrap(),
-                last_seen: row.get::<_, Option<i64>>(5)?.map(|ts| Utc.timestamp_opt(ts, 0).unwrap()),
+                last_seen: row
+                    .get::<_, Option<i64>>(5)?
+                    .map(|ts| Utc.timestamp_opt(ts, 0).unwrap()),
             })
         })
         .optional()

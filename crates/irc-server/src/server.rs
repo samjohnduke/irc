@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::signal;
 
 use crate::config::ServerConfig;
-use crate::connection::{handle_connection, ListenerManager};
+use crate::connection::{ListenerManager, handle_connection};
 use crate::error::Result;
 use crate::state::ServerState;
 

@@ -162,9 +162,7 @@ impl Widget for StatusbarWidget<'_> {
         // Right side: help hint
         if self.show_help_hint {
             let hint = " F1 Help ";
-            let hint_style = Style::default()
-                .fg(self.theme.muted)
-                .bg(header_accent_bg);
+            let hint_style = Style::default().fg(self.theme.muted).bg(header_accent_bg);
             let hint_x = area.x + area.width - hint.len() as u16;
             let hint_span = Span::styled(hint, hint_style);
             buf.set_span(hint_x, y1, &hint_span, hint.len() as u16);

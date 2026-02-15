@@ -48,13 +48,13 @@ pub fn message_to_event(msg: &Message, state: &mut SessionState) -> Option<Event
         // === Channel Events ===
         Command::Join { channels } => {
             let nick = msg.source_nick().unwrap_or("").to_string();
-            let userhost = msg.prefix.as_ref().and_then(|p| {
-                match p {
-                    Prefix::User { user: Some(user), host: Some(host), .. } => {
-                        Some(format!("{}@{}", user, host))
-                    }
-                    _ => None,
-                }
+            let userhost = msg.prefix.as_ref().and_then(|p| match p {
+                Prefix::User {
+                    user: Some(user),
+                    host: Some(host),
+                    ..
+                } => Some(format!("{}@{}", user, host)),
+                _ => None,
             });
 
             // Extended-join: account and realname in channel params
@@ -75,12 +75,16 @@ pub fn message_to_event(msg: &Message, state: &mut SessionState) -> Option<Event
             } else {
                 // Add the user to channel members
                 for (channel, _) in channels {
-                    state.add_member(channel, &nick, MemberInfo {
-                        prefixes: String::new(),
-                        userhost: userhost.clone(),
-                        account: account.clone(),
-                        away: None,
-                    });
+                    state.add_member(
+                        channel,
+                        &nick,
+                        MemberInfo {
+                            prefixes: String::new(),
+                            userhost: userhost.clone(),
+                            account: account.clone(),
+                            away: None,
+                        },
+                    );
                 }
             }
 
@@ -116,7 +120,11 @@ pub fn message_to_event(msg: &Message, state: &mut SessionState) -> Option<Event
             })
         }
 
-        Command::Kick { channel, users, comment } => {
+        Command::Kick {
+            channel,
+            users,
+            comment,
+        } => {
             let kicker = msg.source_nick().unwrap_or("").to_string();
 
             for user in users {
@@ -150,11 +158,14 @@ pub fn message_to_event(msg: &Message, state: &mut SessionState) -> Option<Event
             let setter = msg.source_nick().map(String::from);
 
             if let Some(topic_text) = topic {
-                state.set_topic(channel, Some(TopicInfo {
-                    text: topic_text.clone(),
-                    setter: setter.clone(),
-                    set_at: None,
-                }));
+                state.set_topic(
+                    channel,
+                    Some(TopicInfo {
+                        text: topic_text.clone(),
+                        setter: setter.clone(),
+                        set_at: None,
+                    }),
+                );
             } else {
                 state.set_topic(channel, None);
             }
@@ -173,22 +184,20 @@ pub fn message_to_event(msg: &Message, state: &mut SessionState) -> Option<Event
             // Check if this is our nick change
             if old_nick.eq_ignore_ascii_case(state.nick()) {
                 state.set_nick(&new_nick);
-                return Some(Event::NickChange {
-                    old_nick,
-                    new_nick,
-                });
+                return Some(Event::NickChange { old_nick, new_nick });
             }
 
             // Rename user in all channels
             state.rename_user(&old_nick, &new_nick);
 
-            Some(Event::Nick {
-                old_nick,
-                new_nick,
-            })
+            Some(Event::Nick { old_nick, new_nick })
         }
 
-        Command::Mode { target, modes, params } => {
+        Command::Mode {
+            target,
+            modes,
+            params,
+        } => {
             if target.starts_with('#') || target.starts_with('&') {
                 // Channel mode
                 let setter = msg.source_nick().unwrap_or("server").to_string();
@@ -217,7 +226,10 @@ pub fn message_to_event(msg: &Message, state: &mut SessionState) -> Option<Event
             }
         }
 
-        Command::Invite { nickname: _, channel } => {
+        Command::Invite {
+            nickname: _,
+            channel,
+        } => {
             let inviter = msg.source_nick().unwrap_or("").to_string();
             Some(Event::Invite {
                 inviter,
@@ -228,7 +240,11 @@ pub fn message_to_event(msg: &Message, state: &mut SessionState) -> Option<Event
         // === IRCv3 Events ===
         Command::Account { account } => {
             let nick = msg.source_nick().unwrap_or("").to_string();
-            let account = if account == "*" { None } else { Some(account.clone()) };
+            let account = if account == "*" {
+                None
+            } else {
+                Some(account.clone())
+            };
 
             // Update user info
             state.update_user(&nick, |u| u.account = account.clone());
@@ -278,9 +294,7 @@ pub fn message_to_event(msg: &Message, state: &mut SessionState) -> Option<Event
             token: server1.clone(),
         }),
 
-        Command::Numeric { code, params, .. } => {
-            handle_numeric(*code, params, state)
-        }
+        Command::Numeric { code, params, .. } => handle_numeric(*code, params, state),
 
         _ => {
             // Return raw event for unhandled messages
@@ -307,7 +321,9 @@ fn handle_numeric(code: u16, params: &[String], state: &mut SessionState) -> Opt
                     .map(|entry| {
                         let prefixes: String = entry
                             .chars()
-                            .take_while(|c| !c.is_alphanumeric() && *c != '[' && *c != '{' && *c != '\\')
+                            .take_while(|c| {
+                                !c.is_alphanumeric() && *c != '[' && *c != '{' && *c != '\\'
+                            })
                             .collect();
                         let nick = entry[prefixes.len()..].to_string();
                         (prefixes, nick)
@@ -316,12 +332,16 @@ fn handle_numeric(code: u16, params: &[String], state: &mut SessionState) -> Opt
 
                 // Update channel state
                 for (prefix, nick) in &names {
-                    state.add_member(channel, nick, MemberInfo {
-                        prefixes: prefix.clone(),
-                        userhost: None,
-                        account: None,
-                        away: None,
-                    });
+                    state.add_member(
+                        channel,
+                        nick,
+                        MemberInfo {
+                            prefixes: prefix.clone(),
+                            userhost: None,
+                            account: None,
+                            away: None,
+                        },
+                    );
                 }
 
                 return Some(Event::Names {
@@ -340,11 +360,14 @@ fn handle_numeric(code: u16, params: &[String], state: &mut SessionState) -> Opt
                 let topic = params.get(1).cloned();
 
                 if let Some(text) = topic.clone() {
-                    state.set_topic(channel, Some(TopicInfo {
-                        text,
-                        setter: None,
-                        set_at: None,
-                    }));
+                    state.set_topic(
+                        channel,
+                        Some(TopicInfo {
+                            text,
+                            setter: None,
+                            set_at: None,
+                        }),
+                    );
                 }
 
                 return Some(Event::Topic {
@@ -469,7 +492,10 @@ fn update_channel_modes(
             // Channel member modes
             'o' | 'v' | 'h' | 'a' | 'q' => {
                 if let Some(nick) = params.get(param_idx) {
-                    if let Some(member) = state.channel_mut(channel).and_then(|ch| ch.member_mut(nick)) {
+                    if let Some(member) = state
+                        .channel_mut(channel)
+                        .and_then(|ch| ch.member_mut(nick))
+                    {
                         let prefix_char = match c {
                             'o' => '@',
                             'v' => '+',

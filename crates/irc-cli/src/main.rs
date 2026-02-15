@@ -5,11 +5,11 @@ use std::io;
 use clap::Parser;
 use crossterm::{
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use ratatui::backend::CrosstermBackend;
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 use irc_client_lib::ClientConfig;
 
@@ -111,7 +111,10 @@ fn setup_terminal() -> io::Result<Terminal<CrosstermBackend<io::Stdout>>> {
 }
 
 /// Setup logging to file.
-fn setup_logging(debug: bool, verbose: bool) -> Option<tracing_appender::non_blocking::WorkerGuard> {
+fn setup_logging(
+    debug: bool,
+    verbose: bool,
+) -> Option<tracing_appender::non_blocking::WorkerGuard> {
     if !debug {
         return None;
     }
@@ -155,7 +158,7 @@ fn setup_logging(debug: bool, verbose: bool) -> Option<tracing_appender::non_blo
                 .with_target(true)
                 .with_thread_ids(false)
                 .with_file(true)
-                .with_line_number(true)
+                .with_line_number(true),
         )
         .with(filter)
         .init();

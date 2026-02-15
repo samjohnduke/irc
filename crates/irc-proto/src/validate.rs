@@ -42,7 +42,9 @@ pub fn validate_nickname_with_max(nick: &str, max_len: usize) -> Result<(), Vali
     let mut chars = nick.chars();
 
     // First character must be letter or special
-    let first = chars.next().expect("non-empty string guaranteed by check above");
+    let first = chars
+        .next()
+        .expect("non-empty string guaranteed by check above");
     if !is_nick_start_char(first) {
         return Err(ValidationError::InvalidNicknameStart(first));
     }
@@ -115,7 +117,9 @@ pub fn validate_channel_with_max(channel: &str, max_len: usize) -> Result<(), Va
     let mut chars = channel.chars();
 
     // First character must be a valid prefix
-    let prefix = chars.next().expect("non-empty string guaranteed by check above");
+    let prefix = chars
+        .next()
+        .expect("non-empty string guaranteed by check above");
     if !is_channel_prefix(prefix) {
         return Err(ValidationError::InvalidChannelPrefix(prefix));
     }
@@ -138,8 +142,7 @@ fn is_channel_prefix(c: char) -> bool {
 /// Check if a character is valid in a channel name (after the prefix).
 fn is_channel_char(c: char) -> bool {
     // Disallow: space, comma, colon, NUL, BEL, CR, LF
-    !matches!(c, ' ' | ',' | ':' | '\0' | '\x07' | '\r' | '\n')
-        && !c.is_control()
+    !matches!(c, ' ' | ',' | ':' | '\0' | '\x07' | '\r' | '\n') && !c.is_control()
 }
 
 /// Check if a string looks like a channel name.

@@ -9,9 +9,9 @@
 
 use irc_proto::{Command, Message};
 
+use crate::cap::CapabilityState;
 use crate::config::ClientConfig;
 use crate::error::{RegistrationError, SaslError};
-use crate::cap::CapabilityState;
 
 /// Registration state machine.
 #[derive(Debug)]
@@ -160,26 +160,23 @@ impl RegistrationState {
                 // Server CAP responses have format: CAP <target> <subcommand> [params]
                 // The target is typically "*" during pre-registration
                 // Our parser puts target in subcommand and real subcommand in params[0]
-                let (actual_subcommand, actual_params) = if subcommand == "*" || subcommand.contains('.') {
-                    // This is a target, real subcommand is in params
-                    if let Some((first, rest)) = params.split_first() {
-                        (first.as_str(), rest.to_vec())
+                let (actual_subcommand, actual_params) =
+                    if subcommand == "*" || subcommand.contains('.') {
+                        // This is a target, real subcommand is in params
+                        if let Some((first, rest)) = params.split_first() {
+                            (first.as_str(), rest.to_vec())
+                        } else {
+                            (subcommand.as_str(), params.clone())
+                        }
                     } else {
                         (subcommand.as_str(), params.clone())
-                    }
-                } else {
-                    (subcommand.as_str(), params.clone())
-                };
+                    };
                 self.handle_cap(actual_subcommand, &actual_params, config)
             }
 
-            Command::Authenticate { data } => {
-                self.handle_authenticate(data, config)
-            }
+            Command::Authenticate { data } => self.handle_authenticate(data, config),
 
-            Command::Numeric { code, params, .. } => {
-                self.handle_numeric(*code, params, config)
-            }
+            Command::Numeric { code, params, .. } => self.handle_numeric(*code, params, config),
 
             Command::Ping { server1, .. } => {
                 // Respond to ping during registration
@@ -359,7 +356,10 @@ impl RegistrationState {
 
             902 | 904 | 905 | 906 => {
                 // SASL failed (ERR_NICKLOCKED, ERR_SASLFAIL, ERR_SASLTOOLONG, ERR_SASLABORTED)
-                let reason = params.last().cloned().unwrap_or_else(|| "Unknown error".into());
+                let reason = params
+                    .last()
+                    .cloned()
+                    .unwrap_or_else(|| "Unknown error".into());
                 self.sasl_state = SaslState::Complete;
 
                 // For now, continue registration without SASL
@@ -375,7 +375,9 @@ impl RegistrationState {
                 self.welcomed = true;
                 self.phase = RegistrationPhase::Complete;
 
-                let nick = config.nicknames.get(self.nick_index)
+                let nick = config
+                    .nicknames
+                    .get(self.nick_index)
                     .cloned()
                     .unwrap_or_else(|| "unknown".into());
 
@@ -417,7 +419,9 @@ impl RegistrationState {
         self.caps.complete_negotiation();
         self.phase = RegistrationPhase::WaitingWelcome;
 
-        let nick = config.nicknames.get(self.nick_index)
+        let nick = config
+            .nicknames
+            .get(self.nick_index)
             .cloned()
             .unwrap_or_else(|| "user".into());
 
@@ -437,9 +441,7 @@ impl RegistrationState {
         }
 
         // NICK and USER
-        messages.push(Message::new(Command::Nick {
-            nickname: nick,
-        }));
+        messages.push(Message::new(Command::Nick { nickname: nick }));
 
         messages.push(Message::new(Command::User {
             username: config.username.clone(),
@@ -453,7 +455,7 @@ impl RegistrationState {
 
 /// Encode SASL PLAIN credentials.
 fn encode_sasl_plain(username: &str, password: &str) -> String {
-    use base64::{engine::general_purpose::STANDARD, Engine};
+    use base64::{Engine, engine::general_purpose::STANDARD};
 
     // PLAIN format: authzid\0authcid\0password
     // We leave authzid empty (use authcid)
@@ -498,7 +500,7 @@ mod tests {
     fn test_sasl_plain_encoding() {
         let encoded = encode_sasl_plain("testuser", "testpass");
         // Should be base64 of "\0testuser\0testpass"
-        use base64::{engine::general_purpose::STANDARD, Engine};
+        use base64::{Engine, engine::general_purpose::STANDARD};
         let decoded = STANDARD.decode(&encoded).unwrap();
         assert_eq!(decoded, b"\0testuser\0testpass");
     }

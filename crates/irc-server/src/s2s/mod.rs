@@ -16,17 +16,17 @@
 //! - **Timestamps**: Used for collision resolution (older wins)
 //! - **BURST**: State synchronization on link establishment
 
-pub mod state;
-mod handshake;
 mod burst;
-mod routing;
 mod collision;
 mod handler;
+mod handshake;
+mod routing;
+pub mod state;
 
-pub use state::{ServerLink, LinkState};
+pub use collision::{handle_channel_ts, handle_nick_collision};
 pub use handshake::{handle_incoming_link, initiate_outgoing_link};
-pub use routing::{propagate, route_to, find_route};
-pub use collision::{handle_nick_collision, handle_channel_ts};
+pub use routing::{find_route, propagate, route_to};
+pub use state::{LinkState, ServerLink};
 
 /// Required capabilities for TS6 links.
 pub const REQUIRED_CAPAB: &[&str] = &["QS", "ENCAP", "EX", "IE", "EUID", "TB"];

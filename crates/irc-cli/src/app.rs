@@ -5,23 +5,27 @@ use std::time::Duration;
 
 use crossterm::event::{self, Event as TermEvent, EventStream};
 use futures::StreamExt;
-use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
-use tracing::{debug, trace, info, warn};
+use ratatui::backend::CrosstermBackend;
+use tracing::{debug, info, trace, warn};
 
 use irc_client_lib::{Client, ClientConfig, Event as IrcEvent};
 
-use crate::completion::{find_completion_word, format_nick_completion, get_candidates, CompletionContext};
+use crate::completion::{
+    CompletionContext, find_completion_word, format_nick_completion, get_candidates,
+};
 use crate::config::UiConfig;
-use crate::handler::command::{command_help, parse_command, Command};
-use crate::handler::input::{handle_key_event_with_mode, InputMode, KeyAction, VimState};
+use crate::handler::command::{Command, command_help, parse_command};
+use crate::handler::input::{InputMode, KeyAction, VimState, handle_key_event_with_mode};
 use crate::state::{BufferKind, BufferList, DisplayMessage};
 use crate::style::Theme;
 use crate::ui::channel_list::{ChannelEntry, ChannelListState, ChannelListWidget};
 use crate::ui::help::HelpWidget;
 use crate::ui::input::InputState;
 use crate::ui::layout::LayoutConfig;
-use crate::ui::layout_modern::{draw_modern_layout, CommandPaletteRenderState, SearchRenderState, UserFilterRenderState};
+use crate::ui::layout_modern::{
+    CommandPaletteRenderState, SearchRenderState, UserFilterRenderState, draw_modern_layout,
+};
 use crate::ui::splash::{ConnectionPhase, LogEntry, SplashWidget};
 use crate::ui::userlist::ChannelUser;
 
@@ -226,9 +230,7 @@ impl CommandPalette {
         let filter_lower = self.filter.to_lowercase();
         self.filtered_actions = PaletteAction::all()
             .into_iter()
-            .filter(|a| {
-                filter_lower.is_empty() || a.label().to_lowercase().contains(&filter_lower)
-            })
+            .filter(|a| filter_lower.is_empty() || a.label().to_lowercase().contains(&filter_lower))
             .collect();
         // Clamp selection
         if self.selected >= self.filtered_actions.len() {
@@ -244,7 +246,9 @@ impl CommandPalette {
 
     pub fn select_prev(&mut self) {
         if !self.filtered_actions.is_empty() {
-            self.selected = self.selected.checked_sub(1)
+            self.selected = self
+                .selected
+                .checked_sub(1)
                 .unwrap_or(self.filtered_actions.len() - 1);
         }
     }
@@ -294,7 +298,11 @@ impl App {
 
     /// Create a new application with the given client and UI configs.
     pub fn with_ui_config(config: ClientConfig, ui_config: UiConfig) -> Self {
-        let nick = config.nicknames.first().cloned().unwrap_or_else(|| "user".into());
+        let nick = config
+            .nicknames
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "user".into());
         let reconnect_delay = config.reconnect_delay;
 
         Self {
@@ -353,14 +361,18 @@ impl App {
 
         // Update splash state
         if let Some(ref mut splash) = self.splash {
-            splash.log_info(format!("Connecting to {}:{}...", self.config.server, self.config.port));
+            splash.log_info(format!(
+                "Connecting to {}:{}...",
+                self.config.server, self.config.port
+            ));
             splash.phase = ConnectionPhase::Connecting;
         }
 
         // Spawn the connection task
         debug!("Taking client for connection task");
         let mut client = std::mem::take(&mut self.client);
-        let (connect_tx, mut connect_rx) = tokio::sync::oneshot::channel::<Result<Client, (Client, String)>>();
+        let (connect_tx, mut connect_rx) =
+            tokio::sync::oneshot::channel::<Result<Client, (Client, String)>>();
 
         debug!("Spawning connection task");
         tokio::spawn(async move {
@@ -380,7 +392,10 @@ impl App {
         // Track if we've received the client back
         let mut waiting_for_connect = true;
 
-        debug!("Entering main event loop, splash active: {}", self.splash.is_some());
+        debug!(
+            "Entering main event loop, splash active: {}",
+            self.splash.is_some()
+        );
 
         // Main event loop
         loop {
@@ -415,23 +430,29 @@ impl App {
                     };
 
                     // Build user filter render state
-                    let user_filter_state = if self.user_filter.active || !self.user_filter.filter.is_empty() {
-                        Some(UserFilterRenderState {
-                            active: self.user_filter.active,
-                            filter: self.user_filter.filter.clone(),
-                        })
-                    } else {
-                        None
-                    };
+                    let user_filter_state =
+                        if self.user_filter.active || !self.user_filter.filter.is_empty() {
+                            Some(UserFilterRenderState {
+                                active: self.user_filter.active,
+                                filter: self.user_filter.filter.clone(),
+                            })
+                        } else {
+                            None
+                        };
 
                     // Build command palette render state
                     let palette_state = if self.command_palette.visible {
                         Some(CommandPaletteRenderState {
                             filter: self.command_palette.filter.clone(),
                             selected: self.command_palette.selected,
-                            items: self.command_palette.filtered_actions.iter()
+                            items: self
+                                .command_palette
+                                .filtered_actions
+                                .iter()
                                 .enumerate()
-                                .map(|(i, a)| (a.label().to_string(), i == self.command_palette.selected))
+                                .map(|(i, a)| {
+                                    (a.label().to_string(), i == self.command_palette.selected)
+                                })
                                 .collect(),
                             info_content: self.command_palette.info_content.clone(),
                         })
@@ -614,8 +635,10 @@ impl App {
                 KeyCode::Char('u') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
                     self.user_filter.filter.clear();
                 }
-                KeyCode::Char(c) if !key.modifiers.contains(event::KeyModifiers::CONTROL)
-                    && !key.modifiers.contains(event::KeyModifiers::ALT) => {
+                KeyCode::Char(c)
+                    if !key.modifiers.contains(event::KeyModifiers::CONTROL)
+                        && !key.modifiers.contains(event::KeyModifiers::ALT) =>
+                {
                     self.user_filter.filter.push(c);
                 }
                 _ => {}
@@ -659,8 +682,10 @@ impl App {
                     self.command_palette.filter.clear();
                     self.command_palette.update_filtered();
                 }
-                KeyCode::Char(c) if !key.modifiers.contains(event::KeyModifiers::CONTROL)
-                    && !key.modifiers.contains(event::KeyModifiers::ALT) => {
+                KeyCode::Char(c)
+                    if !key.modifiers.contains(event::KeyModifiers::CONTROL)
+                        && !key.modifiers.contains(event::KeyModifiers::ALT) =>
+                {
                     self.command_palette.filter.push(c);
                     self.command_palette.update_filtered();
                 }
@@ -681,7 +706,10 @@ impl App {
                 return;
             }
             // In insert mode with empty input and vim_mode enabled -> switch to normal
-            if self.ui_config.vim_mode && self.input_mode == InputMode::Insert && self.input.text.is_empty() {
+            if self.ui_config.vim_mode
+                && self.input_mode == InputMode::Insert
+                && self.input.text.is_empty()
+            {
                 self.input_mode = InputMode::Normal;
                 return;
             }
@@ -698,12 +726,8 @@ impl App {
             return;
         }
 
-        let action = handle_key_event_with_mode(
-            key,
-            &mut self.input,
-            self.input_mode,
-            &mut self.vim_state,
-        );
+        let action =
+            handle_key_event_with_mode(key, &mut self.input, self.input_mode, &mut self.vim_state);
 
         match action {
             KeyAction::None => {}
@@ -1022,28 +1046,32 @@ impl App {
         let state = self.client.state();
         if let Ok(state) = state.try_read() {
             if let Some(channel) = state.channel(&active.name) {
-                return channel.members.iter().map(|(nick, info)| {
-                    // Determine the highest status from prefixes
-                    let status = if info.prefixes.contains('~') {
-                        UserStatus::Owner
-                    } else if info.prefixes.contains('&') {
-                        UserStatus::Admin
-                    } else if info.prefixes.contains('@') {
-                        UserStatus::Op
-                    } else if info.prefixes.contains('%') {
-                        UserStatus::HalfOp
-                    } else if info.prefixes.contains('+') {
-                        UserStatus::Voice
-                    } else {
-                        UserStatus::Normal
-                    };
+                return channel
+                    .members
+                    .iter()
+                    .map(|(nick, info)| {
+                        // Determine the highest status from prefixes
+                        let status = if info.prefixes.contains('~') {
+                            UserStatus::Owner
+                        } else if info.prefixes.contains('&') {
+                            UserStatus::Admin
+                        } else if info.prefixes.contains('@') {
+                            UserStatus::Op
+                        } else if info.prefixes.contains('%') {
+                            UserStatus::HalfOp
+                        } else if info.prefixes.contains('+') {
+                            UserStatus::Voice
+                        } else {
+                            UserStatus::Normal
+                        };
 
-                    ChannelUser {
-                        nick: nick.to_string(),
-                        status,
-                        away: false, // TODO: track away status
-                    }
-                }).collect();
+                        ChannelUser {
+                            nick: nick.to_string(),
+                            status,
+                            away: false, // TODO: track away status
+                        }
+                    })
+                    .collect();
             }
         }
 
@@ -1068,7 +1096,9 @@ impl App {
         {
             self.buffers.add_message(
                 "Server",
-                DisplayMessage::error("Maximum reconnect attempts reached. Use /reconnect to try again."),
+                DisplayMessage::error(
+                    "Maximum reconnect attempts reached. Use /reconnect to try again.",
+                ),
                 true,
             );
             self.reconnect_state.reconnecting = false;
@@ -1079,9 +1109,8 @@ impl App {
         self.reconnect_state.reconnecting = true;
 
         let delay = self.reconnect_state.current_delay;
-        self.reconnect_state.next_attempt = Some(
-            std::time::Instant::now() + Duration::from_secs(delay),
-        );
+        self.reconnect_state.next_attempt =
+            Some(std::time::Instant::now() + Duration::from_secs(delay));
 
         // Increase delay for next attempt (exponential backoff)
         self.reconnect_state.current_delay = (delay * 2).min(self.config.reconnect_max_delay);
@@ -1101,7 +1130,8 @@ impl App {
         self.reconnect_state.next_attempt = None;
 
         // Collect channels to rejoin before reconnecting
-        let channels_to_rejoin: Vec<String> = self.buffers
+        let channels_to_rejoin: Vec<String> = self
+            .buffers
             .all()
             .iter()
             .filter(|b| b.is_channel())
@@ -1146,7 +1176,10 @@ impl App {
                         if let Err(e) = self.client.join(&channel).await {
                             self.buffers.add_message(
                                 "Server",
-                                DisplayMessage::error(format!("Failed to rejoin {}: {}", channel, e)),
+                                DisplayMessage::error(format!(
+                                    "Failed to rejoin {}: {}",
+                                    channel, e
+                                )),
                                 true,
                             );
                         }
@@ -1202,8 +1235,14 @@ impl App {
                 let mut lines = vec!["Server Information:".to_string()];
                 lines.push(format!("  Server: {}", self.config.server));
                 lines.push(format!("  Port: {}", self.config.port));
-                lines.push(format!("  TLS: {}", if self.config.tls { "yes" } else { "no" }));
-                lines.push(format!("  Connected: {}", if self.connected { "yes" } else { "no" }));
+                lines.push(format!(
+                    "  TLS: {}",
+                    if self.config.tls { "yes" } else { "no" }
+                ));
+                lines.push(format!(
+                    "  Connected: {}",
+                    if self.connected { "yes" } else { "no" }
+                ));
                 lines.push(format!("  Nick: {}", self.nick));
                 self.command_palette.set_info(lines);
             }
@@ -1242,7 +1281,11 @@ impl App {
             PaletteAction::ToggleJoinPart => {
                 self.command_palette.close();
                 self.ui_config.hide_joinpart = !self.ui_config.hide_joinpart;
-                let status = if self.ui_config.hide_joinpart { "hidden" } else { "visible" };
+                let status = if self.ui_config.hide_joinpart {
+                    "hidden"
+                } else {
+                    "visible"
+                };
                 self.buffers.add_message(
                     "Server",
                     DisplayMessage::server(format!("Join/part messages are now {}", status)),
@@ -1433,11 +1476,8 @@ impl App {
             Command::Help { topic } => {
                 let help_text = command_help(topic.as_deref());
                 for line in help_text.lines() {
-                    self.buffers.add_message(
-                        "Server",
-                        DisplayMessage::server(line),
-                        true,
-                    );
+                    self.buffers
+                        .add_message("Server", DisplayMessage::server(line), true);
                 }
                 self.buffers.switch_to("Server");
             }
@@ -1484,12 +1524,16 @@ impl App {
                 if filter.is_none() {
                     self.buffers.add_message(
                         "Server",
-                        DisplayMessage::server("Note: Unfiltered /list on large networks may cause disconnection."),
+                        DisplayMessage::server(
+                            "Note: Unfiltered /list on large networks may cause disconnection.",
+                        ),
                         self.buffers.active_name() == "Server",
                     );
                     self.buffers.add_message(
                         "Server",
-                        DisplayMessage::server("Consider using /list <pattern> (e.g., /list *rust*)"),
+                        DisplayMessage::server(
+                            "Consider using /list <pattern> (e.g., /list *rust*)",
+                        ),
                         self.buffers.active_name() == "Server",
                     );
                 }
@@ -1569,7 +1613,11 @@ impl App {
                 }
             }
 
-            IrcEvent::Connected { nick, server, welcome } => {
+            IrcEvent::Connected {
+                nick,
+                server,
+                welcome,
+            } => {
                 info!("Connected event received: nick={}, server={}", nick, server);
                 self.connected = true;
                 self.nick = nick.clone();
@@ -1615,7 +1663,12 @@ impl App {
                 }
             }
 
-            IrcEvent::Privmsg { source, target, message, meta } => {
+            IrcEvent::Privmsg {
+                source,
+                target,
+                message,
+                meta,
+            } => {
                 // Determine which buffer to add to
                 let buffer_target = if target.eq_ignore_ascii_case(&self.nick) {
                     // PM to us - use source nick
@@ -1626,10 +1679,13 @@ impl App {
 
                 let nick = source.split('!').next().unwrap_or(&source);
                 let mut msg = if let Some(time) = meta.time {
-                    DisplayMessage::with_time(time, crate::state::MessageKind::Privmsg {
-                        nick: nick.to_string(),
-                        text: message,
-                    })
+                    DisplayMessage::with_time(
+                        time,
+                        crate::state::MessageKind::Privmsg {
+                            nick: nick.to_string(),
+                            text: message,
+                        },
+                    )
                 } else {
                     DisplayMessage::privmsg(nick, message)
                 };
@@ -1638,11 +1694,19 @@ impl App {
                     msg = msg.with_msgid(msgid);
                 }
 
-                let is_active = self.buffers.active_name().eq_ignore_ascii_case(&buffer_target);
+                let is_active = self
+                    .buffers
+                    .active_name()
+                    .eq_ignore_ascii_case(&buffer_target);
                 self.buffers.add_message(&buffer_target, msg, is_active);
             }
 
-            IrcEvent::Notice { source, target, message, .. } => {
+            IrcEvent::Notice {
+                source,
+                target,
+                message,
+                ..
+            } => {
                 let buffer_target = if target.starts_with('#') || target.starts_with('&') {
                     target
                 } else {
@@ -1650,11 +1714,19 @@ impl App {
                 };
 
                 let msg = DisplayMessage::notice(source, message);
-                let is_active = self.buffers.active_name().eq_ignore_ascii_case(&buffer_target);
+                let is_active = self
+                    .buffers
+                    .active_name()
+                    .eq_ignore_ascii_case(&buffer_target);
                 self.buffers.add_message(&buffer_target, msg, is_active);
             }
 
-            IrcEvent::Action { source, target, action, meta } => {
+            IrcEvent::Action {
+                source,
+                target,
+                action,
+                meta,
+            } => {
                 let buffer_target = if target.eq_ignore_ascii_case(&self.nick) {
                     source.split('!').next().unwrap_or(&source).to_string()
                 } else {
@@ -1663,10 +1735,13 @@ impl App {
 
                 let nick = source.split('!').next().unwrap_or(&source);
                 let mut msg = if let Some(time) = meta.time {
-                    DisplayMessage::with_time(time, crate::state::MessageKind::Action {
-                        nick: nick.to_string(),
-                        text: action,
-                    })
+                    DisplayMessage::with_time(
+                        time,
+                        crate::state::MessageKind::Action {
+                            nick: nick.to_string(),
+                            text: action,
+                        },
+                    )
                 } else {
                     DisplayMessage::action(nick, action)
                 };
@@ -1675,11 +1750,19 @@ impl App {
                     msg = msg.with_msgid(msgid);
                 }
 
-                let is_active = self.buffers.active_name().eq_ignore_ascii_case(&buffer_target);
+                let is_active = self
+                    .buffers
+                    .active_name()
+                    .eq_ignore_ascii_case(&buffer_target);
                 self.buffers.add_message(&buffer_target, msg, is_active);
             }
 
-            IrcEvent::Join { nick, channel, userhost, .. } => {
+            IrcEvent::Join {
+                nick,
+                channel,
+                userhost,
+                ..
+            } => {
                 if nick.eq_ignore_ascii_case(&self.nick) {
                     // We joined
                     self.buffers.get_or_create(&channel, BufferKind::Channel);
@@ -1691,7 +1774,11 @@ impl App {
                 self.buffers.add_message(&channel, msg, is_active);
             }
 
-            IrcEvent::Part { nick, channel, message } => {
+            IrcEvent::Part {
+                nick,
+                channel,
+                message,
+            } => {
                 if nick.eq_ignore_ascii_case(&self.nick) {
                     // We left
                     self.buffers.remove(&channel);
@@ -1702,7 +1789,12 @@ impl App {
                 }
             }
 
-            IrcEvent::Kick { nick, channel, kicker, reason } => {
+            IrcEvent::Kick {
+                nick,
+                channel,
+                kicker,
+                reason,
+            } => {
                 if nick.eq_ignore_ascii_case(&self.nick) {
                     // We were kicked
                     self.buffers.add_message(
@@ -1710,7 +1802,10 @@ impl App {
                         DisplayMessage::error(format!(
                             "You were kicked by {} {}",
                             kicker,
-                            reason.as_deref().map(|r| format!("({})", r)).unwrap_or_default()
+                            reason
+                                .as_deref()
+                                .map(|r| format!("({})", r))
+                                .unwrap_or_default()
                         )),
                         true,
                     );
@@ -1734,7 +1829,11 @@ impl App {
                 let _ = msg; // Suppress unused warning
             }
 
-            IrcEvent::Topic { channel, topic, setter } => {
+            IrcEvent::Topic {
+                channel,
+                topic,
+                setter,
+            } => {
                 if let Some(buffer) = self.buffers.get_mut(&channel) {
                     buffer.set_topic(topic.clone());
                 }
@@ -1744,7 +1843,10 @@ impl App {
                 self.buffers.add_message(&channel, msg, is_active);
             }
 
-            IrcEvent::NickChange { old_nick: _, new_nick } => {
+            IrcEvent::NickChange {
+                old_nick: _,
+                new_nick,
+            } => {
                 // Our nick changed
                 self.nick = new_nick.clone();
                 self.buffers.add_message(
@@ -1760,7 +1862,11 @@ impl App {
                 let _ = msg; // Would need to track channel membership
             }
 
-            IrcEvent::ChannelMode { channel, setter, modes } => {
+            IrcEvent::ChannelMode {
+                channel,
+                setter,
+                modes,
+            } => {
                 let msg = DisplayMessage::mode(&setter, &modes);
                 let is_active = self.buffers.active_name().eq_ignore_ascii_case(&channel);
                 self.buffers.add_message(&channel, msg, is_active);
@@ -1783,14 +1889,15 @@ impl App {
             }
 
             IrcEvent::ServerError { message } => {
-                self.buffers.add_message(
-                    "Server",
-                    DisplayMessage::error(message),
-                    true,
-                );
+                self.buffers
+                    .add_message("Server", DisplayMessage::error(message), true);
             }
 
-            IrcEvent::Batch { batch_type, target, messages } => {
+            IrcEvent::Batch {
+                batch_type,
+                target,
+                messages,
+            } => {
                 if batch_type == "chathistory" {
                     if let Some(target) = target {
                         // Add history separator
@@ -1801,13 +1908,21 @@ impl App {
                         let display_msgs: Vec<DisplayMessage> = messages
                             .into_iter()
                             .filter_map(|e| match e {
-                                IrcEvent::Privmsg { source, message, meta, .. } => {
+                                IrcEvent::Privmsg {
+                                    source,
+                                    message,
+                                    meta,
+                                    ..
+                                } => {
                                     let nick = source.split('!').next().unwrap_or(&source);
                                     let mut msg = if let Some(time) = meta.time {
-                                        DisplayMessage::with_time(time, crate::state::MessageKind::Privmsg {
-                                            nick: nick.to_string(),
-                                            text: message,
-                                        })
+                                        DisplayMessage::with_time(
+                                            time,
+                                            crate::state::MessageKind::Privmsg {
+                                                nick: nick.to_string(),
+                                                text: message,
+                                            },
+                                        )
                                     } else {
                                         DisplayMessage::privmsg(nick, message)
                                     };
@@ -1816,13 +1931,21 @@ impl App {
                                     }
                                     Some(msg)
                                 }
-                                IrcEvent::Action { source, action, meta, .. } => {
+                                IrcEvent::Action {
+                                    source,
+                                    action,
+                                    meta,
+                                    ..
+                                } => {
                                     let nick = source.split('!').next().unwrap_or(&source);
                                     let mut msg = if let Some(time) = meta.time {
-                                        DisplayMessage::with_time(time, crate::state::MessageKind::Action {
-                                            nick: nick.to_string(),
-                                            text: action,
-                                        })
+                                        DisplayMessage::with_time(
+                                            time,
+                                            crate::state::MessageKind::Action {
+                                                nick: nick.to_string(),
+                                                text: action,
+                                            },
+                                        )
                                     } else {
                                         DisplayMessage::action(nick, action)
                                     };
@@ -1879,7 +2002,10 @@ impl App {
                     323 => {
                         // Mark loading as complete
                         self.channel_list.finish_loading();
-                        trace!("LIST complete: {} channels", self.channel_list.channels.len());
+                        trace!(
+                            "LIST complete: {} channels",
+                            self.channel_list.channels.len()
+                        );
                     }
 
                     // Other numerics - ignore or log
@@ -1895,4 +2021,3 @@ impl App {
         }
     }
 }
-

@@ -4,8 +4,8 @@
 //! messages with @batch= tags and emits them as a single Event::Batch
 //! when the batch closes.
 
-use std::collections::HashMap;
 use irc_proto::{Command, Message};
+use std::collections::HashMap;
 
 use crate::event::Event;
 
@@ -57,21 +57,33 @@ impl BatchCollector {
     /// Process a message, handling batch start/end and collection.
     ///
     /// Returns how to handle this message.
-    pub fn process(&mut self, msg: Message, event_converter: impl FnOnce(Message) -> Option<Event>) -> BatchResult {
+    pub fn process(
+        &mut self,
+        msg: Message,
+        event_converter: impl FnOnce(Message) -> Option<Event>,
+    ) -> BatchResult {
         // Check for BATCH command (start/end)
-        if let Command::Batch { reference, batch_type, params } = &msg.command {
+        if let Command::Batch {
+            reference,
+            batch_type,
+            params,
+        } = &msg.command
+        {
             if reference.starts_with('+') {
                 // Start new batch
                 let ref_id = reference[1..].to_string();
                 let batch_type = batch_type.clone().unwrap_or_default();
                 let target = params.first().cloned();
 
-                self.batches.insert(ref_id, PendingBatch {
-                    batch_type,
-                    target,
-                    events: Vec::new(),
-                    params: params.clone(),
-                });
+                self.batches.insert(
+                    ref_id,
+                    PendingBatch {
+                        batch_type,
+                        target,
+                        events: Vec::new(),
+                        params: params.clone(),
+                    },
+                );
 
                 return BatchResult::Started;
             } else if reference.starts_with('-') {
@@ -147,7 +159,8 @@ mod tests {
         Message::new(Command::Privmsg {
             target: target.to_string(),
             message: msg.to_string(),
-        }).with_tags(tags)
+        })
+        .with_tags(tags)
     }
 
     #[test]
@@ -155,28 +168,30 @@ mod tests {
         let mut collector = BatchCollector::new();
 
         // Start batch
-        let result = collector.process(
-            make_batch_start("abc123", "chathistory", "#test"),
-            |_| None,
-        );
+        let result =
+            collector.process(make_batch_start("abc123", "chathistory", "#test"), |_| None);
         assert!(matches!(result, BatchResult::Started));
         assert!(collector.has_active_batches());
 
         // Add batched message
-        let result = collector.process(
-            make_batched_privmsg("abc123", "#test", "Hello"),
-            |msg| Some(Event::Privmsg {
+        let result = collector.process(make_batched_privmsg("abc123", "#test", "Hello"), |msg| {
+            Some(Event::Privmsg {
                 source: "nick".to_string(),
                 target: "#test".to_string(),
                 message: "Hello".to_string(),
                 meta: Default::default(),
-            }),
-        );
+            })
+        });
         assert!(matches!(result, BatchResult::Batched));
 
         // End batch
         let result = collector.process(make_batch_end("abc123"), |_| None);
-        if let BatchResult::Complete(Event::Batch { batch_type, target, messages }) = result {
+        if let BatchResult::Complete(Event::Batch {
+            batch_type,
+            target,
+            messages,
+        }) = result
+        {
             assert_eq!(batch_type, "chathistory");
             assert_eq!(target, Some("#test".to_string()));
             assert_eq!(messages.len(), 1);

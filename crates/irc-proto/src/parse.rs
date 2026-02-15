@@ -5,9 +5,9 @@
 use bytes::{Buf, BytesMut};
 use tokio_util::codec::{Decoder, Encoder};
 
+use crate::MAX_MESSAGE_LEN;
 use crate::error::ParseError;
 use crate::message::Message;
-use crate::MAX_MESSAGE_LEN;
 
 /// Codec for parsing and serializing IRC messages.
 ///

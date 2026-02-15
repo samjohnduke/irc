@@ -108,13 +108,17 @@ impl Theme {
 
     /// Style for unread indicators.
     pub fn unread_style(&self) -> Style {
-        Style::default().fg(self.unread).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(self.unread)
+            .add_modifier(Modifier::BOLD)
     }
 
     /// Style for the input prompt.
     #[allow(dead_code)]
     pub fn prompt_style(&self) -> Style {
-        Style::default().fg(self.prompt).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(self.prompt)
+            .add_modifier(Modifier::BOLD)
     }
 
     /// Style for muted text.
@@ -171,7 +175,6 @@ pub fn nick_color(nick: &str) -> Color {
 
     NICK_COLORS[(hash as usize) % NICK_COLORS.len()]
 }
-
 
 /// Format a timestamp for display.
 pub fn format_timestamp(dt: &chrono::DateTime<chrono::Utc>) -> String {

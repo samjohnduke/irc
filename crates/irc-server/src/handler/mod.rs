@@ -19,7 +19,7 @@ mod server;
 
 use std::sync::Arc;
 
-use irc_proto::{is_channel, Command, Message, Prefix};
+use irc_proto::{Command, Message, Prefix, is_channel};
 
 use crate::error::{Error, Result};
 use crate::lock::RwLockExt;
@@ -40,7 +40,10 @@ pub use oper::{
 };
 pub use query::{handle_who, handle_whois, handle_whowas};
 pub use registration::{handle_nick, handle_pass, handle_quit, handle_user};
-pub use server::{handle_admin, handle_info, handle_lusers, handle_motd, handle_stats, handle_time, handle_version};
+pub use server::{
+    handle_admin, handle_info, handle_lusers, handle_motd, handle_stats, handle_time,
+    handle_version,
+};
 
 /// Context for command handlers.
 pub struct HandlerContext<'a> {
@@ -55,12 +58,24 @@ pub struct HandlerContext<'a> {
 impl<'a> HandlerContext<'a> {
     /// Create a new handler context.
     pub fn new(client: &'a Arc<Client>, state: &'a Arc<ServerState>) -> Self {
-        Self { client, state, label: None }
+        Self {
+            client,
+            state,
+            label: None,
+        }
     }
 
     /// Create a new handler context with a label.
-    pub fn with_label(client: &'a Arc<Client>, state: &'a Arc<ServerState>, label: Option<String>) -> Self {
-        Self { client, state, label }
+    pub fn with_label(
+        client: &'a Arc<Client>,
+        state: &'a Arc<ServerState>,
+        label: Option<String>,
+    ) -> Self {
+        Self {
+            client,
+            state,
+            label,
+        }
     }
 
     /// Get the server name.
@@ -137,7 +152,10 @@ pub async fn handle_message(
     message: Message,
 ) -> Result<()> {
     // Extract label tag from incoming message for labeled-response
-    let label = message.tags.as_ref().and_then(|tags| tags.get("label").map(|s| s.to_string()));
+    let label = message
+        .tags
+        .as_ref()
+        .and_then(|tags| tags.get("label").map(|s| s.to_string()));
     let ctx = HandlerContext::with_label(client, state, label);
 
     match &message.command {
@@ -160,9 +178,11 @@ pub async fn handle_message(
         Command::Authenticate { data } => sasl::handle_authenticate(&ctx, data),
 
         // Account registration (draft/account-registration, allowed before connect)
-        Command::Register { account, email, password } => {
-            register::handle_register(&ctx, account, email, password)
-        }
+        Command::Register {
+            account,
+            email,
+            password,
+        } => register::handle_register(&ctx, account, email, password),
 
         // Commands requiring registration
         _ => {
@@ -175,24 +195,19 @@ pub async fn handle_message(
 
                 // Channel commands
                 Command::Join { channels } => handle_join(&ctx, channels),
-                Command::Part { channels, message: part_msg } => {
-                    handle_part(&ctx, channels, part_msg.as_deref())
-                }
-                Command::Topic { channel, topic } => {
-                    handle_topic(&ctx, channel, topic.as_deref())
-                }
-                Command::Names { channels } => {
-                    handle_names(&ctx, channels.as_deref())
-                }
-                Command::List { channels } => {
-                    handle_list(&ctx, channels.as_deref())
-                }
-                Command::Kick { channel, users, comment } => {
-                    handle_kick(&ctx, channel, users, comment.as_deref())
-                }
-                Command::Invite { nickname, channel } => {
-                    handle_invite(&ctx, nickname, channel)
-                }
+                Command::Part {
+                    channels,
+                    message: part_msg,
+                } => handle_part(&ctx, channels, part_msg.as_deref()),
+                Command::Topic { channel, topic } => handle_topic(&ctx, channel, topic.as_deref()),
+                Command::Names { channels } => handle_names(&ctx, channels.as_deref()),
+                Command::List { channels } => handle_list(&ctx, channels.as_deref()),
+                Command::Kick {
+                    channel,
+                    users,
+                    comment,
+                } => handle_kick(&ctx, channel, users, comment.as_deref()),
+                Command::Invite { nickname, channel } => handle_invite(&ctx, nickname, channel),
 
                 // Server query commands
                 Command::Motd { .. } => handle_motd(&ctx),
@@ -204,43 +219,55 @@ pub async fn handle_message(
                 Command::Stats { query, .. } => handle_stats(&ctx, *query),
 
                 // User query commands
-                Command::Who { mask, operators_only } => {
-                    handle_who(&ctx, mask, *operators_only)
-                }
+                Command::Who {
+                    mask,
+                    operators_only,
+                } => handle_who(&ctx, mask, *operators_only),
                 Command::Whois { nicknames, .. } => handle_whois(&ctx, nicknames),
-                Command::Whowas { nickname, count, .. } => {
-                    handle_whowas(&ctx, nickname, *count)
-                }
+                Command::Whowas {
+                    nickname, count, ..
+                } => handle_whowas(&ctx, nickname, *count),
 
                 // Operator commands
                 Command::Oper { name, password } => handle_oper(&ctx, name, password),
                 Command::Kill { nickname, comment } => handle_kill(&ctx, nickname, comment),
-                Command::Wallops { message: wallops_msg } => handle_wallops(&ctx, wallops_msg),
+                Command::Wallops {
+                    message: wallops_msg,
+                } => handle_wallops(&ctx, wallops_msg),
                 Command::Rehash => handle_rehash(&ctx),
                 Command::Restart => handle_restart(&ctx),
                 Command::Die => handle_die(&ctx),
-                Command::Kline { duration, mask, reason } => {
-                    handle_kline(&ctx, duration.as_deref(), mask, reason.as_deref())
-                }
+                Command::Kline {
+                    duration,
+                    mask,
+                    reason,
+                } => handle_kline(&ctx, duration.as_deref(), mask, reason.as_deref()),
                 Command::Unkline { mask } => handle_unkline(&ctx, mask),
-                Command::Gline { duration, mask, reason } => {
-                    handle_gline(&ctx, duration.as_deref(), mask, reason.as_deref())
-                }
+                Command::Gline {
+                    duration,
+                    mask,
+                    reason,
+                } => handle_gline(&ctx, duration.as_deref(), mask, reason.as_deref()),
                 Command::Ungline { mask } => handle_ungline(&ctx, mask),
-                Command::Zline { duration, mask, reason } => {
-                    handle_zline(&ctx, duration.as_deref(), mask, reason.as_deref())
-                }
+                Command::Zline {
+                    duration,
+                    mask,
+                    reason,
+                } => handle_zline(&ctx, duration.as_deref(), mask, reason.as_deref()),
                 Command::Unzline { mask } => handle_unzline(&ctx, mask),
 
                 // MONITOR command
-                Command::Monitor { subcommand, targets } => {
-                    handle_monitor(&ctx, *subcommand, targets.as_deref())
-                }
+                Command::Monitor {
+                    subcommand,
+                    targets,
+                } => handle_monitor(&ctx, *subcommand, targets.as_deref()),
 
                 // CHATHISTORY command
-                Command::Chathistory { subcommand, target, params } => {
-                    handle_chathistory(&ctx, subcommand, target, params)
-                }
+                Command::Chathistory {
+                    subcommand,
+                    target,
+                    params,
+                } => handle_chathistory(&ctx, subcommand, target, params),
 
                 // HELP command
                 Command::Help { topic } => handle_help(&ctx, topic.as_deref()),
@@ -250,7 +277,11 @@ pub async fn handle_message(
                     read_marker::handle_markread(&ctx, target, timestamp.as_deref())
                 }
 
-                Command::Mode { target, modes, params } => {
+                Command::Mode {
+                    target,
+                    modes,
+                    params,
+                } => {
                     if is_channel(target) {
                         handle_channel_mode(&ctx, target, modes.as_deref(), params)
                     } else {
@@ -382,4 +413,3 @@ pub async fn handle_message(
         }
     }
 }
-

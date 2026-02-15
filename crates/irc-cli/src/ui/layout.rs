@@ -1,12 +1,12 @@
 //! Main layout composition.
 
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     symbols,
     text::{Line, Span},
     widgets::{Block, Borders},
-    Frame,
 };
 
 use crate::handler::input::InputMode;
@@ -130,7 +130,11 @@ pub fn draw_layout_with_mode(
         let topic = active.topic.as_deref();
 
         let statusbar = StatusbarWidget::new(nick, channel, topic, connected, theme)
-            .with_user_count(if active.is_channel() { Some(channel_users.len()) } else { None });
+            .with_user_count(if active.is_channel() {
+                Some(channel_users.len())
+            } else {
+                None
+            });
         frame.render_widget(statusbar, vertical[slot]);
         slot += 1;
     }
@@ -240,7 +244,11 @@ fn draw_input_area_with_mode(
     let (prompt_text, prompt_style, display_text) = if let Some(search_state) = search {
         if search_state.active {
             let search_info = if search_state.total_matches > 0 {
-                format!(" [{}/{}]", search_state.current_match + 1, search_state.total_matches)
+                format!(
+                    " [{}/{}]",
+                    search_state.current_match + 1,
+                    search_state.total_matches
+                )
             } else if !search_state.query.is_empty() {
                 " [no match]".to_string()
             } else {
@@ -288,7 +296,9 @@ fn draw_input_area_with_mode(
     // Render on the first line of inner area
     if inner.height > 0 {
         let text_y = inner.y;
-        frame.buffer_mut().set_line(inner.x + 1, text_y, &line, inner.width.saturating_sub(2));
+        frame
+            .buffer_mut()
+            .set_line(inner.x + 1, text_y, &line, inner.width.saturating_sub(2));
 
         // Calculate cursor position
         let prompt_width = prompt_text.chars().count() as u16;
@@ -321,7 +331,9 @@ fn draw_input_area_with_mode(
         let hint_x = inner.x + inner.width - hint.len() as u16 - 1;
         if hint_x > inner.x + prompt_text.len() as u16 + input.text.len() as u16 + 5 {
             let hint_span = Span::styled(hint, hint_style);
-            frame.buffer_mut().set_span(hint_x, inner.y, &hint_span, hint.len() as u16);
+            frame
+                .buffer_mut()
+                .set_span(hint_x, inner.y, &hint_span, hint.len() as u16);
         }
     }
 }

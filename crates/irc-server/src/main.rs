@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 use irc_server::{Server, ServerConfig};
 
@@ -108,7 +108,10 @@ async fn main() -> anyhow::Result<()> {
         let addr = bind
             .parse()
             .map_err(|e| anyhow::anyhow!("Invalid bind address: {}", e))?;
-        config.listen = vec![irc_server::config::ListenConfig { address: addr, tls: None }];
+        config.listen = vec![irc_server::config::ListenConfig {
+            address: addr,
+            tls: None,
+        }];
     }
 
     // Run the server

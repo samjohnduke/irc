@@ -5,8 +5,8 @@
 
 use std::sync::Arc;
 
-use tokio::sync::{broadcast, mpsc, RwLock};
-use tokio::time::{timeout, Duration};
+use tokio::sync::{RwLock, broadcast, mpsc};
+use tokio::time::{Duration, timeout};
 
 use irc_proto::{Command, Message};
 
@@ -67,7 +67,10 @@ impl Client {
         let _ = self.event_tx.send(Event::Connecting);
         let _ = self.event_tx.send(Event::ConnectionProgress {
             phase: "connecting".into(),
-            message: format!("Connecting to {}:{}...", self.config.server, self.config.port),
+            message: format!(
+                "Connecting to {}:{}...",
+                self.config.server, self.config.port
+            ),
         });
 
         // Establish connection
@@ -135,7 +138,11 @@ impl Client {
         let result = timeout(registration_timeout, async {
             loop {
                 match event_rx.recv().await {
-                    Ok(Event::Connected { nick, server, welcome: _ }) => {
+                    Ok(Event::Connected {
+                        nick,
+                        server,
+                        welcome: _,
+                    }) => {
                         // Update state
                         let mut state = self.state.write().await;
                         state.set_nick(&nick);
@@ -179,7 +186,9 @@ impl Client {
                 Ok(())
             }
             Ok(Err(e)) => Err(e),
-            Err(_) => Err(Error::Registration(crate::error::RegistrationError::Timeout)),
+            Err(_) => Err(Error::Registration(
+                crate::error::RegistrationError::Timeout,
+            )),
         }
     }
 
@@ -355,7 +364,10 @@ async fn read_loop(
     let mut batch_collector = BatchCollector::new();
     let mut reg_state = RegistrationState::new();
     reg_state.start(&config);
-    tracing::debug!("Registration state initialized, phase: {:?}", reg_state.phase());
+    tracing::debug!(
+        "Registration state initialized, phase: {:?}",
+        reg_state.phase()
+    );
 
     loop {
         match reader.recv().await {
@@ -368,15 +380,19 @@ async fn read_loop(
                     tracing::debug!("Processing registration, current phase: {:?}", old_phase);
                     match reg_state.process(&msg, &config) {
                         RegistrationAction::Send(messages) => {
-                            tracing::debug!("Registration action: Send {} messages", messages.len());
+                            tracing::debug!(
+                                "Registration action: Send {} messages",
+                                messages.len()
+                            );
                             // Check for phase transitions and emit progress
                             let new_phase = reg_state.phase();
                             tracing::debug!("Phase transition: {:?} -> {:?}", old_phase, new_phase);
                             if old_phase != new_phase {
                                 let (phase, message) = match new_phase {
-                                    crate::registration::RegistrationPhase::WaitingCapAck => {
-                                        ("capabilities", "Received server capabilities, requesting...")
-                                    }
+                                    crate::registration::RegistrationPhase::WaitingCapAck => (
+                                        "capabilities",
+                                        "Received server capabilities, requesting...",
+                                    ),
                                     crate::registration::RegistrationPhase::SaslAuth => {
                                         ("authenticating", "Starting SASL PLAIN authentication...")
                                     }
@@ -397,8 +413,16 @@ async fn read_loop(
                                 let _ = command_tx.send(m).await;
                             }
                         }
-                        RegistrationAction::Complete { nick, server, welcome } => {
-                            tracing::info!("Registration complete: nick={}, server={}", nick, server);
+                        RegistrationAction::Complete {
+                            nick,
+                            server,
+                            welcome,
+                        } => {
+                            tracing::info!(
+                                "Registration complete: nick={}, server={}",
+                                nick,
+                                server
+                            );
                             let _ = event_tx.send(Event::ConnectionProgress {
                                 phase: "complete".into(),
                                 message: format!("Registered as {}", nick),

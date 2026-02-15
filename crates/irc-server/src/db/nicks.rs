@@ -1,7 +1,7 @@
 //! Nickname registration database operations.
 
 use chrono::{DateTime, TimeZone, Utc};
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 
 use super::PooledConnection;
 use crate::error::{Error, Result};
@@ -151,7 +151,7 @@ pub fn unregister_all(conn: &PooledConnection, account_id: i64) -> Result<usize>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::{accounts, Database};
+    use crate::db::{Database, accounts};
 
     #[test]
     fn test_nick_registration() {

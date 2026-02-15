@@ -2,8 +2,8 @@
 //!
 //! Implements the IRCv3 MONITOR extension for tracking user online/offline status.
 
-use irc_proto::replies::*;
 use irc_proto::errors::ERR_MONLISTFULL;
+use irc_proto::replies::*;
 
 use super::HandlerContext;
 use crate::error::Result;
@@ -154,9 +154,7 @@ fn partition_by_online<S: AsRef<str>>(
 /// Broadcast MONONLINE to all clients monitoring a nickname.
 /// Called when a user registers or changes nick to this nick.
 #[allow(dead_code)]
-pub fn broadcast_monitor_online(
-    ctx: &HandlerContext,
-) -> Result<()> {
+pub fn broadcast_monitor_online(ctx: &HandlerContext) -> Result<()> {
     let nick = match ctx.client.nickname()? {
         Some(n) => n,
         None => return Ok(()),
@@ -179,10 +177,7 @@ pub fn broadcast_monitor_online(
 /// Broadcast MONOFFLINE to all clients monitoring a nickname.
 /// Called when a user quits or changes nick away from this nick.
 #[allow(dead_code)]
-pub fn broadcast_monitor_offline(
-    ctx: &HandlerContext,
-    nick: &str,
-) -> Result<()> {
+pub fn broadcast_monitor_offline(ctx: &HandlerContext, nick: &str) -> Result<()> {
     let monitors = ctx.state.get_monitors_for_nick(nick)?;
 
     for monitor in monitors {

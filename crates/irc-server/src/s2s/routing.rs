@@ -13,8 +13,8 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use irc_proto::S2SMessage;
 
-use crate::error::Result;
 use super::state::ServerLink;
+use crate::error::Result;
 
 /// Propagate a message to all linked servers except the source.
 ///
@@ -101,9 +101,10 @@ pub fn find_route(
         }
 
         // Check if this link's children include the target
-        let children = link.child_sids.read().map_err(|_| {
-            crate::error::Error::LockPoisoned("child_sids".to_string())
-        })?;
+        let children = link
+            .child_sids
+            .read()
+            .map_err(|_| crate::error::Error::LockPoisoned("child_sids".to_string()))?;
 
         if children.contains(target_sid) {
             return Ok(Some(Arc::clone(link)));

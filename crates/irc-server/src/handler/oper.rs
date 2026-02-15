@@ -1,7 +1,7 @@
 //! Operator command handlers (OPER, KILL, WALLOPS, REHASH, RESTART, DIE, KLINE, ZLINE).
 
 use chrono::{Duration, Utc};
-use irc_proto::{errors::*, replies::*, Command, Message};
+use irc_proto::{Command, Message, errors::*, replies::*};
 
 use super::HandlerContext;
 use crate::db::bans::{self, BanType, ServerBan};
@@ -12,21 +12,13 @@ use crate::state::matches_mask;
 /// Handle OPER command - obtain operator privileges.
 pub fn handle_oper(ctx: &HandlerContext, name: &str, password: &str) -> Result<()> {
     // Find the operator config by name
-    let oper_config = ctx
-        .state
-        .config
-        .operators
-        .iter()
-        .find(|op| op.name == name);
+    let oper_config = ctx.state.config.operators.iter().find(|op| op.name == name);
 
     let oper_config = match oper_config {
         Some(config) => config,
         None => {
             // No such operator name
-            ctx.reply(
-                ERR_PASSWDMISMATCH,
-                vec!["Password incorrect".into()],
-            )?;
+            ctx.reply(ERR_PASSWDMISMATCH, vec!["Password incorrect".into()])?;
             return Err(Error::PasswordMismatch);
         }
     };
@@ -35,10 +27,7 @@ pub fn handle_oper(ctx: &HandlerContext, name: &str, password: &str) -> Result<(
     if let Some(ref host_mask) = oper_config.host_mask {
         let client_hostmask = ctx.client.hostmask()?;
         if !matches_mask(host_mask, &client_hostmask) {
-            ctx.reply(
-                ERR_NOOPERHOST,
-                vec!["No O-lines for your host".into()],
-            )?;
+            ctx.reply(ERR_NOOPERHOST, vec!["No O-lines for your host".into()])?;
             return Err(Error::NoOperHost);
         }
     }
@@ -49,21 +38,18 @@ pub fn handle_oper(ctx: &HandlerContext, name: &str, password: &str) -> Result<(
         Ok(hash) => hash,
         Err(_) => {
             tracing::error!(oper_name = %name, "Invalid password hash in config");
-            ctx.reply(
-                ERR_PASSWDMISMATCH,
-                vec!["Password incorrect".into()],
-            )?;
+            ctx.reply(ERR_PASSWDMISMATCH, vec!["Password incorrect".into()])?;
             return Err(Error::PasswordMismatch);
         }
     };
 
     use argon2::PasswordVerifier;
     let argon2 = argon2::Argon2::default();
-    if argon2.verify_password(password.as_bytes(), &parsed_hash).is_err() {
-        ctx.reply(
-            ERR_PASSWDMISMATCH,
-            vec!["Password incorrect".into()],
-        )?;
+    if argon2
+        .verify_password(password.as_bytes(), &parsed_hash)
+        .is_err()
+    {
+        ctx.reply(ERR_PASSWDMISMATCH, vec!["Password incorrect".into()])?;
         return Err(Error::PasswordMismatch);
     }
 
@@ -71,10 +57,7 @@ pub fn handle_oper(ctx: &HandlerContext, name: &str, password: &str) -> Result<(
     ctx.client.modes.write_lock("modes")?.operator = true;
 
     // 381 RPL_YOUREOPER
-    ctx.reply(
-        RPL_YOUREOPER,
-        vec!["You are now an IRC operator".into()],
-    )?;
+    ctx.reply(RPL_YOUREOPER, vec!["You are now an IRC operator".into()])?;
 
     // Send MODE +o to the client
     let nick = ctx.client.nickname()?.unwrap_or_default();
@@ -120,7 +103,10 @@ pub fn handle_kill(ctx: &HandlerContext, nickname: &str, comment: &str) -> Resul
         }
     };
 
-    let killer_nick = ctx.client.nickname()?.unwrap_or_else(|| "operator".to_string());
+    let killer_nick = ctx
+        .client
+        .nickname()?
+        .unwrap_or_else(|| "operator".to_string());
     let target_nick = target.nickname()?.unwrap_or_default();
     let kill_path = format!("{} ({})", ctx.state.config.server_name, comment);
 
@@ -144,8 +130,12 @@ pub fn handle_kill(ctx: &HandlerContext, nickname: &str, comment: &str) -> Resul
     // Send ERROR to target
     let error_msg = Message::new(Command::Unknown {
         command: "ERROR".into(),
-        params: vec![format!("Closing Link: {} (Killed ({}: {}))",
-            target.hostname()?, killer_nick, comment)],
+        params: vec![format!(
+            "Closing Link: {} (Killed ({}: {}))",
+            target.hostname()?,
+            killer_nick,
+            comment
+        )],
     });
     let _ = target.send(error_msg);
 
@@ -314,7 +304,10 @@ pub fn handle_kline(
     require_oper(ctx)?;
 
     if mask.is_empty() {
-        ctx.reply(ERR_NEEDMOREPARAMS, vec!["KLINE".into(), "Not enough parameters".into()])?;
+        ctx.reply(
+            ERR_NEEDMOREPARAMS,
+            vec!["KLINE".into(), "Not enough parameters".into()],
+        )?;
         return Ok(());
     }
 
@@ -344,7 +337,11 @@ pub fn handle_kline(
 
     // Notify the operator
     let notice_msg = if let Some(exp) = expires_at {
-        format!("K-Line added: {} (expires {})", mask, exp.format("%Y-%m-%d %H:%M:%S UTC"))
+        format!(
+            "K-Line added: {} (expires {})",
+            mask,
+            exp.format("%Y-%m-%d %H:%M:%S UTC")
+        )
     } else {
         format!("K-Line added: {} (permanent)", mask)
     };
@@ -377,7 +374,10 @@ pub fn handle_unkline(ctx: &HandlerContext, mask: &str) -> Result<()> {
     require_oper(ctx)?;
 
     if mask.is_empty() {
-        ctx.reply(ERR_NEEDMOREPARAMS, vec!["UNKLINE".into(), "Not enough parameters".into()])?;
+        ctx.reply(
+            ERR_NEEDMOREPARAMS,
+            vec!["UNKLINE".into(), "Not enough parameters".into()],
+        )?;
         return Ok(());
     }
 
@@ -434,7 +434,10 @@ pub fn handle_zline(
     require_oper(ctx)?;
 
     if mask.is_empty() {
-        ctx.reply(ERR_NEEDMOREPARAMS, vec!["ZLINE".into(), "Not enough parameters".into()])?;
+        ctx.reply(
+            ERR_NEEDMOREPARAMS,
+            vec!["ZLINE".into(), "Not enough parameters".into()],
+        )?;
         return Ok(());
     }
 
@@ -464,7 +467,11 @@ pub fn handle_zline(
 
     // Notify the operator
     let notice_msg = if let Some(exp) = expires_at {
-        format!("Z-Line added: {} (expires {})", mask, exp.format("%Y-%m-%d %H:%M:%S UTC"))
+        format!(
+            "Z-Line added: {} (expires {})",
+            mask,
+            exp.format("%Y-%m-%d %H:%M:%S UTC")
+        )
     } else {
         format!("Z-Line added: {} (permanent)", mask)
     };
@@ -497,7 +504,10 @@ pub fn handle_unzline(ctx: &HandlerContext, mask: &str) -> Result<()> {
     require_oper(ctx)?;
 
     if mask.is_empty() {
-        ctx.reply(ERR_NEEDMOREPARAMS, vec!["UNZLINE".into(), "Not enough parameters".into()])?;
+        ctx.reply(
+            ERR_NEEDMOREPARAMS,
+            vec!["UNZLINE".into(), "Not enough parameters".into()],
+        )?;
         return Ok(());
     }
 

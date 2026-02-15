@@ -1,6 +1,6 @@
 //! Messaging command handlers (PRIVMSG, NOTICE).
 
-use irc_proto::{errors::*, replies::*, Command, Message};
+use irc_proto::{Command, Message, errors::*, replies::*};
 
 use super::HandlerContext;
 use crate::error::{Error, Result};
@@ -187,10 +187,7 @@ fn send_to_user(
     {
         ctx.reply(
             RPL_AWAY,
-            vec![
-                target_client.nickname()?.unwrap_or_default(),
-                away_msg,
-            ],
+            vec![target_client.nickname()?.unwrap_or_default(), away_msg],
         )?;
     }
 

@@ -59,7 +59,7 @@ pub async fn send_welcome_burst(client: &Arc<Client>, state: &Arc<ServerState>) 
         vec![
             config.server_name.clone(),
             "irc-server-0.1.0".into(),
-            "ioBrw".into(),      // user modes: invisible, oper, Bot, registered, wallops
+            "ioBrw".into(), // user modes: invisible, oper, Bot, registered, wallops
             "beiIklmnstoOv".into(), // channel modes: ban, exception, invite-only, Invex, key, limit, moderated, no-external, secret, topic-lock, op, protected, voice
         ],
     );

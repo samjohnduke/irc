@@ -1,6 +1,6 @@
 //! Miscellaneous command handlers (PING, PONG, AWAY, SETNAME).
 
-use irc_proto::{replies::*, Command, Message};
+use irc_proto::{Command, Message, replies::*};
 
 use super::HandlerContext;
 use crate::cap::extensions::broadcast_away_notify;
@@ -43,7 +43,10 @@ pub fn handle_away(ctx: &HandlerContext, message: Option<&str>) -> Result<()> {
             // Broadcast away-notify to common channel members
             let _ = broadcast_away_notify(ctx, Some(msg));
 
-            ctx.reply(RPL_NOWAWAY, vec!["You have been marked as being away".into()])?;
+            ctx.reply(
+                RPL_NOWAWAY,
+                vec!["You have been marked as being away".into()],
+            )?;
 
             tracing::debug!(
                 client_id = %ctx.client.id,

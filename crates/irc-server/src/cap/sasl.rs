@@ -3,7 +3,7 @@
 //! This module implements the SASL authentication mechanism for IRC,
 //! starting with the PLAIN mechanism.
 
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 
 /// SASL authentication state machine.
 #[derive(Debug, Clone)]

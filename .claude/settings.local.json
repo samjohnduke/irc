@@ -43,7 +43,14 @@
       "WebFetch(domain:ratatui.rs)",
       "WebFetch(domain:blog.orhun.dev)",
       "WebFetch(domain:wiki.archlinux.org)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh repo view:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git add:*)",
+      "Bash(gh workflow:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd self-update functionality to CLI and server\n\nBoth binaries now support:\n- `--update`: Downloads and installs the latest version, keeping\n  the previous binary as `.backup` \\(e.g., `irc.backup`\\)\n- `--check-update`: Checks if a newer version is available\n- `--version` / `-V`: Shows current version\n\nThe update process:\n1. Fetches latest release info from GitHub API\n2. Downloads the appropriate binary for the current platform\n3. Renames current binary to .backup\n4. Installs new binary in place\n5. Sets executable permissions \\(Unix\\)\n\nIf the update fails mid-process, the backup is restored.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "Bash(cargo fmt:*)"
     ]
   }
 }

@@ -212,8 +212,8 @@ fn cmd_info(sctx: &ServiceContext, args: &[&str]) -> Result<()> {
     };
 
     // Get founder name
-    let founder = channels::get_founder(&conn, channel_name)?
-        .unwrap_or_else(|| "(unknown)".to_string());
+    let founder =
+        channels::get_founder(&conn, channel_name)?.unwrap_or_else(|| "(unknown)".to_string());
 
     sctx.reply(&format!("***** ChanServ Info for {} *****", channel_name))?;
     sctx.reply(&format!("Founder:      {}", founder))?;
@@ -229,7 +229,10 @@ fn cmd_info(sctx: &ServiceContext, args: &[&str]) -> Result<()> {
     // Check if channel is currently active
     if let Some(channel_arc) = sctx.ctx.state.get_channel(channel_name) {
         let channel = channel_arc.read_lock("channel")?;
-        sctx.reply(&format!("Status:       Active ({} users)", channel.member_count()))?;
+        sctx.reply(&format!(
+            "Status:       Active ({} users)",
+            channel.member_count()
+        ))?;
     } else {
         sctx.reply("Status:       Inactive")?;
     }
@@ -354,7 +357,9 @@ fn set_mode(sctx: &ServiceContext, args: &[&str], mode: &str, cmd_name: &str) ->
     );
 
     let channel = channel_arc.read_lock("channel")?;
-    sctx.ctx.state.broadcast_to_channel(&channel, mode_msg, None);
+    sctx.ctx
+        .state
+        .broadcast_to_channel(&channel, mode_msg, None);
 
     sctx.reply(&format!(
         "Mode {} {} set on {}.",
@@ -407,9 +412,15 @@ fn cmd_flags(sctx: &ServiceContext, args: &[&str]) -> Result<()> {
             let target_account = args[1];
 
             if let Some(flags) = channels::get_user_flags(&conn, channel_name, target_account)? {
-                sctx.reply(&format!("{} has flags {} on {}.", target_account, flags, channel_name))?;
+                sctx.reply(&format!(
+                    "{} has flags {} on {}.",
+                    target_account, flags, channel_name
+                ))?;
             } else {
-                sctx.reply(&format!("{} has no access on {}.", target_account, channel_name))?;
+                sctx.reply(&format!(
+                    "{} has no access on {}.",
+                    target_account, channel_name
+                ))?;
             }
         }
         3 => {
@@ -438,8 +449,8 @@ fn cmd_flags(sctx: &ServiceContext, args: &[&str]) -> Result<()> {
             };
 
             // Get current flags
-            let current_flags = channels::get_user_flags(&conn, channel_name, target_account)?
-                .unwrap_or_default();
+            let current_flags =
+                channels::get_user_flags(&conn, channel_name, target_account)?.unwrap_or_default();
 
             // Apply changes
             let new_flags = apply_flag_changes(&current_flags, flag_changes);

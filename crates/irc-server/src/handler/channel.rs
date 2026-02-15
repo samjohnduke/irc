@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use irc_proto::{errors::*, replies::*, ChannelMode, Command, Message, ModeChanges};
+use irc_proto::{ChannelMode, Command, Message, ModeChanges, errors::*, replies::*};
 
 use super::HandlerContext;
 use crate::error::{Error, Result};
@@ -34,7 +34,10 @@ fn join_single_channel(ctx: &HandlerContext, channel_name: &str, key: Option<&st
     if let Err(e) = irc_proto::validate_channel(channel_name) {
         ctx.reply(
             ERR_NOSUCHCHANNEL,
-            vec![channel_name.to_string(), format!("Invalid channel name: {}", e)],
+            vec![
+                channel_name.to_string(),
+                format!("Invalid channel name: {}", e),
+            ],
         )?;
         return Err(Error::InvalidChannel(channel_name.to_string()));
     }
@@ -167,11 +170,7 @@ fn join_single_channel(ctx: &HandlerContext, channel_name: &str, key: Option<&st
 }
 
 /// Handle PART command.
-pub fn handle_part(
-    ctx: &HandlerContext,
-    channels: &[String],
-    message: Option<&str>,
-) -> Result<()> {
+pub fn handle_part(ctx: &HandlerContext, channels: &[String], message: Option<&str>) -> Result<()> {
     if channels.is_empty() {
         ctx.reply(
             ERR_NEEDMOREPARAMS,
@@ -212,7 +211,10 @@ fn part_single_channel(
         if !channel.is_member(client_id) {
             ctx.reply(
                 ERR_NOTONCHANNEL,
-                vec![channel_name.to_string(), "You're not on that channel".into()],
+                vec![
+                    channel_name.to_string(),
+                    "You're not on that channel".into(),
+                ],
             )?;
             return Err(Error::NotOnChannel(channel_name.to_string()));
         }
@@ -291,7 +293,10 @@ pub fn handle_topic(
             if !channel.is_member(client_id) {
                 ctx.reply(
                     ERR_NOTONCHANNEL,
-                    vec![channel_name.to_string(), "You're not on that channel".into()],
+                    vec![
+                        channel_name.to_string(),
+                        "You're not on that channel".into(),
+                    ],
                 )?;
                 return Err(Error::NotOnChannel(channel_name.to_string()));
             }
@@ -374,7 +379,10 @@ pub fn handle_names(ctx: &HandlerContext, channels: Option<&[String]>) -> Result
             }
 
             // Also list users not in any channel (with * as channel)
-            ctx.reply(RPL_ENDOFNAMES, vec!["*".into(), "End of /NAMES list".into()])?;
+            ctx.reply(
+                RPL_ENDOFNAMES,
+                vec!["*".into(), "End of /NAMES list".into()],
+            )?;
         }
     }
 
@@ -387,13 +395,16 @@ pub fn handle_list(ctx: &HandlerContext, channels: Option<&[String]>) -> Result<
     ctx.reply(RPL_LISTSTART, vec!["Channel".into(), "Users  Name".into()])?;
 
     let list_channels: Vec<_> = match channels {
-        Some(channel_list) if !channel_list.is_empty() => {
-            channel_list
-                .iter()
-                .filter_map(|name| ctx.state.get_channel(name))
-                .collect()
-        }
-        _ => ctx.state.channels.iter().map(|e| e.value().clone()).collect(),
+        Some(channel_list) if !channel_list.is_empty() => channel_list
+            .iter()
+            .filter_map(|name| ctx.state.get_channel(name))
+            .collect(),
+        _ => ctx
+            .state
+            .channels
+            .iter()
+            .map(|e| e.value().clone())
+            .collect(),
     };
 
     for channel_arc in list_channels {
@@ -445,10 +456,7 @@ pub fn handle_channel_mode(
             // Query channel modes
             let channel = channel_arc.read_lock("channel")?;
             let mode_str = channel.mode_string();
-            ctx.reply(
-                RPL_CHANNELMODEIS,
-                vec![channel_name.to_string(), mode_str],
-            )?;
+            ctx.reply(RPL_CHANNELMODEIS, vec![channel_name.to_string(), mode_str])?;
             ctx.reply(
                 RPL_CREATIONTIME,
                 vec![
@@ -460,7 +468,10 @@ pub fn handle_channel_mode(
         Some(mode_str) => {
             // Check if just querying a list mode (no params, e.g., "MODE #chan +b")
             if params.is_empty() {
-                let mode_chars: Vec<char> = mode_str.chars().filter(|c| *c != '+' && *c != '-').collect();
+                let mode_chars: Vec<char> = mode_str
+                    .chars()
+                    .filter(|c| *c != '+' && *c != '-')
+                    .collect();
                 if mode_chars.len() == 1 {
                     let channel = channel_arc.read_lock("channel")?;
                     match mode_chars[0] {
@@ -498,7 +509,10 @@ pub fn handle_channel_mode(
                             }
                             ctx.reply(
                                 RPL_ENDOFEXCEPTLIST,
-                                vec![channel_name.to_string(), "End of channel exception list".into()],
+                                vec![
+                                    channel_name.to_string(),
+                                    "End of channel exception list".into(),
+                                ],
                             )?;
                             return Ok(());
                         }
@@ -517,7 +531,10 @@ pub fn handle_channel_mode(
                             }
                             ctx.reply(
                                 RPL_ENDOFINVITELIST,
-                                vec![channel_name.to_string(), "End of channel invite list".into()],
+                                vec![
+                                    channel_name.to_string(),
+                                    "End of channel invite list".into(),
+                                ],
                             )?;
                             return Ok(());
                         }
@@ -540,7 +557,10 @@ pub fn handle_channel_mode(
             if !channel.is_member(client_id) {
                 ctx.reply(
                     ERR_NOTONCHANNEL,
-                    vec![channel_name.to_string(), "You're not on that channel".into()],
+                    vec![
+                        channel_name.to_string(),
+                        "You're not on that channel".into(),
+                    ],
                 )?;
                 return Err(Error::NotOnChannel(channel_name.to_string()));
             }
@@ -557,10 +577,7 @@ pub fn handle_channel_mode(
                     None => {
                         ctx.reply(
                             ERR_UNKNOWNMODE,
-                            vec![
-                                change.mode.to_string(),
-                                "is unknown mode char to me".into(),
-                            ],
+                            vec![change.mode.to_string(), "is unknown mode char to me".into()],
                         )?;
                         continue;
                     }
@@ -774,7 +791,10 @@ pub fn handle_kick(
         if !channel.is_member(client_id) {
             ctx.reply(
                 ERR_NOTONCHANNEL,
-                vec![channel_name.to_string(), "You're not on that channel".into()],
+                vec![
+                    channel_name.to_string(),
+                    "You're not on that channel".into(),
+                ],
             )?;
             return Err(Error::NotOnChannel(channel_name.to_string()));
         }
@@ -901,7 +921,10 @@ pub fn handle_invite(ctx: &HandlerContext, nickname: &str, channel_name: &str) -
         if !channel.is_member(client_id) {
             ctx.reply(
                 ERR_NOTONCHANNEL,
-                vec![channel_name.to_string(), "You're not on that channel".into()],
+                vec![
+                    channel_name.to_string(),
+                    "You're not on that channel".into(),
+                ],
             )?;
             return Err(Error::NotOnChannel(channel_name.to_string()));
         }
@@ -980,10 +1003,7 @@ pub fn handle_invite(ctx: &HandlerContext, nickname: &str, channel_name: &str) -
 
     // Check if target is away
     if let Some(away_msg) = target.away_message()? {
-        ctx.reply(
-            RPL_AWAY,
-            vec![nickname.to_string(), away_msg],
-        )?;
+        ctx.reply(RPL_AWAY, vec![nickname.to_string(), away_msg])?;
     }
 
     tracing::debug!(
@@ -1000,10 +1020,7 @@ pub fn handle_invite(ctx: &HandlerContext, nickname: &str, channel_name: &str) -
 fn send_topic_to_client(ctx: &HandlerContext, channel: &Channel) -> Result<()> {
     match &channel.topic {
         Some(topic) => {
-            ctx.reply(
-                RPL_TOPIC,
-                vec![channel.name.clone(), topic.clone()],
-            )?;
+            ctx.reply(RPL_TOPIC, vec![channel.name.clone(), topic.clone()])?;
             if let (Some(set_by), Some(set_at)) = (&channel.topic_set_by, &channel.topic_set_at) {
                 ctx.reply(
                     RPL_TOPICWHOTIME,
@@ -1056,11 +1073,7 @@ fn send_names_to_client(ctx: &HandlerContext, channel: &Channel) -> Result<()> {
     }
 
     // Channel symbol: @ for secret, * for private, = for public
-    let symbol = if channel.modes.secret {
-        "@"
-    } else {
-        "="
-    };
+    let symbol = if channel.modes.secret { "@" } else { "=" };
 
     // Send names (may need to split if too long)
     let names_str = names.join(" ");

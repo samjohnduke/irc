@@ -34,7 +34,11 @@ struct Asset {
 #[derive(Debug)]
 pub enum UpdateResult {
     /// Updated successfully.
-    Updated { from: String, to: String, backup: PathBuf },
+    Updated {
+        from: String,
+        to: String,
+        backup: PathBuf,
+    },
     /// Already up to date.
     UpToDate { version: String },
     /// Error occurred.
@@ -87,7 +91,7 @@ pub async fn update() -> UpdateResult {
             return UpdateResult::Error(format!(
                 "No binary found for this platform: {}",
                 asset_name
-            ))
+            ));
         }
     };
 
@@ -205,8 +209,8 @@ async fn download_binary(url: &str) -> Result<PathBuf, String> {
     let temp_dir = env::temp_dir();
     let temp_path = temp_dir.join("irc-update");
 
-    let mut file = fs::File::create(&temp_path)
-        .map_err(|e| format!("Cannot create temp file: {}", e))?;
+    let mut file =
+        fs::File::create(&temp_path).map_err(|e| format!("Cannot create temp file: {}", e))?;
 
     file.write_all(&bytes)
         .map_err(|e| format!("Cannot write temp file: {}", e))?;
@@ -234,18 +238,18 @@ fn get_asset_name() -> Result<String, String> {
         return Err("Unsupported architecture".to_string());
     };
 
-    let ext = if cfg!(target_os = "windows") { ".exe" } else { "" };
+    let ext = if cfg!(target_os = "windows") {
+        ".exe"
+    } else {
+        ""
+    };
 
     Ok(format!("irc-{}-{}{}", os, arch, ext))
 }
 
 /// Compare versions (simple semver comparison).
 fn is_newer(latest: &str, current: &str) -> bool {
-    let parse = |v: &str| -> Vec<u32> {
-        v.split('.')
-            .filter_map(|s| s.parse().ok())
-            .collect()
-    };
+    let parse = |v: &str| -> Vec<u32> { v.split('.').filter_map(|s| s.parse().ok()).collect() };
 
     let latest_parts = parse(latest);
     let current_parts = parse(current);

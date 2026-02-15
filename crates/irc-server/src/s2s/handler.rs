@@ -10,8 +10,8 @@ use std::sync::Arc;
 use irc_proto::{S2SCommand, S2SMessage};
 
 use crate::error::Result;
-use crate::state::ServerState;
 use crate::lock::RwLockExt;
+use crate::state::ServerState;
 
 use super::burst::{process_bmask, process_sjoin, process_tb};
 use super::state::{LinkState, ServerLink};
@@ -45,7 +45,12 @@ pub fn handle_s2s_message(
             tracing::info!(sid = %link.sid, "Remote server acknowledged our BURST");
         }
 
-        S2SCommand::Sid { name, hopcount, sid, description: _ } => {
+        S2SCommand::Sid {
+            name,
+            hopcount,
+            sid,
+            description: _,
+        } => {
             tracing::info!(
                 name = %name,
                 sid = %sid,
@@ -55,24 +60,86 @@ pub fn handle_s2s_message(
             // TODO: Add to server state
         }
 
-        S2SCommand::Uid { nick, hopcount, nick_ts, modes, user, host, ip, uid, realname } => {
-            handle_uid(state, link, &nick, hopcount, nick_ts, &modes, &user, &host, &ip, &uid, &realname)?;
+        S2SCommand::Uid {
+            nick,
+            hopcount,
+            nick_ts,
+            modes,
+            user,
+            host,
+            ip,
+            uid,
+            realname,
+        } => {
+            handle_uid(
+                state, link, &nick, hopcount, nick_ts, &modes, &user, &host, &ip, &uid, &realname,
+            )?;
         }
 
-        S2SCommand::Euid { nick, hopcount, nick_ts, modes, user, visible_host, ip, uid, real_host, account, realname } => {
-            handle_euid(state, link, &nick, hopcount, nick_ts, &modes, &user, &visible_host, &ip, &uid, &real_host, account.as_deref(), &realname)?;
+        S2SCommand::Euid {
+            nick,
+            hopcount,
+            nick_ts,
+            modes,
+            user,
+            visible_host,
+            ip,
+            uid,
+            real_host,
+            account,
+            realname,
+        } => {
+            handle_euid(
+                state,
+                link,
+                &nick,
+                hopcount,
+                nick_ts,
+                &modes,
+                &user,
+                &visible_host,
+                &ip,
+                &uid,
+                &real_host,
+                account.as_deref(),
+                &realname,
+            )?;
         }
 
-        S2SCommand::Sjoin { channel_ts, channel, modes, mode_params, members } => {
+        S2SCommand::Sjoin {
+            channel_ts,
+            channel,
+            modes,
+            mode_params,
+            members,
+        } => {
             let remote_sid = source.unwrap_or(&link.sid);
-            process_sjoin(state, remote_sid, channel_ts, &channel, &modes, &mode_params, &members)?;
+            process_sjoin(
+                state,
+                remote_sid,
+                channel_ts,
+                &channel,
+                &modes,
+                &mode_params,
+                &members,
+            )?;
         }
 
-        S2SCommand::Tb { channel, topic_ts, setter, topic } => {
+        S2SCommand::Tb {
+            channel,
+            topic_ts,
+            setter,
+            topic,
+        } => {
             process_tb(state, &channel, topic_ts, setter.as_deref(), &topic)?;
         }
 
-        S2SCommand::Bmask { channel_ts, channel, list_type, masks } => {
+        S2SCommand::Bmask {
+            channel_ts,
+            channel,
+            list_type,
+            masks,
+        } => {
             process_bmask(state, channel_ts, &channel, list_type, &masks)?;
         }
 
@@ -85,7 +152,10 @@ pub fn handle_s2s_message(
             handle_notice(state, source, &target, &text)?;
         }
 
-        S2SCommand::Join { channel_ts, channel } => {
+        S2SCommand::Join {
+            channel_ts,
+            channel,
+        } => {
             if let Some(uid) = source {
                 handle_join(state, uid, channel_ts, &channel)?;
             }
@@ -113,15 +183,29 @@ pub fn handle_s2s_message(
             handle_kill(state, source.unwrap_or("unknown"), &uid, &path, &reason)?;
         }
 
-        S2SCommand::Kick { channel, uid, reason } => {
+        S2SCommand::Kick {
+            channel,
+            uid,
+            reason,
+        } => {
             handle_kick(state, source, &channel, &uid, &reason)?;
         }
 
-        S2SCommand::Tmode { channel_ts, channel, modes, params } => {
+        S2SCommand::Tmode {
+            channel_ts,
+            channel,
+            modes,
+            params,
+        } => {
             handle_tmode(state, source, channel_ts, &channel, &modes, &params)?;
         }
 
-        S2SCommand::Topic { channel, setter, ts, topic } => {
+        S2SCommand::Topic {
+            channel,
+            setter,
+            ts,
+            topic,
+        } => {
             handle_topic(state, &channel, &setter, ts, &topic)?;
         }
 
@@ -129,7 +213,10 @@ pub fn handle_s2s_message(
             handle_squit(state, link, &sid, &reason)?;
         }
 
-        S2SCommand::Ping { source: ping_src, target: _ } => {
+        S2SCommand::Ping {
+            source: ping_src,
+            target: _,
+        } => {
             // Reply with PONG
             let pong = S2SMessage::with_source(
                 our_sid.to_string(),
@@ -155,7 +242,11 @@ pub fn handle_s2s_message(
             }
         }
 
-        S2SCommand::Encap { target, subcommand, params } => {
+        S2SCommand::Encap {
+            target,
+            subcommand,
+            params,
+        } => {
             handle_encap(state, source, &target, &subcommand, &params)?;
         }
 
@@ -282,23 +373,13 @@ fn handle_notice(
     Ok(())
 }
 
-fn handle_join(
-    state: &ServerState,
-    uid: &str,
-    channel_ts: i64,
-    channel: &str,
-) -> Result<()> {
+fn handle_join(state: &ServerState, uid: &str, channel_ts: i64, channel: &str) -> Result<()> {
     tracing::debug!(uid = %uid, channel = %channel, "Remote user joined channel");
     // TODO: Add remote user to channel
     Ok(())
 }
 
-fn handle_part(
-    state: &ServerState,
-    uid: &str,
-    channel: &str,
-    reason: Option<&str>,
-) -> Result<()> {
+fn handle_part(state: &ServerState, uid: &str, channel: &str, reason: Option<&str>) -> Result<()> {
     tracing::debug!(uid = %uid, channel = %channel, "Remote user left channel");
     // TODO: Remove remote user from channel
     Ok(())
@@ -319,12 +400,7 @@ fn handle_quit(
     Ok(())
 }
 
-fn handle_nick_change(
-    state: &ServerState,
-    uid: &str,
-    new_nick: &str,
-    ts: i64,
-) -> Result<()> {
+fn handle_nick_change(state: &ServerState, uid: &str, new_nick: &str, ts: i64) -> Result<()> {
     tracing::debug!(uid = %uid, new_nick = %new_nick, "Remote user changed nick");
     // TODO: Update nick in state, check for collision
     Ok(())
@@ -411,12 +487,7 @@ fn handle_topic(
     Ok(())
 }
 
-fn handle_squit(
-    state: &ServerState,
-    link: &ServerLink,
-    sid: &str,
-    reason: &str,
-) -> Result<()> {
+fn handle_squit(state: &ServerState, link: &ServerLink, sid: &str, reason: &str) -> Result<()> {
     tracing::info!(sid = %sid, reason = %reason, "Server disconnected");
 
     // TODO: Remove all users from this server
@@ -426,23 +497,14 @@ fn handle_squit(
     Ok(())
 }
 
-fn handle_mode(
-    state: &ServerState,
-    source: Option<&str>,
-    target: &str,
-    modes: &str,
-) -> Result<()> {
+fn handle_mode(state: &ServerState, source: Option<&str>, target: &str, modes: &str) -> Result<()> {
     // User mode change from remote
     tracing::debug!(target = %target, modes = %modes, "Remote user mode change");
     // TODO: Update user modes in state
     Ok(())
 }
 
-fn handle_away(
-    state: &ServerState,
-    uid: &str,
-    reason: Option<&str>,
-) -> Result<()> {
+fn handle_away(state: &ServerState, uid: &str, reason: Option<&str>) -> Result<()> {
     tracing::debug!(uid = %uid, away = reason.is_some(), "Remote user away status change");
     // TODO: Update away status in state
     Ok(())
@@ -463,11 +525,7 @@ fn handle_encap(
     Ok(())
 }
 
-fn handle_wallops(
-    state: &ServerState,
-    source: Option<&str>,
-    message: &str,
-) -> Result<()> {
+fn handle_wallops(state: &ServerState, source: Option<&str>, message: &str) -> Result<()> {
     use irc_proto::{Command, Message, Prefix};
 
     // Deliver to all local operators with +w

@@ -47,13 +47,25 @@ impl Widget for SidebarWidget<'_> {
         Widget::render(block, area, buf);
 
         // Separate buffers by type
-        let server: Vec<_> = self.buffers.all().iter().enumerate()
+        let server: Vec<_> = self
+            .buffers
+            .all()
+            .iter()
+            .enumerate()
             .filter(|(_, b)| b.kind == BufferKind::Server)
             .collect();
-        let channels: Vec<_> = self.buffers.all().iter().enumerate()
+        let channels: Vec<_> = self
+            .buffers
+            .all()
+            .iter()
+            .enumerate()
             .filter(|(_, b)| b.kind == BufferKind::Channel)
             .collect();
-        let queries: Vec<_> = self.buffers.all().iter().enumerate()
+        let queries: Vec<_> = self
+            .buffers
+            .all()
+            .iter()
+            .enumerate()
             .filter(|(_, b)| b.kind == BufferKind::Query)
             .collect();
 
@@ -61,151 +73,153 @@ impl Widget for SidebarWidget<'_> {
         let max_y = inner.y + inner.height;
 
         // Helper to render a section
-        let render_section = |buf: &mut Buffer, y: &mut u16, title: &str, items: &[(usize, &crate::state::Buffer)]| {
-            if items.is_empty() || *y >= max_y {
-                return;
-            }
-
-            // Section header
-            let header_style = Style::default()
-                .fg(Color::Rgb(100, 110, 140))
-                .add_modifier(Modifier::BOLD);
-
-            let header = Line::from(Span::styled(format!(" {} ", title), header_style));
-            buf.set_line(inner.x, *y, &header, inner.width);
-            *y += 1;
-
-            // Items
-            for (idx, buffer) in items.iter() {
-                if *y >= max_y {
-                    break;
+        let render_section =
+            |buf: &mut Buffer,
+             y: &mut u16,
+             title: &str,
+             items: &[(usize, &crate::state::Buffer)]| {
+                if items.is_empty() || *y >= max_y {
+                    return;
                 }
 
-                let is_active = *idx == self.buffers.active_index();
-                let has_unread = buffer.unread_count > 0;
-                let has_highlight = buffer.has_highlight;
+                // Section header
+                let header_style = Style::default()
+                    .fg(Color::Rgb(100, 110, 140))
+                    .add_modifier(Modifier::BOLD);
 
-                let mut spans = Vec::new();
+                let header = Line::from(Span::styled(format!(" {} ", title), header_style));
+                buf.set_line(inner.x, *y, &header, inner.width);
+                *y += 1;
 
-                // Selection indicator (left bar)
-                if is_active {
-                    spans.push(Span::styled(
-                        "▌",
-                        Style::default().fg(self.theme.accent),
-                    ));
-                } else {
-                    spans.push(Span::raw(" "));
-                }
-
-                // Unread/highlight indicator
-                if has_highlight {
-                    spans.push(Span::styled(
-                        "●",
-                        Style::default()
-                            .fg(Color::Rgb(255, 100, 100))
-                            .add_modifier(Modifier::BOLD),
-                    ));
-                } else if has_unread {
-                    spans.push(Span::styled("●", self.theme.unread_style()));
-                } else {
-                    spans.push(Span::styled(
-                        "○",
-                        Style::default().fg(Color::Rgb(60, 65, 80)),
-                    ));
-                }
-                spans.push(Span::raw(" "));
-
-                // Buffer name with icon
-                let (icon, name) = match buffer.kind {
-                    BufferKind::Server => ("◈ ", buffer.name.as_str()),
-                    BufferKind::Channel => {
-                        if buffer.name.starts_with('#') {
-                            ("", buffer.name.as_str())
-                        } else {
-                            ("# ", buffer.name.as_str())
-                        }
+                // Items
+                for (idx, buffer) in items.iter() {
+                    if *y >= max_y {
+                        break;
                     }
-                    BufferKind::Query => ("⊕ ", buffer.name.as_str()),
-                };
 
-                // Style based on state
-                // Different colors for: active, highlight/mention, private msg unread, channel unread, inactive
-                let is_private = buffer.kind == BufferKind::Query;
-                let name_style = if is_active {
-                    Style::default()
-                        .fg(Color::Rgb(255, 255, 255))
-                        .add_modifier(Modifier::BOLD)
-                } else if has_highlight {
-                    // Mentions/highlights: accent color with bold
-                    Style::default()
-                        .fg(self.theme.accent)
-                        .add_modifier(Modifier::BOLD)
-                } else if has_unread && is_private {
-                    // Private message unread: magenta/pink
-                    Style::default()
-                        .fg(Color::Rgb(255, 140, 200))
-                        .add_modifier(Modifier::BOLD)
-                } else if has_unread {
-                    // Regular unread: bright white
-                    Style::default()
-                        .fg(Color::Rgb(240, 240, 250))
-                        .add_modifier(Modifier::BOLD)
-                } else {
-                    // Inactive: muted
-                    Style::default().fg(Color::Rgb(120, 125, 140))
-                };
+                    let is_active = *idx == self.buffers.active_index();
+                    let has_unread = buffer.unread_count > 0;
+                    let has_highlight = buffer.has_highlight;
 
-                // Icon
-                if !icon.is_empty() {
-                    spans.push(Span::styled(icon, Style::default().fg(self.theme.muted)));
-                }
+                    let mut spans = Vec::new();
 
-                // Truncate name if needed
-                let max_name_len = inner.width.saturating_sub(7) as usize;
-                let display_name = if name.len() > max_name_len {
-                    format!("{}…", &name[..max_name_len.saturating_sub(1)])
-                } else {
-                    name.to_string()
-                };
-
-                spans.push(Span::styled(display_name, name_style));
-
-                // Unread count badge
-                if has_unread && buffer.unread_count > 0 {
-                    let remaining_space = inner.width.saturating_sub(
-                        spans.iter().map(|s| s.width() as u16).sum::<u16>() + 1
-                    ) as usize;
-
-                    let count_text = if buffer.unread_count > 99 {
-                        "99+".to_string()
+                    // Selection indicator (left bar)
+                    if is_active {
+                        spans.push(Span::styled("▌", Style::default().fg(self.theme.accent)));
                     } else {
-                        buffer.unread_count.to_string()
-                    };
+                        spans.push(Span::raw(" "));
+                    }
 
-                    if remaining_space >= count_text.len() + 1 {
+                    // Unread/highlight indicator
+                    if has_highlight {
                         spans.push(Span::styled(
-                            format!(" {}", count_text),
-                            Style::default().fg(self.theme.accent),
+                            "●",
+                            Style::default()
+                                .fg(Color::Rgb(255, 100, 100))
+                                .add_modifier(Modifier::BOLD),
+                        ));
+                    } else if has_unread {
+                        spans.push(Span::styled("●", self.theme.unread_style()));
+                    } else {
+                        spans.push(Span::styled(
+                            "○",
+                            Style::default().fg(Color::Rgb(60, 65, 80)),
                         ));
                     }
-                }
+                    spans.push(Span::raw(" "));
 
-                let line = Line::from(spans);
+                    // Buffer name with icon
+                    let (icon, name) = match buffer.kind {
+                        BufferKind::Server => ("◈ ", buffer.name.as_str()),
+                        BufferKind::Channel => {
+                            if buffer.name.starts_with('#') {
+                                ("", buffer.name.as_str())
+                            } else {
+                                ("# ", buffer.name.as_str())
+                            }
+                        }
+                        BufferKind::Query => ("⊕ ", buffer.name.as_str()),
+                    };
 
-                // Highlight background for active item
-                if is_active {
-                    for x in inner.x..inner.x + inner.width {
-                        buf[(x, *y)].set_bg(Color::Rgb(40, 50, 70));
+                    // Style based on state
+                    // Different colors for: active, highlight/mention, private msg unread, channel unread, inactive
+                    let is_private = buffer.kind == BufferKind::Query;
+                    let name_style = if is_active {
+                        Style::default()
+                            .fg(Color::Rgb(255, 255, 255))
+                            .add_modifier(Modifier::BOLD)
+                    } else if has_highlight {
+                        // Mentions/highlights: accent color with bold
+                        Style::default()
+                            .fg(self.theme.accent)
+                            .add_modifier(Modifier::BOLD)
+                    } else if has_unread && is_private {
+                        // Private message unread: magenta/pink
+                        Style::default()
+                            .fg(Color::Rgb(255, 140, 200))
+                            .add_modifier(Modifier::BOLD)
+                    } else if has_unread {
+                        // Regular unread: bright white
+                        Style::default()
+                            .fg(Color::Rgb(240, 240, 250))
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        // Inactive: muted
+                        Style::default().fg(Color::Rgb(120, 125, 140))
+                    };
+
+                    // Icon
+                    if !icon.is_empty() {
+                        spans.push(Span::styled(icon, Style::default().fg(self.theme.muted)));
                     }
+
+                    // Truncate name if needed
+                    let max_name_len = inner.width.saturating_sub(7) as usize;
+                    let display_name = if name.len() > max_name_len {
+                        format!("{}…", &name[..max_name_len.saturating_sub(1)])
+                    } else {
+                        name.to_string()
+                    };
+
+                    spans.push(Span::styled(display_name, name_style));
+
+                    // Unread count badge
+                    if has_unread && buffer.unread_count > 0 {
+                        let remaining_space = inner
+                            .width
+                            .saturating_sub(spans.iter().map(|s| s.width() as u16).sum::<u16>() + 1)
+                            as usize;
+
+                        let count_text = if buffer.unread_count > 99 {
+                            "99+".to_string()
+                        } else {
+                            buffer.unread_count.to_string()
+                        };
+
+                        if remaining_space >= count_text.len() + 1 {
+                            spans.push(Span::styled(
+                                format!(" {}", count_text),
+                                Style::default().fg(self.theme.accent),
+                            ));
+                        }
+                    }
+
+                    let line = Line::from(spans);
+
+                    // Highlight background for active item
+                    if is_active {
+                        for x in inner.x..inner.x + inner.width {
+                            buf[(x, *y)].set_bg(Color::Rgb(40, 50, 70));
+                        }
+                    }
+
+                    buf.set_line(inner.x, *y, &line, inner.width);
+                    *y += 1;
                 }
 
-                buf.set_line(inner.x, *y, &line, inner.width);
+                // Spacing after section
                 *y += 1;
-            }
-
-            // Spacing after section
-            *y += 1;
-        };
+            };
 
         // Render sections
         render_section(buf, &mut y, "SERVER", &server);

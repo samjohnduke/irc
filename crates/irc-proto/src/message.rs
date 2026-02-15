@@ -131,7 +131,9 @@ impl Message {
 
 impl fmt::Display for Message {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ref tags) = self.tags && !tags.is_empty() {
+        if let Some(ref tags) = self.tags
+            && !tags.is_empty()
+        {
             write!(f, "@{} ", tags)?;
         }
         if let Some(ref prefix) = self.prefix {
@@ -302,12 +304,16 @@ fn parse_command_with_params(command: &str, params: Vec<String>) -> Result<Comma
         }
 
         "NAMES" => {
-            let channels = params.first().map(|s| s.split(',').map(String::from).collect());
+            let channels = params
+                .first()
+                .map(|s| s.split(',').map(String::from).collect());
             Ok(Command::Names { channels })
         }
 
         "LIST" => {
-            let channels = params.first().map(|s| s.split(',').map(String::from).collect());
+            let channels = params
+                .first()
+                .map(|s| s.split(',').map(String::from).collect());
             Ok(Command::List { channels })
         }
 
@@ -429,9 +435,7 @@ fn parse_command_with_params(command: &str, params: Vec<String>) -> Result<Comma
             })
         }
 
-        "USERHOST" => Ok(Command::Userhost {
-            nicknames: params,
-        }),
+        "USERHOST" => Ok(Command::Userhost { nicknames: params }),
 
         "ISON" => Ok(Command::Ison { nicknames: params }),
 
@@ -472,7 +476,11 @@ fn parse_command_with_params(command: &str, params: Vec<String>) -> Result<Comma
             };
             let reason = iter.next();
 
-            Ok(Command::Kline { duration, mask, reason })
+            Ok(Command::Kline {
+                duration,
+                mask,
+                reason,
+            })
         }
 
         "UNKLINE" => Ok(Command::Unkline {
@@ -496,7 +504,11 @@ fn parse_command_with_params(command: &str, params: Vec<String>) -> Result<Comma
             };
             let reason = iter.next();
 
-            Ok(Command::Gline { duration, mask, reason })
+            Ok(Command::Gline {
+                duration,
+                mask,
+                reason,
+            })
         }
 
         "UNGLINE" => Ok(Command::Ungline {
@@ -520,7 +532,11 @@ fn parse_command_with_params(command: &str, params: Vec<String>) -> Result<Comma
             };
             let reason = iter.next();
 
-            Ok(Command::Zline { duration, mask, reason })
+            Ok(Command::Zline {
+                duration,
+                mask,
+                reason,
+            })
         }
 
         "UNZLINE" => Ok(Command::Unzline {
@@ -583,10 +599,7 @@ fn parse_command_with_params(command: &str, params: Vec<String>) -> Result<Comma
 
         "MONITOR" => {
             let mut iter = params.into_iter();
-            let subcommand = iter
-                .next()
-                .and_then(|s| s.chars().next())
-                .unwrap_or('+');
+            let subcommand = iter.next().and_then(|s| s.chars().next()).unwrap_or('+');
             let targets = iter.next();
             Ok(Command::Monitor {
                 subcommand,
@@ -657,7 +670,10 @@ mod tests {
         let msg =
             Message::parse(b"@time=2024-01-15T14:32:00.000Z :nick PRIVMSG #chan :Hi\r\n").unwrap();
         assert!(msg.tags.is_some());
-        assert_eq!(msg.tags.as_ref().unwrap().time(), Some("2024-01-15T14:32:00.000Z"));
+        assert_eq!(
+            msg.tags.as_ref().unwrap().time(),
+            Some("2024-01-15T14:32:00.000Z")
+        );
     }
 
     #[test]
@@ -678,8 +694,14 @@ mod tests {
         let msg = Message::parse(b"JOIN #chan1,#chan2 key1,key2\r\n").unwrap();
         if let Command::Join { channels } = msg.command {
             assert_eq!(channels.len(), 2);
-            assert_eq!(channels[0], ("#chan1".to_string(), Some("key1".to_string())));
-            assert_eq!(channels[1], ("#chan2".to_string(), Some("key2".to_string())));
+            assert_eq!(
+                channels[0],
+                ("#chan1".to_string(), Some("key1".to_string()))
+            );
+            assert_eq!(
+                channels[1],
+                ("#chan2".to_string(), Some("key2".to_string()))
+            );
         } else {
             panic!("Expected JOIN command");
         }

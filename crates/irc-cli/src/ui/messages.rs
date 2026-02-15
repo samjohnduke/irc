@@ -9,8 +9,8 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
 
-use crate::state::{message::MessageKind, Buffer as IrcBuffer, DisplayMessage};
-use crate::style::{format_timestamp, nick_color, Theme};
+use crate::state::{Buffer as IrcBuffer, DisplayMessage, message::MessageKind};
+use crate::style::{Theme, format_timestamp, nick_color};
 
 /// Time window for grouping consecutive messages from the same user (5 minutes).
 const MESSAGE_GROUP_WINDOW_SECS: i64 = 300;
@@ -38,8 +38,14 @@ impl<'a> MessagesWidget<'a> {
         };
 
         // Only group Privmsg messages (not actions, joins, etc.)
-        let (MessageKind::Privmsg { nick: curr_nick, .. }, MessageKind::Privmsg { nick: prev_nick, .. }) =
-            (&msg.kind, &prev.kind)
+        let (
+            MessageKind::Privmsg {
+                nick: curr_nick, ..
+            },
+            MessageKind::Privmsg {
+                nick: prev_nick, ..
+            },
+        ) = (&msg.kind, &prev.kind)
         else {
             return false;
         };
@@ -74,42 +80,33 @@ impl<'a> MessagesWidget<'a> {
         }
 
         let time_str = format_timestamp(&msg.time);
-        let time_span = Span::styled(
-            format!("{} ", time_str),
-            self.theme.timestamp_style(),
-        );
+        let time_span = Span::styled(format!("{} ", time_str), self.theme.timestamp_style());
 
         match &msg.kind {
-            MessageKind::Privmsg { nick, text } => {
-                Line::from(vec![
-                    time_span,
-                    Span::styled(
-                        "<",
-                        Style::default().fg(self.theme.muted),
-                    ),
-                    Span::styled(
-                        nick.clone(),
-                        Style::default().fg(nick_color(nick)).add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(
-                        "> ",
-                        Style::default().fg(self.theme.muted),
-                    ),
-                    Span::styled(text.clone(), self.theme.message_style()),
-                ])
-            }
+            MessageKind::Privmsg { nick, text } => Line::from(vec![
+                time_span,
+                Span::styled("<", Style::default().fg(self.theme.muted)),
+                Span::styled(
+                    nick.clone(),
+                    Style::default()
+                        .fg(nick_color(nick))
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled("> ", Style::default().fg(self.theme.muted)),
+                Span::styled(text.clone(), self.theme.message_style()),
+            ]),
 
-            MessageKind::Action { nick, text } => {
-                Line::from(vec![
-                    time_span,
-                    Span::styled("* ", Style::default().fg(self.theme.action)),
-                    Span::styled(
-                        nick.clone(),
-                        Style::default().fg(nick_color(nick)).add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(format!(" {}", text), self.theme.action_style()),
-                ])
-            }
+            MessageKind::Action { nick, text } => Line::from(vec![
+                time_span,
+                Span::styled("* ", Style::default().fg(self.theme.action)),
+                Span::styled(
+                    nick.clone(),
+                    Style::default()
+                        .fg(nick_color(nick))
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(format!(" {}", text), self.theme.action_style()),
+            ]),
 
             MessageKind::Notice { source, text } => {
                 let source_str = source.as_deref().unwrap_or("*");
@@ -133,7 +130,9 @@ impl<'a> MessagesWidget<'a> {
                     Span::styled("→ ", Style::default().fg(Color::Rgb(100, 200, 100))),
                     Span::styled(
                         nick.clone(),
-                        Style::default().fg(nick_color(nick)).add_modifier(Modifier::BOLD),
+                        Style::default()
+                            .fg(nick_color(nick))
+                            .add_modifier(Modifier::BOLD),
                     ),
                     Span::styled(
                         format!(" joined{}", host_str),
@@ -150,10 +149,7 @@ impl<'a> MessagesWidget<'a> {
                 Line::from(vec![
                     time_span,
                     Span::styled("← ", Style::default().fg(Color::Rgb(200, 100, 100))),
-                    Span::styled(
-                        nick.clone(),
-                        Style::default().fg(nick_color(nick)),
-                    ),
+                    Span::styled(nick.clone(), Style::default().fg(nick_color(nick))),
                     Span::styled(
                         format!(" left{}", msg_str),
                         Style::default().fg(Color::Rgb(160, 100, 100)),
@@ -169,10 +165,7 @@ impl<'a> MessagesWidget<'a> {
                 Line::from(vec![
                     time_span,
                     Span::styled("← ", Style::default().fg(Color::Rgb(200, 100, 100))),
-                    Span::styled(
-                        nick.clone(),
-                        Style::default().fg(nick_color(nick)),
-                    ),
+                    Span::styled(nick.clone(), Style::default().fg(nick_color(nick))),
                     Span::styled(
                         format!(" quit{}", msg_str),
                         Style::default().fg(Color::Rgb(160, 100, 100)),
@@ -180,7 +173,11 @@ impl<'a> MessagesWidget<'a> {
                 ])
             }
 
-            MessageKind::Kick { nick, kicker, reason } => {
+            MessageKind::Kick {
+                nick,
+                kicker,
+                reason,
+            } => {
                 let reason_str = reason
                     .as_ref()
                     .map(|r| format!(" ({})", r))
@@ -188,34 +185,28 @@ impl<'a> MessagesWidget<'a> {
                 Line::from(vec![
                     time_span,
                     Span::styled("✕ ", self.theme.error_style()),
+                    Span::styled(nick.clone(), Style::default().fg(nick_color(nick))),
                     Span::styled(
-                        nick.clone(),
-                        Style::default().fg(nick_color(nick)),
+                        " was kicked by ",
+                        Style::default().fg(Color::Rgb(180, 120, 120)),
                     ),
-                    Span::styled(" was kicked by ", Style::default().fg(Color::Rgb(180, 120, 120))),
-                    Span::styled(
-                        kicker.clone(),
-                        Style::default().fg(nick_color(kicker)),
-                    ),
+                    Span::styled(kicker.clone(), Style::default().fg(nick_color(kicker))),
                     Span::styled(reason_str, Style::default().fg(Color::Rgb(180, 120, 120))),
                 ])
             }
 
-            MessageKind::Nick { old_nick, new_nick } => {
-                Line::from(vec![
-                    time_span,
-                    Span::styled("• ", self.theme.muted_style()),
-                    Span::styled(
-                        old_nick.clone(),
-                        Style::default().fg(nick_color(old_nick)),
-                    ),
-                    Span::styled(" is now known as ", self.theme.muted_style()),
-                    Span::styled(
-                        new_nick.clone(),
-                        Style::default().fg(nick_color(new_nick)).add_modifier(Modifier::BOLD),
-                    ),
-                ])
-            }
+            MessageKind::Nick { old_nick, new_nick } => Line::from(vec![
+                time_span,
+                Span::styled("• ", self.theme.muted_style()),
+                Span::styled(old_nick.clone(), Style::default().fg(nick_color(old_nick))),
+                Span::styled(" is now known as ", self.theme.muted_style()),
+                Span::styled(
+                    new_nick.clone(),
+                    Style::default()
+                        .fg(nick_color(new_nick))
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ]),
 
             MessageKind::Topic { setter, topic } => {
                 let setter_str = setter.as_deref().unwrap_or("Someone");
@@ -237,45 +228,32 @@ impl<'a> MessagesWidget<'a> {
                 ])
             }
 
-            MessageKind::Mode { setter, modes } => {
-                Line::from(vec![
-                    time_span,
-                    Span::styled("⚙ ", Style::default().fg(Color::Rgb(150, 150, 200))),
-                    Span::styled(
-                        setter.clone(),
-                        Style::default().fg(nick_color(setter)),
-                    ),
-                    Span::styled(
-                        format!(" sets mode: {}", modes),
-                        Style::default().fg(Color::Rgb(150, 150, 200)),
-                    ),
-                ])
-            }
+            MessageKind::Mode { setter, modes } => Line::from(vec![
+                time_span,
+                Span::styled("⚙ ", Style::default().fg(Color::Rgb(150, 150, 200))),
+                Span::styled(setter.clone(), Style::default().fg(nick_color(setter))),
+                Span::styled(
+                    format!(" sets mode: {}", modes),
+                    Style::default().fg(Color::Rgb(150, 150, 200)),
+                ),
+            ]),
 
-            MessageKind::Server { text } => {
-                Line::from(vec![
-                    time_span,
-                    Span::styled("• ", Style::default().fg(self.theme.server)),
-                    Span::styled(text.clone(), self.theme.server_style()),
-                ])
-            }
+            MessageKind::Server { text } => Line::from(vec![
+                time_span,
+                Span::styled("• ", Style::default().fg(self.theme.server)),
+                Span::styled(text.clone(), self.theme.server_style()),
+            ]),
 
-            MessageKind::Error { text } => {
-                Line::from(vec![
-                    time_span,
-                    Span::styled("✕ ", self.theme.error_style()),
-                    Span::styled(text.clone(), self.theme.error_style()),
-                ])
-            }
+            MessageKind::Error { text } => Line::from(vec![
+                time_span,
+                Span::styled("✕ ", self.theme.error_style()),
+                Span::styled(text.clone(), self.theme.error_style()),
+            ]),
 
-            MessageKind::HistorySeparator => {
-                Line::from(vec![
-                    Span::styled(
-                        "───────────────────── History ─────────────────────",
-                        Style::default().fg(Color::Rgb(80, 85, 100)),
-                    ),
-                ])
-            }
+            MessageKind::HistorySeparator => Line::from(vec![Span::styled(
+                "───────────────────── History ─────────────────────",
+                Style::default().fg(Color::Rgb(80, 85, 100)),
+            )]),
 
             MessageKind::AggregatedJoin { nicks } => {
                 let count = nicks.len();
@@ -295,10 +273,7 @@ impl<'a> MessagesWidget<'a> {
                         ),
                         Style::default().fg(Color::Rgb(100, 160, 100)),
                     ),
-                    Span::styled(
-                        nicks_str,
-                        Style::default().fg(Color::Rgb(140, 200, 140)),
-                    ),
+                    Span::styled(nicks_str, Style::default().fg(Color::Rgb(140, 200, 140))),
                 ])
             }
 
@@ -322,10 +297,7 @@ impl<'a> MessagesWidget<'a> {
                         ),
                         Style::default().fg(Color::Rgb(160, 100, 100)),
                     ),
-                    Span::styled(
-                        nicks_str,
-                        Style::default().fg(Color::Rgb(180, 120, 120)),
-                    ),
+                    Span::styled(nicks_str, Style::default().fg(Color::Rgb(180, 120, 120))),
                 ])
             }
         }
@@ -349,7 +321,10 @@ impl Widget for MessagesWidget<'_> {
         // Calculate visible range with scroll
         let visible_height = area.height.saturating_sub(1) as usize; // Account for top border
         let total = messages.len();
-        let scroll_offset = self.buffer.scroll_offset.min(total.saturating_sub(visible_height));
+        let scroll_offset = self
+            .buffer
+            .scroll_offset
+            .min(total.saturating_sub(visible_height));
 
         let start = total.saturating_sub(visible_height + scroll_offset);
         let end = total.saturating_sub(scroll_offset);

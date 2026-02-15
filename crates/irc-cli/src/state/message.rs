@@ -22,16 +22,10 @@ pub struct DisplayMessage {
 #[derive(Debug, Clone)]
 pub enum MessageKind {
     /// Regular chat message.
-    Privmsg {
-        nick: String,
-        text: String,
-    },
+    Privmsg { nick: String, text: String },
 
     /// CTCP ACTION (/me).
-    Action {
-        nick: String,
-        text: String,
-    },
+    Action { nick: String, text: String },
 
     /// Notice message.
     Notice {
@@ -58,15 +52,10 @@ pub enum MessageKind {
     },
 
     /// Aggregated join events (multiple users joined).
-    AggregatedJoin {
-        nicks: Vec<String>,
-    },
+    AggregatedJoin { nicks: Vec<String> },
 
     /// Aggregated part/quit events (multiple users left).
-    AggregatedPart {
-        nicks: Vec<String>,
-        is_quit: bool,
-    },
+    AggregatedPart { nicks: Vec<String>, is_quit: bool },
 
     /// User was kicked.
     Kick {
@@ -76,10 +65,7 @@ pub enum MessageKind {
     },
 
     /// Nick changed.
-    Nick {
-        old_nick: String,
-        new_nick: String,
-    },
+    Nick { old_nick: String, new_nick: String },
 
     /// Topic changed.
     Topic {
@@ -88,20 +74,13 @@ pub enum MessageKind {
     },
 
     /// Channel mode changed.
-    Mode {
-        setter: String,
-        modes: String,
-    },
+    Mode { setter: String, modes: String },
 
     /// Server message.
-    Server {
-        text: String,
-    },
+    Server { text: String },
 
     /// Error message.
-    Error {
-        text: String,
-    },
+    Error { text: String },
 
     /// History separator.
     HistorySeparator,
@@ -189,7 +168,11 @@ impl DisplayMessage {
     }
 
     /// Create a kick message.
-    pub fn kick(nick: impl Into<String>, kicker: impl Into<String>, reason: Option<String>) -> Self {
+    pub fn kick(
+        nick: impl Into<String>,
+        kicker: impl Into<String>,
+        reason: Option<String>,
+    ) -> Self {
         Self::new(MessageKind::Kick {
             nick: nick.into(),
             kicker: kicker.into(),

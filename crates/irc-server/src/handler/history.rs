@@ -2,7 +2,7 @@
 //!
 //! Implements the IRCv3 CHATHISTORY extension for message replay.
 
-use irc_proto::{is_channel, Command, Message};
+use irc_proto::{Command, Message, is_channel};
 
 use super::HandlerContext;
 use crate::db::history;
@@ -26,20 +26,38 @@ pub fn handle_chathistory(
         Some(db) => db,
         None => {
             // Send FAIL response
-            send_fail(ctx, "CHATHISTORY", "UNKNOWN_ERROR", "*", "Chat history not available")?;
+            send_fail(
+                ctx,
+                "CHATHISTORY",
+                "UNKNOWN_ERROR",
+                "*",
+                "Chat history not available",
+            )?;
             return Ok(());
         }
     };
 
     // Check if client has the capability enabled
     if !ctx.client.has_cap("draft/chathistory")? {
-        send_fail(ctx, "CHATHISTORY", "UNKNOWN_ERROR", target, "Capability not enabled")?;
+        send_fail(
+            ctx,
+            "CHATHISTORY",
+            "UNKNOWN_ERROR",
+            target,
+            "Capability not enabled",
+        )?;
         return Ok(());
     }
 
     // Check permission - user must be in channel or target is themselves
     if !can_access_history(ctx, target)? {
-        send_fail(ctx, "CHATHISTORY", "INVALID_TARGET", target, "Cannot access history for this target")?;
+        send_fail(
+            ctx,
+            "CHATHISTORY",
+            "INVALID_TARGET",
+            target,
+            "Cannot access history for this target",
+        )?;
         return Ok(());
     }
 
@@ -54,22 +72,30 @@ pub fn handle_chathistory(
         }
         "BEFORE" => {
             // CHATHISTORY BEFORE #channel msgid=xxx 50
-            let msgid = params.first().ok_or_else(|| Error::NeedMoreParams("CHATHISTORY".into()))?;
+            let msgid = params
+                .first()
+                .ok_or_else(|| Error::NeedMoreParams("CHATHISTORY".into()))?;
             let msgid = parse_msgid(msgid);
             let limit = parse_limit(params.get(1).map(String::as_str), max_limit);
             history::get_before(&conn, target, &msgid, limit)?
         }
         "AFTER" => {
             // CHATHISTORY AFTER #channel msgid=xxx 50
-            let msgid = params.first().ok_or_else(|| Error::NeedMoreParams("CHATHISTORY".into()))?;
+            let msgid = params
+                .first()
+                .ok_or_else(|| Error::NeedMoreParams("CHATHISTORY".into()))?;
             let msgid = parse_msgid(msgid);
             let limit = parse_limit(params.get(1).map(String::as_str), max_limit);
             history::get_after(&conn, target, &msgid, limit)?
         }
         "BETWEEN" => {
             // CHATHISTORY BETWEEN #channel msgid=start msgid=end 50
-            let start_msgid = params.first().ok_or_else(|| Error::NeedMoreParams("CHATHISTORY".into()))?;
-            let end_msgid = params.get(1).ok_or_else(|| Error::NeedMoreParams("CHATHISTORY".into()))?;
+            let start_msgid = params
+                .first()
+                .ok_or_else(|| Error::NeedMoreParams("CHATHISTORY".into()))?;
+            let end_msgid = params
+                .get(1)
+                .ok_or_else(|| Error::NeedMoreParams("CHATHISTORY".into()))?;
             let start_msgid = parse_msgid(start_msgid);
             let end_msgid = parse_msgid(end_msgid);
             let limit = parse_limit(params.get(2).map(String::as_str), max_limit);
@@ -77,11 +103,23 @@ pub fn handle_chathistory(
         }
         "TARGETS" => {
             // Not implemented - would list available targets
-            send_fail(ctx, "CHATHISTORY", "UNKNOWN_COMMAND", "*", "TARGETS not implemented")?;
+            send_fail(
+                ctx,
+                "CHATHISTORY",
+                "UNKNOWN_COMMAND",
+                "*",
+                "TARGETS not implemented",
+            )?;
             return Ok(());
         }
         _ => {
-            send_fail(ctx, "CHATHISTORY", "UNKNOWN_COMMAND", "*", "Unknown CHATHISTORY subcommand")?;
+            send_fail(
+                ctx,
+                "CHATHISTORY",
+                "UNKNOWN_COMMAND",
+                "*",
+                "Unknown CHATHISTORY subcommand",
+            )?;
             return Ok(());
         }
     };

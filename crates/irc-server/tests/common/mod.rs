@@ -151,8 +151,10 @@ impl TestClient {
 
     /// Receive until we get a specific numeric code.
     pub async fn recv_until_numeric(&mut self, code: u16) -> Vec<Message> {
-        self.recv_until(|msg| matches!(&msg.command, Command::Numeric { code: c, .. } if *c == code))
-            .await
+        self.recv_until(
+            |msg| matches!(&msg.command, Command::Numeric { code: c, .. } if *c == code),
+        )
+        .await
     }
 
     /// Send PING and wait for PONG.

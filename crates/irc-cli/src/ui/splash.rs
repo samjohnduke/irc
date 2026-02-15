@@ -158,12 +158,12 @@ impl Widget for SplashWidget<'_> {
 
         // Gradient colors for the logo (top to bottom: bright to dim)
         let gradient_colors = [
-            Color::Rgb(0, 255, 255),   // Bright cyan
+            Color::Rgb(0, 255, 255), // Bright cyan
             Color::Rgb(0, 220, 255),
             Color::Rgb(0, 180, 220),
             Color::Rgb(0, 150, 200),
             Color::Rgb(0, 120, 180),
-            Color::Rgb(0, 100, 160),   // Darker cyan
+            Color::Rgb(0, 100, 160), // Darker cyan
         ];
 
         // Render logo with gradient effect
@@ -186,8 +186,7 @@ impl Widget for SplashWidget<'_> {
             Style::default().fg(Color::Rgb(80, 80, 100)),
         )));
 
-        let logo = Paragraph::new(logo_lines)
-            .alignment(Alignment::Center);
+        let logo = Paragraph::new(logo_lines).alignment(Alignment::Center);
         Widget::render(logo, chunks[1], buf);
 
         // Render server info and status
@@ -196,14 +195,19 @@ impl Widget for SplashWidget<'_> {
             Span::styled("Server: ", Style::default().fg(Color::Rgb(120, 120, 140))),
             Span::styled(
                 format!("{}:{}", self.server, self.port),
-                Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
             ),
         ]);
 
         let (status_icon, status_style) = match self.phase {
             ConnectionPhase::Connected => ("✓", Style::default().fg(Color::Rgb(100, 255, 100))),
             ConnectionPhase::Failed(_) => ("✗", Style::default().fg(Color::Rgb(255, 100, 100))),
-            _ => (self.render_spinner(), Style::default().fg(Color::Rgb(255, 200, 100))),
+            _ => (
+                self.render_spinner(),
+                Style::default().fg(Color::Rgb(255, 200, 100)),
+            ),
         };
 
         let status_text = match self.phase {
@@ -219,12 +223,8 @@ impl Widget for SplashWidget<'_> {
 
         let status_line = Line::from(Span::styled(status_text, status_style));
 
-        let info = Paragraph::new(vec![
-            Line::from(""),
-            server_line,
-            status_line,
-        ])
-        .alignment(Alignment::Center);
+        let info = Paragraph::new(vec![Line::from(""), server_line, status_line])
+            .alignment(Alignment::Center);
         Widget::render(info, chunks[2], buf);
 
         // Render connection log in a box
@@ -274,7 +274,12 @@ impl Widget for SplashWidget<'_> {
         // Render hint at bottom
         let hint = Paragraph::new(Line::from(vec![
             Span::styled("Press ", Style::default().fg(Color::Rgb(80, 80, 100))),
-            Span::styled("Ctrl+C", Style::default().fg(Color::Rgb(120, 120, 140)).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Ctrl+C",
+                Style::default()
+                    .fg(Color::Rgb(120, 120, 140))
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(" to cancel", Style::default().fg(Color::Rgb(80, 80, 100))),
         ]))
         .alignment(Alignment::Center);

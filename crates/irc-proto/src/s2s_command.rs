@@ -229,7 +229,10 @@ pub enum S2SCommand {
     Wallops { message: String },
 
     /// Unknown/passthrough command
-    Unknown { command: String, params: Vec<String> },
+    Unknown {
+        command: String,
+        params: Vec<String>,
+    },
 }
 
 /// Member in an SJOIN command.
@@ -483,7 +486,10 @@ impl fmt::Display for S2SCommand {
                 write!(f, "NOTICE {} :{}", target, text)
             }
 
-            S2SCommand::Join { channel_ts, channel } => {
+            S2SCommand::Join {
+                channel_ts,
+                channel,
+            } => {
                 write!(f, "JOIN {} {} +", channel_ts, channel)
             }
 
@@ -511,7 +517,11 @@ impl fmt::Display for S2SCommand {
                 write!(f, "KILL {} :{} ({})", uid, path, reason)
             }
 
-            S2SCommand::Kick { channel, uid, reason } => {
+            S2SCommand::Kick {
+                channel,
+                uid,
+                reason,
+            } => {
                 write!(f, "KICK {} {} :{}", channel, uid, reason)
             }
 
@@ -620,10 +630,7 @@ fn parse_s2s_command(command: &str, params: Vec<String>) -> Result<S2SCommand, P
             let mut iter = params.into_iter();
             let password = iter.next().unwrap_or_default();
             let _ts = iter.next(); // Skip "TS" literal
-            let ts_version = iter
-                .next()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(6);
+            let ts_version = iter.next().and_then(|s| s.parse().ok()).unwrap_or(6);
             let sid = iter.next().unwrap_or_default();
             Ok(S2SCommand::Pass {
                 password,
@@ -777,15 +784,9 @@ fn parse_s2s_command(command: &str, params: Vec<String>) -> Result<S2SCommand, P
             let mut iter = params.into_iter();
             let channel_ts = iter.next().and_then(|s| s.parse().ok()).unwrap_or(0);
             let channel = iter.next().unwrap_or_default();
-            let list_type = iter
-                .next()
-                .and_then(|s| s.chars().next())
-                .unwrap_or('b');
+            let list_type = iter.next().and_then(|s| s.chars().next()).unwrap_or('b');
             let masks_str = iter.next().unwrap_or_default();
-            let masks = masks_str
-                .split_whitespace()
-                .map(String::from)
-                .collect();
+            let masks = masks_str.split_whitespace().map(String::from).collect();
 
             Ok(S2SCommand::Bmask {
                 channel_ts,
@@ -848,9 +849,7 @@ fn parse_s2s_command(command: &str, params: Vec<String>) -> Result<S2SCommand, P
             // Parse "path (reason)" format
             let (path, reason) = if let Some(paren_start) = message.find('(') {
                 let path = message[..paren_start].trim().to_string();
-                let reason = message[paren_start + 1..]
-                    .trim_end_matches(')')
-                    .to_string();
+                let reason = message[paren_start + 1..].trim_end_matches(')').to_string();
                 (path, reason)
             } else {
                 (message.clone(), message)
@@ -1094,12 +1093,10 @@ mod tests {
 
     #[test]
     fn test_parse_pass() {
-        let cmd = S2SCommand::parse("PASS", vec![
-            "linkpass".into(),
-            "TS".into(),
-            "6".into(),
-            "00B".into(),
-        ])
+        let cmd = S2SCommand::parse(
+            "PASS",
+            vec!["linkpass".into(), "TS".into(), "6".into(), "00B".into()],
+        )
         .unwrap();
 
         if let S2SCommand::Pass {
@@ -1118,12 +1115,15 @@ mod tests {
 
     #[test]
     fn test_parse_sjoin() {
-        let cmd = S2SCommand::parse("SJOIN", vec![
-            "1234567890".into(),
-            "#test".into(),
-            "+nt".into(),
-            "@00AAAAAAA +00AAAAAAB 00AAAAAAC".into(),
-        ])
+        let cmd = S2SCommand::parse(
+            "SJOIN",
+            vec![
+                "1234567890".into(),
+                "#test".into(),
+                "+nt".into(),
+                "@00AAAAAAA +00AAAAAAB 00AAAAAAC".into(),
+            ],
+        )
         .unwrap();
 
         if let S2SCommand::Sjoin {
@@ -1151,19 +1151,22 @@ mod tests {
 
     #[test]
     fn test_parse_euid() {
-        let cmd = S2SCommand::parse("EUID", vec![
-            "TestUser".into(),
-            "1".into(),
-            "1234567890".into(),
-            "+i".into(),
-            "test".into(),
-            "visible.host.com".into(),
-            "127.0.0.1".into(),
-            "00AAAAAAA".into(),
-            "real.host.com".into(),
-            "account1".into(),
-            "Test User".into(),
-        ])
+        let cmd = S2SCommand::parse(
+            "EUID",
+            vec![
+                "TestUser".into(),
+                "1".into(),
+                "1234567890".into(),
+                "+i".into(),
+                "test".into(),
+                "visible.host.com".into(),
+                "127.0.0.1".into(),
+                "00AAAAAAA".into(),
+                "real.host.com".into(),
+                "account1".into(),
+                "Test User".into(),
+            ],
+        )
         .unwrap();
 
         if let S2SCommand::Euid {

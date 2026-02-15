@@ -4,8 +4,8 @@
 //! draft/account-registration specification.
 
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
     Argon2,
+    password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
 };
 use irc_proto::register_errors::*;
 use irc_proto::replies::*;
@@ -64,10 +64,7 @@ pub fn handle_register(
     if let Err(_e) = irc_proto::validate_nickname(&account_name) {
         ctx.reply(
             ERR_REG_INVALID_ACCOUNT,
-            vec![
-                account_name.clone(),
-                "Invalid account name".into(),
-            ],
+            vec![account_name.clone(), "Invalid account name".into()],
         )?;
         return Ok(());
     }
@@ -133,7 +130,10 @@ pub fn handle_register(
 
             // Also send SASL success-style logged in message
             let nick = ctx.client.nickname()?.unwrap_or_else(|| "*".to_string());
-            let user = ctx.client.username()?.unwrap_or_else(|| "unknown".to_string());
+            let user = ctx
+                .client
+                .username()?
+                .unwrap_or_else(|| "unknown".to_string());
             let host = ctx.client.hostname()?;
             ctx.reply(
                 RPL_LOGGEDIN,
@@ -156,10 +156,7 @@ pub fn handle_register(
         Err(Error::AccountExists(_)) => {
             ctx.reply(
                 ERR_REG_ACCOUNT_EXISTS,
-                vec![
-                    account_name,
-                    "Account name already exists".into(),
-                ],
+                vec![account_name, "Account name already exists".into()],
             )?;
         }
         Err(e) => {

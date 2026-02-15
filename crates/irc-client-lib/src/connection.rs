@@ -10,13 +10,13 @@ use std::sync::Arc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use tokio::net::TcpStream;
+use tokio_rustls::TlsConnector;
 use tokio_rustls::client::TlsStream;
 use tokio_rustls::rustls::pki_types::ServerName;
 use tokio_rustls::rustls::{ClientConfig as TlsConfig, RootCertStore};
-use tokio_rustls::TlsConnector;
 use tokio_util::codec::Framed;
 
-use irc_proto::{Message, MessageCodec, MAX_MESSAGE_LEN_IRCV3};
+use irc_proto::{MAX_MESSAGE_LEN_IRCV3, Message, MessageCodec};
 
 use crate::config::ClientConfig;
 use crate::error::{ConnectionError, TlsError};
@@ -61,18 +61,20 @@ impl Connection {
 
         tracing::debug!("Connecting to {} ({})", config.server, addr);
 
-        let tcp_stream = TcpStream::connect(addr).await.map_err(|e| {
-            ConnectionError::TcpConnect {
-                addr: addr.to_string(),
-                source: e,
-            }
-        })?;
+        let tcp_stream =
+            TcpStream::connect(addr)
+                .await
+                .map_err(|e| ConnectionError::TcpConnect {
+                    addr: addr.to_string(),
+                    source: e,
+                })?;
 
         // Use IRCv3 max length to support message-tags (servers can send up to 8191 bytes)
         let codec = MessageCodec::with_max_length(MAX_MESSAGE_LEN_IRCV3);
 
         if config.tls {
-            let tls_stream = establish_tls(tcp_stream, &config.server, config.tls_accept_invalid).await?;
+            let tls_stream =
+                establish_tls(tcp_stream, &config.server, config.tls_accept_invalid).await?;
             let framed = Framed::new(tls_stream, codec);
             Ok(Connection::Tls(framed))
         } else {
@@ -86,7 +88,10 @@ impl Connection {
         match self {
             Connection::Plain(framed) => {
                 let (write, read) = framed.split();
-                (ConnectionReader::Plain(read), ConnectionWriter::Plain(write))
+                (
+                    ConnectionReader::Plain(read),
+                    ConnectionWriter::Plain(write),
+                )
             }
             Connection::Tls(framed) => {
                 let (write, read) = framed.split();
@@ -159,11 +164,9 @@ async fn resolve_address(host: &str, port: u16) -> Result<SocketAddr, Connection
         .find(|a| a.is_ipv4())
         .or(addrs.first())
         .copied()
-        .ok_or_else(|| {
-            ConnectionError::DnsResolution {
-                host: host.to_string(),
-                source: io::Error::new(io::ErrorKind::NotFound, "no addresses found"),
-            }
+        .ok_or_else(|| ConnectionError::DnsResolution {
+            host: host.to_string(),
+            source: io::Error::new(io::ErrorKind::NotFound, "no addresses found"),
         })
 }
 

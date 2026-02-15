@@ -9,16 +9,16 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Widget},
 };
 
-use crate::style::{nick_color, Theme};
+use crate::style::{Theme, nick_color};
 
 /// User status/modes in the channel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum UserStatus {
-    Owner,    // ~
-    Admin,    // &
-    Op,       // @
-    HalfOp,   // %
-    Voice,    // +
+    Owner,  // ~
+    Admin,  // &
+    Op,     // @
+    HalfOp, // %
+    Voice,  // +
     Normal,
 }
 
@@ -48,12 +48,12 @@ impl UserStatus {
 
     pub fn color(&self) -> Color {
         match self {
-            Self::Owner => Color::Rgb(255, 215, 0),   // Gold
-            Self::Admin => Color::Rgb(220, 100, 255), // Purple
-            Self::Op => Color::Rgb(100, 220, 100),    // Green
-            Self::HalfOp => Color::Rgb(100, 200, 220),// Cyan
-            Self::Voice => Color::Rgb(255, 200, 100), // Yellow
-            Self::Normal => Color::Rgb(100, 100, 120),// Muted
+            Self::Owner => Color::Rgb(255, 215, 0),    // Gold
+            Self::Admin => Color::Rgb(220, 100, 255),  // Purple
+            Self::Op => Color::Rgb(100, 220, 100),     // Green
+            Self::HalfOp => Color::Rgb(100, 200, 220), // Cyan
+            Self::Voice => Color::Rgb(255, 200, 100),  // Yellow
+            Self::Normal => Color::Rgb(100, 100, 120), // Muted
         }
     }
 }
@@ -69,7 +69,11 @@ pub struct ChannelUser {
 impl ChannelUser {
     #[allow(dead_code)]
     pub fn new(nick: String, status: UserStatus) -> Self {
-        Self { nick, status, away: false }
+        Self {
+            nick,
+            status,
+            away: false,
+        }
     }
 
     /// Parse nick with prefix (e.g., "@alice" -> Op, "alice")
@@ -94,7 +98,11 @@ pub struct UserListWidget<'a> {
 
 impl<'a> UserListWidget<'a> {
     pub fn new(users: &'a [ChannelUser], channel_name: Option<&'a str>, theme: &'a Theme) -> Self {
-        Self { users, theme, channel_name }
+        Self {
+            users,
+            theme,
+            channel_name,
+        }
     }
 }
 
@@ -109,14 +117,29 @@ impl Widget for UserListWidget<'_> {
         }
 
         // Count users by status
-        let ops = self.users.iter().filter(|u| matches!(u.status, UserStatus::Owner | UserStatus::Admin | UserStatus::Op)).count();
-        let voiced = self.users.iter().filter(|u| u.status == UserStatus::Voice).count();
+        let ops = self
+            .users
+            .iter()
+            .filter(|u| {
+                matches!(
+                    u.status,
+                    UserStatus::Owner | UserStatus::Admin | UserStatus::Op
+                )
+            })
+            .count();
+        let voiced = self
+            .users
+            .iter()
+            .filter(|u| u.status == UserStatus::Voice)
+            .count();
         let normal = self.users.len() - ops - voiced;
 
         // Sort users by status then name
         let mut sorted_users: Vec<_> = self.users.iter().collect();
         sorted_users.sort_by(|a, b| {
-            a.status.cmp(&b.status).then_with(|| a.nick.to_lowercase().cmp(&b.nick.to_lowercase()))
+            a.status
+                .cmp(&b.status)
+                .then_with(|| a.nick.to_lowercase().cmp(&b.nick.to_lowercase()))
         });
 
         let items: Vec<ListItem> = sorted_users
@@ -127,12 +150,16 @@ impl Widget for UserListWidget<'_> {
                 // Status symbol
                 spans.push(Span::styled(
                     user.status.symbol(),
-                    Style::default().fg(user.status.color()).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(user.status.color())
+                        .add_modifier(Modifier::BOLD),
                 ));
 
                 // Nick with color
                 let nick_style = if user.away {
-                    Style::default().fg(self.theme.muted).add_modifier(Modifier::DIM)
+                    Style::default()
+                        .fg(self.theme.muted)
+                        .add_modifier(Modifier::DIM)
                 } else {
                     Style::default().fg(nick_color(&user.nick))
                 };
@@ -149,7 +176,10 @@ impl Widget for UserListWidget<'_> {
 
                 // Away indicator
                 if user.away {
-                    spans.push(Span::styled(" (away)", Style::default().fg(self.theme.muted)));
+                    spans.push(Span::styled(
+                        " (away)",
+                        Style::default().fg(self.theme.muted),
+                    ));
                 }
 
                 ListItem::new(Line::from(spans))
@@ -171,7 +201,10 @@ impl Widget for UserListWidget<'_> {
             .border_style(self.theme.border_style())
             .border_set(symbols::border::PLAIN)
             .title(Span::styled(title, self.theme.title_style()))
-            .title_bottom(Span::styled(subtitle, Style::default().fg(self.theme.muted)))
+            .title_bottom(Span::styled(
+                subtitle,
+                Style::default().fg(self.theme.muted),
+            ))
             .style(Style::default().bg(bg));
 
         let list = List::new(items).block(block);

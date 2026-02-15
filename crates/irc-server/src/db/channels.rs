@@ -1,7 +1,7 @@
 //! Channel registration database operations.
 
 use chrono::{DateTime, TimeZone, Utc};
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 
 use super::PooledConnection;
 use crate::error::{Error, Result};
@@ -29,11 +29,7 @@ pub struct ChannelAccess {
 /// Register a channel.
 ///
 /// Returns the registration ID.
-pub fn register(
-    conn: &PooledConnection,
-    name: &str,
-    founder_account_id: i64,
-) -> Result<i64> {
+pub fn register(conn: &PooledConnection, name: &str, founder_account_id: i64) -> Result<i64> {
     let now = Utc::now().timestamp();
 
     conn.execute(
@@ -215,11 +211,7 @@ pub fn get_user_flags(
 }
 
 /// Remove access for an account on a channel.
-pub fn remove_access(
-    conn: &PooledConnection,
-    channel_id: i64,
-    account_id: i64,
-) -> Result<bool> {
+pub fn remove_access(conn: &PooledConnection, channel_id: i64, account_id: i64) -> Result<bool> {
     let rows = conn
         .execute(
             "DELETE FROM channel_access WHERE channel_id = ?1 AND account_id = ?2",
@@ -288,7 +280,7 @@ pub fn get_founder(conn: &PooledConnection, channel_name: &str) -> Result<Option
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::{accounts, Database};
+    use crate::db::{Database, accounts};
 
     #[test]
     fn test_channel_registration() {

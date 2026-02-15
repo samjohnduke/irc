@@ -53,7 +53,8 @@ impl CapabilityState {
     pub fn parse_ls(&mut self, caps_str: &str) {
         for cap in caps_str.split_whitespace() {
             if let Some((name, value)) = cap.split_once('=') {
-                self.available.insert(name.to_string(), Some(value.to_string()));
+                self.available
+                    .insert(name.to_string(), Some(value.to_string()));
             } else {
                 self.available.insert(cap.to_string(), None);
             }
@@ -132,9 +133,9 @@ impl CapabilityState {
 
     /// Get supported SASL mechanisms.
     pub fn sasl_mechanisms(&self) -> Option<Vec<&str>> {
-        self.available.get("sasl").and_then(|v| {
-            v.as_ref().map(|s| s.split(',').collect())
-        })
+        self.available
+            .get("sasl")
+            .and_then(|v| v.as_ref().map(|s| s.split(',').collect()))
     }
 
     /// Check if SASL PLAIN is supported.

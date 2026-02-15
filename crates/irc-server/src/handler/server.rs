@@ -20,7 +20,11 @@ pub fn handle_motd(ctx: &HandlerContext) -> Result<()> {
 
         if let Some(ref lines) = *motd {
             // 375 RPL_MOTDSTART
-            rb.send(&client, RPL_MOTDSTART, vec![format!("- {} Message of the Day -", config.server_name)]);
+            rb.send(
+                &client,
+                RPL_MOTDSTART,
+                vec![format!("- {} Message of the Day -", config.server_name)],
+            );
 
             // 372 RPL_MOTD for each line
             for line in lines {
@@ -177,10 +181,7 @@ pub fn handle_admin(ctx: &HandlerContext) -> Result<()> {
     // 256 RPL_ADMINME
     ctx.reply(
         RPL_ADMINME,
-        vec![
-            config.server_name.clone(),
-            "Administrative info".into(),
-        ],
+        vec![config.server_name.clone(), "Administrative info".into()],
     )?;
 
     // 257 RPL_ADMINLOC1

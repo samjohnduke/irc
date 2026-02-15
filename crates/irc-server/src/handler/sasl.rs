@@ -1,13 +1,13 @@
 //! SASL authentication handler.
 
 use irc_proto::{
-    replies::{RPL_LOGGEDIN, RPL_SASLMECHS, RPL_SASLSUCCESS},
-    errors::{ERR_SASLFAIL, ERR_SASLABORTED, ERR_SASLALREADY, ERR_SASLTOOLONG},
     Command,
+    errors::{ERR_SASLABORTED, ERR_SASLALREADY, ERR_SASLFAIL, ERR_SASLTOOLONG},
+    replies::{RPL_LOGGEDIN, RPL_SASLMECHS, RPL_SASLSUCCESS},
 };
 
 use super::HandlerContext;
-use crate::cap::sasl::{decode_plain, SaslMechanism, SaslState, supported_mechanisms};
+use crate::cap::sasl::{SaslMechanism, SaslState, decode_plain, supported_mechanisms};
 use crate::error::Result;
 
 /// Maximum length for SASL data (400 bytes base64 = ~300 bytes decoded).
@@ -46,7 +46,10 @@ pub fn handle_authenticate(ctx: &HandlerContext, data: &str) -> Result<()> {
             // Client is selecting a mechanism
             handle_mechanism_selection(ctx, data)
         }
-        Some(SaslState::Authenticating { mechanism, data: accumulated }) => {
+        Some(SaslState::Authenticating {
+            mechanism,
+            data: accumulated,
+        }) => {
             // Client is sending authentication data
             handle_auth_data(ctx, mechanism, accumulated, data)
         }
@@ -86,10 +89,7 @@ fn handle_mechanism_selection(ctx: &HandlerContext, mechanism_name: &str) -> Res
                     "are available SASL mechanisms".into(),
                 ],
             )?;
-            ctx.reply(
-                ERR_SASLFAIL,
-                vec!["SASL authentication failed".into()],
-            )?;
+            ctx.reply(ERR_SASLFAIL, vec!["SASL authentication failed".into()])?;
             Ok(())
         }
     }
@@ -221,11 +221,9 @@ fn verify_password(password: &str, hash: &str) -> bool {
     use password_hash::{PasswordHash, PasswordVerifier};
 
     match PasswordHash::new(hash) {
-        Ok(parsed_hash) => {
-            Argon2::default()
-                .verify_password(password.as_bytes(), &parsed_hash)
-                .is_ok()
-        }
+        Ok(parsed_hash) => Argon2::default()
+            .verify_password(password.as_bytes(), &parsed_hash)
+            .is_ok(),
         Err(_) => false,
     }
 }

@@ -31,7 +31,11 @@ impl<'a> ServiceContext<'a> {
 
     /// Send a NOTICE reply to the user from this service.
     pub fn reply(&self, message: &str) -> Result<()> {
-        let target = self.ctx.client.nickname()?.unwrap_or_else(|| "*".to_string());
+        let target = self
+            .ctx
+            .client
+            .nickname()?
+            .unwrap_or_else(|| "*".to_string());
         let msg = Message::with_prefix(
             self.service_prefix(),
             Command::Notice {

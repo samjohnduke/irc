@@ -89,7 +89,6 @@ impl Buffer {
         Self::new("Server", BufferKind::Server)
     }
 
-
     /// Check if we're at or near the bottom (within threshold for auto-scroll).
     pub fn is_at_bottom(&self) -> bool {
         self.scroll_offset <= AUTO_SCROLL_THRESHOLD
@@ -214,7 +213,8 @@ impl Buffer {
             let events = std::mem::take(&mut self.pending_parts);
 
             // Group by quit vs part
-            let (quits, parts): (Vec<_>, Vec<_>) = events.into_iter().partition(|(_, is_quit)| *is_quit);
+            let (quits, parts): (Vec<_>, Vec<_>) =
+                events.into_iter().partition(|(_, is_quit)| *is_quit);
 
             if !parts.is_empty() {
                 let nicks: Vec<String> = parts.into_iter().map(|(nick, _)| nick).collect();
@@ -267,7 +267,11 @@ impl Buffer {
     fn add_message_internal(&mut self, msg: DisplayMessage) {
         // Check for duplicate by msgid
         if let Some(ref msgid) = msg.msgid {
-            if self.messages.iter().any(|m| m.msgid.as_ref() == Some(msgid)) {
+            if self
+                .messages
+                .iter()
+                .any(|m| m.msgid.as_ref() == Some(msgid))
+            {
                 return;
             }
         }
@@ -339,12 +343,18 @@ impl BufferList {
 
     /// Get a buffer by name mutably.
     pub fn get_mut(&mut self, name: &str) -> Option<&mut Buffer> {
-        self.buffers.iter_mut().find(|b| b.name.eq_ignore_ascii_case(name))
+        self.buffers
+            .iter_mut()
+            .find(|b| b.name.eq_ignore_ascii_case(name))
     }
 
     /// Get or create a buffer.
     pub fn get_or_create(&mut self, name: &str, kind: BufferKind) -> &mut Buffer {
-        if let Some(idx) = self.buffers.iter().position(|b| b.name.eq_ignore_ascii_case(name)) {
+        if let Some(idx) = self
+            .buffers
+            .iter()
+            .position(|b| b.name.eq_ignore_ascii_case(name))
+        {
             return &mut self.buffers[idx];
         }
 
@@ -375,7 +385,11 @@ impl BufferList {
 
     /// Switch to a buffer by name.
     pub fn switch_to(&mut self, name: &str) -> bool {
-        if let Some(idx) = self.buffers.iter().position(|b| b.name.eq_ignore_ascii_case(name)) {
+        if let Some(idx) = self
+            .buffers
+            .iter()
+            .position(|b| b.name.eq_ignore_ascii_case(name))
+        {
             self.active_index = idx;
             self.buffers[idx].mark_read();
             true
@@ -402,7 +416,11 @@ impl BufferList {
 
     /// Remove a buffer by name.
     pub fn remove(&mut self, name: &str) {
-        if let Some(idx) = self.buffers.iter().position(|b| b.name.eq_ignore_ascii_case(name)) {
+        if let Some(idx) = self
+            .buffers
+            .iter()
+            .position(|b| b.name.eq_ignore_ascii_case(name))
+        {
             // Don't remove the server buffer
             if self.buffers[idx].is_server() {
                 return;
@@ -428,5 +446,4 @@ impl BufferList {
     pub fn active_index(&self) -> usize {
         self.active_index
     }
-
 }

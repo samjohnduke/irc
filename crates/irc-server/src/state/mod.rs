@@ -114,7 +114,6 @@ pub struct ServerState {
     pub connections_per_ip: DashMap<IpAddr, usize>,
 
     // === S2S State ===
-
     /// This server's SID (Server ID) for S2S protocol.
     pub sid: Option<String>,
 
@@ -343,12 +342,7 @@ impl ServerState {
     ///
     /// Optionally skip a specific client (usually the sender).
     /// Logs but continues if individual sends fail.
-    pub fn broadcast_to_channel(
-        &self,
-        channel: &Channel,
-        msg: Message,
-        skip: Option<ClientId>,
-    ) {
+    pub fn broadcast_to_channel(&self, channel: &Channel, msg: Message, skip: Option<ClientId>) {
         for client_id in channel.member_ids() {
             if Some(client_id) == skip {
                 continue;
@@ -400,9 +394,7 @@ impl ServerState {
         for entry in self.channels.iter() {
             let channel_name = entry.key().to_string();
             let mut channel = entry.value().write_lock("channel")?;
-            if channel.remove_member(client_id).is_some()
-                && channel.member_count() == 0
-            {
+            if channel.remove_member(client_id).is_some() && channel.member_count() == 0 {
                 empty_channels.push(channel_name);
             }
         }

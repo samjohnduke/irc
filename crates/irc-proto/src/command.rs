@@ -12,14 +12,10 @@ use std::fmt;
 pub enum Command {
     // === Connection Registration ===
     /// PASS - Set connection password
-    Pass {
-        password: String,
-    },
+    Pass { password: String },
 
     /// NICK - Set or change nickname
-    Nick {
-        nickname: String,
-    },
+    Nick { nickname: String },
 
     /// USER - Specify username and realname
     User {
@@ -29,15 +25,10 @@ pub enum Command {
     },
 
     /// OPER - Obtain operator privileges
-    Oper {
-        name: String,
-        password: String,
-    },
+    Oper { name: String, password: String },
 
     /// QUIT - Disconnect from server
-    Quit {
-        message: Option<String>,
-    },
+    Quit { message: Option<String> },
 
     // === Channel Operations ===
     /// JOIN - Join channel(s)
@@ -66,20 +57,13 @@ pub enum Command {
     },
 
     /// NAMES - List users in channel
-    Names {
-        channels: Option<Vec<String>>,
-    },
+    Names { channels: Option<Vec<String>> },
 
     /// LIST - List channels
-    List {
-        channels: Option<Vec<String>>,
-    },
+    List { channels: Option<Vec<String>> },
 
     /// INVITE - Invite user to channel
-    Invite {
-        nickname: String,
-        channel: String,
-    },
+    Invite { nickname: String, channel: String },
 
     /// KICK - Remove user from channel
     Kick {
@@ -90,27 +74,17 @@ pub enum Command {
 
     // === Messaging ===
     /// PRIVMSG - Send message to user or channel
-    Privmsg {
-        target: String,
-        message: String,
-    },
+    Privmsg { target: String, message: String },
 
     /// NOTICE - Send notice (no auto-reply expected)
-    Notice {
-        target: String,
-        message: String,
-    },
+    Notice { target: String, message: String },
 
     /// TAGMSG - Send message tags only (no text content)
-    Tagmsg {
-        target: String,
-    },
+    Tagmsg { target: String },
 
     // === Server Queries ===
     /// MOTD - Request message of the day
-    Motd {
-        server: Option<String>,
-    },
+    Motd { server: Option<String> },
 
     /// LUSERS - Request user statistics
     Lusers {
@@ -119,9 +93,7 @@ pub enum Command {
     },
 
     /// VERSION - Request server version
-    Version {
-        server: Option<String>,
-    },
+    Version { server: Option<String> },
 
     /// STATS - Request server statistics
     Stats {
@@ -130,26 +102,17 @@ pub enum Command {
     },
 
     /// TIME - Request server time
-    Time {
-        server: Option<String>,
-    },
+    Time { server: Option<String> },
 
     /// ADMIN - Request admin info
-    Admin {
-        server: Option<String>,
-    },
+    Admin { server: Option<String> },
 
     /// INFO - Request server info
-    Info {
-        server: Option<String>,
-    },
+    Info { server: Option<String> },
 
     // === User Queries ===
     /// WHO - List users matching mask
-    Who {
-        mask: String,
-        operators_only: bool,
-    },
+    Who { mask: String, operators_only: bool },
 
     /// WHOIS - Query user information
     Whois {
@@ -178,31 +141,20 @@ pub enum Command {
     },
 
     /// AWAY - Set or unset away message
-    Away {
-        message: Option<String>,
-    },
+    Away { message: Option<String> },
 
     /// USERHOST - Get user host info
-    Userhost {
-        nicknames: Vec<String>,
-    },
+    Userhost { nicknames: Vec<String> },
 
     /// ISON - Check if users are online
-    Ison {
-        nicknames: Vec<String>,
-    },
+    Ison { nicknames: Vec<String> },
 
     // === Operator Commands ===
     /// KILL - Disconnect a user
-    Kill {
-        nickname: String,
-        comment: String,
-    },
+    Kill { nickname: String, comment: String },
 
     /// WALLOPS - Send message to operators
-    Wallops {
-        message: String,
-    },
+    Wallops { message: String },
 
     /// REHASH - Reload server configuration
     Rehash,
@@ -221,9 +173,7 @@ pub enum Command {
     },
 
     /// UNKLINE - Remove K-line
-    Unkline {
-        mask: String,
-    },
+    Unkline { mask: String },
 
     /// GLINE - Global ban (alias for KLINE on single-server)
     Gline {
@@ -233,9 +183,7 @@ pub enum Command {
     },
 
     /// UNGLINE - Remove G-line
-    Ungline {
-        mask: String,
-    },
+    Ungline { mask: String },
 
     /// ZLINE - Ban by IP/CIDR
     Zline {
@@ -245,14 +193,10 @@ pub enum Command {
     },
 
     /// UNZLINE - Remove Z-line
-    Unzline {
-        mask: String,
-    },
+    Unzline { mask: String },
 
     /// HELP - Request help information
-    Help {
-        topic: Option<String>,
-    },
+    Help { topic: Option<String> },
 
     // === IRCv3 ===
     /// CAP - Capability negotiation
@@ -262,9 +206,7 @@ pub enum Command {
     },
 
     /// AUTHENTICATE - SASL authentication
-    Authenticate {
-        data: String,
-    },
+    Authenticate { data: String },
 
     /// BATCH - Start or end a message batch
     Batch {
@@ -274,20 +216,13 @@ pub enum Command {
     },
 
     /// ACCOUNT - Account notification (server to client)
-    Account {
-        account: String,
-    },
+    Account { account: String },
 
     /// CHGHOST - Host change notification
-    Chghost {
-        user: String,
-        host: String,
-    },
+    Chghost { user: String, host: String },
 
     /// SETNAME - Change realname
-    Setname {
-        realname: String,
-    },
+    Setname { realname: String },
 
     /// CHATHISTORY - Request message history
     Chathistory {
@@ -426,10 +361,7 @@ impl fmt::Display for Command {
             },
             Command::Join { channels } => {
                 let chans: Vec<_> = channels.iter().map(|(c, _)| c.as_str()).collect();
-                let keys: Vec<_> = channels
-                    .iter()
-                    .filter_map(|(_, k)| k.as_deref())
-                    .collect();
+                let keys: Vec<_> = channels.iter().filter_map(|(_, k)| k.as_deref()).collect();
 
                 if keys.is_empty() {
                     write!(f, "JOIN {}", chans.join(","))
@@ -587,7 +519,11 @@ impl fmt::Display for Command {
             Command::Rehash => write!(f, "REHASH"),
             Command::Restart => write!(f, "RESTART"),
             Command::Die => write!(f, "DIE"),
-            Command::Kline { duration, mask, reason } => {
+            Command::Kline {
+                duration,
+                mask,
+                reason,
+            } => {
                 write!(f, "KLINE")?;
                 if let Some(d) = duration {
                     write!(f, " {}", d)?;
@@ -599,7 +535,11 @@ impl fmt::Display for Command {
                 Ok(())
             }
             Command::Unkline { mask } => write!(f, "UNKLINE {}", mask),
-            Command::Gline { duration, mask, reason } => {
+            Command::Gline {
+                duration,
+                mask,
+                reason,
+            } => {
                 write!(f, "GLINE")?;
                 if let Some(d) = duration {
                     write!(f, " {}", d)?;
@@ -611,7 +551,11 @@ impl fmt::Display for Command {
                 Ok(())
             }
             Command::Ungline { mask } => write!(f, "UNGLINE {}", mask),
-            Command::Zline { duration, mask, reason } => {
+            Command::Zline {
+                duration,
+                mask,
+                reason,
+            } => {
                 write!(f, "ZLINE")?;
                 if let Some(d) = duration {
                     write!(f, " {}", d)?;
@@ -667,7 +611,10 @@ impl fmt::Display for Command {
                 }
                 Ok(())
             }
-            Command::Monitor { subcommand, targets } => {
+            Command::Monitor {
+                subcommand,
+                targets,
+            } => {
                 write!(f, "MONITOR {}", subcommand)?;
                 if let Some(t) = targets {
                     write!(f, " {}", t)?;
@@ -681,7 +628,11 @@ impl fmt::Display for Command {
                 }
                 Ok(())
             }
-            Command::Register { account, email, password } => {
+            Command::Register {
+                account,
+                email,
+                password,
+            } => {
                 write!(f, "REGISTER {} {} :{}", account, email, password)
             }
             Command::Numeric {

@@ -210,9 +210,15 @@ impl Widget for ChannelListWidget<'_> {
 
         // Main block
         let title = if self.state.loading {
-            format!(" Channel List (loading... {} so far) ", self.state.channels.len())
+            format!(
+                " Channel List (loading... {} so far) ",
+                self.state.channels.len()
+            )
         } else if self.state.truncated {
-            format!(" Channel List ({}+ channels, truncated) ", self.state.channels.len())
+            format!(
+                " Channel List ({}+ channels, truncated) ",
+                self.state.channels.len()
+            )
         } else {
             format!(" Channel List ({} channels) ", self.state.channels.len())
         };
@@ -263,10 +269,7 @@ impl Widget for ChannelListWidget<'_> {
 
         // Filter label and input
         let filter_line = Line::from(vec![
-            Span::styled(
-                " Filter: ",
-                Style::default().fg(Color::Rgb(150, 150, 170)),
-            ),
+            Span::styled(" Filter: ", Style::default().fg(Color::Rgb(150, 150, 170))),
             Span::styled(
                 &self.state.filter,
                 Style::default()
@@ -280,7 +283,12 @@ impl Widget for ChannelListWidget<'_> {
                     .add_modifier(Modifier::SLOW_BLINK),
             ),
         ]);
-        buf.set_line(filter_inner.x, filter_inner.y, &filter_line, filter_inner.width);
+        buf.set_line(
+            filter_inner.x,
+            filter_inner.y,
+            &filter_line,
+            filter_inner.width,
+        );
 
         // Filter hint
         let filtered = self.state.filtered_channels();
@@ -328,7 +336,9 @@ impl Widget for ChannelListWidget<'_> {
                 let max_topic_len = (popup_width as usize).saturating_sub(35);
                 let topic_chars: Vec<char> = channel.topic.chars().collect();
                 let topic = if topic_chars.len() > max_topic_len {
-                    let truncated: String = topic_chars[..max_topic_len.saturating_sub(1)].iter().collect();
+                    let truncated: String = topic_chars[..max_topic_len.saturating_sub(1)]
+                        .iter()
+                        .collect();
                     format!("{}…", truncated)
                 } else {
                     channel.topic.clone()
@@ -386,7 +396,12 @@ impl Widget for ChannelListWidget<'_> {
             Span::styled("Close", Style::default().fg(Color::Rgb(150, 150, 170))),
         ]);
 
-        buf.set_line(footer_area.x + 1, footer_area.y, &footer_line, footer_area.width.saturating_sub(2));
+        buf.set_line(
+            footer_area.x + 1,
+            footer_area.y,
+            &footer_line,
+            footer_area.width.saturating_sub(2),
+        );
 
         // Scroll indicator on the right
         if filtered.len() > visible_height {
@@ -398,8 +413,14 @@ impl Widget for ChannelListWidget<'_> {
             );
             let scroll_info_len = scroll_info.len();
             let scroll_x = footer_area.x + footer_area.width - scroll_info_len as u16 - 1;
-            let scroll_span = Span::styled(scroll_info, Style::default().fg(Color::Rgb(100, 110, 130)));
-            buf.set_span(scroll_x, footer_area.y, &scroll_span, scroll_info_len as u16);
+            let scroll_span =
+                Span::styled(scroll_info, Style::default().fg(Color::Rgb(100, 110, 130)));
+            buf.set_span(
+                scroll_x,
+                footer_area.y,
+                &scroll_span,
+                scroll_info_len as u16,
+            );
         }
     }
 }

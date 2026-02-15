@@ -1,7 +1,7 @@
 //! Read marker database operations for draft/read-marker support.
 
 use chrono::{DateTime, TimeZone, Utc};
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 
 use super::PooledConnection;
 use crate::error::{Error, Result};
@@ -26,7 +26,10 @@ pub fn get(conn: &PooledConnection, account_id: i64, target: &str) -> Result<Opt
                 Ok(ReadMarker {
                     account_id: row.get(0)?,
                     target: row.get(1)?,
-                    timestamp: Utc.timestamp_millis_opt(ts).single().unwrap_or_else(Utc::now),
+                    timestamp: Utc
+                        .timestamp_millis_opt(ts)
+                        .single()
+                        .unwrap_or_else(Utc::now),
                 })
             },
         )
@@ -67,9 +70,7 @@ pub fn delete(conn: &PooledConnection, account_id: i64, target: &str) -> Result<
 /// Get all read markers for an account.
 pub fn get_all(conn: &PooledConnection, account_id: i64) -> Result<Vec<ReadMarker>> {
     let mut stmt = conn
-        .prepare(
-            "SELECT account_id, target, timestamp FROM read_markers WHERE account_id = ?1",
-        )
+        .prepare("SELECT account_id, target, timestamp FROM read_markers WHERE account_id = ?1")
         .map_err(|e| Error::Database(format!("Failed to prepare statement: {}", e)))?;
 
     let markers = stmt
@@ -78,7 +79,10 @@ pub fn get_all(conn: &PooledConnection, account_id: i64) -> Result<Vec<ReadMarke
             Ok(ReadMarker {
                 account_id: row.get(0)?,
                 target: row.get(1)?,
-                timestamp: Utc.timestamp_millis_opt(ts).single().unwrap_or_else(Utc::now),
+                timestamp: Utc
+                    .timestamp_millis_opt(ts)
+                    .single()
+                    .unwrap_or_else(Utc::now),
             })
         })
         .map_err(|e| Error::Database(format!("Failed to get read markers: {}", e)))?

@@ -14,10 +14,10 @@
 //! └─────────────────────────────────────────────┘
 
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    Frame,
 };
 
 use crate::handler::input::InputMode;
@@ -42,16 +42,16 @@ pub struct ModernColors {
 impl Default for ModernColors {
     fn default() -> Self {
         Self {
-            bg: Color::Rgb(22, 22, 28),       // Very dark blue-gray
-            fg: Color::Rgb(200, 200, 210),    // Soft white
-            muted: Color::Rgb(90, 95, 110),   // Gray
-            accent: Color::Rgb(130, 170, 255), // Soft blue
-            nick: Color::Rgb(180, 180, 190),  // Light gray for nicks
-            timestamp: Color::Rgb(70, 75, 90), // Dark gray
-            join: Color::Rgb(100, 160, 100),  // Muted green
-            part: Color::Rgb(160, 100, 100),  // Muted red
+            bg: Color::Rgb(22, 22, 28),           // Very dark blue-gray
+            fg: Color::Rgb(200, 200, 210),        // Soft white
+            muted: Color::Rgb(90, 95, 110),       // Gray
+            accent: Color::Rgb(130, 170, 255),    // Soft blue
+            nick: Color::Rgb(180, 180, 190),      // Light gray for nicks
+            timestamp: Color::Rgb(70, 75, 90),    // Dark gray
+            join: Color::Rgb(100, 160, 100),      // Muted green
+            part: Color::Rgb(160, 100, 100),      // Muted red
             highlight: Color::Rgb(255, 180, 100), // Orange
-            error: Color::Rgb(255, 100, 100), // Red
+            error: Color::Rgb(255, 100, 100),     // Red
         }
     }
 }
@@ -114,10 +114,7 @@ pub fn draw_modern_layout(
     let (main_area, sidebar_area) = if show_sidebar {
         let h_chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Min(40),
-                Constraint::Length(SIDEBAR_WIDTH),
-            ])
+            .constraints([Constraint::Min(40), Constraint::Length(SIDEBAR_WIDTH)])
             .split(area);
         (h_chunks[0], Some(h_chunks[1]))
     } else {
@@ -137,20 +134,29 @@ pub fn draw_modern_layout(
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),  // Top margin
-            Constraint::Length(1),  // Status line
-            Constraint::Length(1),  // Separator below status
-            Constraint::Min(5),     // Messages
-            Constraint::Length(1),  // Separator above tabs
-            Constraint::Length(1),  // Tab bar
-            Constraint::Length(1),  // Spacer
-            Constraint::Length(1),  // Input line
-            Constraint::Length(1),  // Bottom margin
+            Constraint::Length(1), // Top margin
+            Constraint::Length(1), // Status line
+            Constraint::Length(1), // Separator below status
+            Constraint::Min(5),    // Messages
+            Constraint::Length(1), // Separator above tabs
+            Constraint::Length(1), // Tab bar
+            Constraint::Length(1), // Spacer
+            Constraint::Length(1), // Input line
+            Constraint::Length(1), // Bottom margin
         ])
         .split(main_area);
 
     // === Status Line (with horizontal padding) ===
-    draw_status_line(frame, chunks[1], buffers, nick, connected, channel_users.len(), &colors, show_sidebar);
+    draw_status_line(
+        frame,
+        chunks[1],
+        buffers,
+        nick,
+        connected,
+        channel_users.len(),
+        &colors,
+        show_sidebar,
+    );
 
     // === Subtle separator line ===
     draw_separator(frame, chunks[2], &colors);
@@ -236,7 +242,11 @@ fn draw_command_palette(
     buf[(palette_area.x, palette_area.y)].set_char('╭');
     buf[(palette_area.x + palette_area.width - 1, palette_area.y)].set_char('╮');
     buf[(palette_area.x, palette_area.y + palette_area.height - 1)].set_char('╰');
-    buf[(palette_area.x + palette_area.width - 1, palette_area.y + palette_area.height - 1)].set_char('╯');
+    buf[(
+        palette_area.x + palette_area.width - 1,
+        palette_area.y + palette_area.height - 1,
+    )]
+        .set_char('╯');
 
     let content_x = palette_area.x + 2;
     let content_width = palette_area.width - 4;
@@ -246,7 +256,12 @@ fn draw_command_palette(
     let search_line = Line::from(vec![
         Span::styled("> ", Style::default().fg(colors.accent)),
         Span::styled(&palette.filter, Style::default().fg(Color::White)),
-        Span::styled("_", Style::default().fg(colors.accent).add_modifier(Modifier::SLOW_BLINK)),
+        Span::styled(
+            "_",
+            Style::default()
+                .fg(colors.accent)
+                .add_modifier(Modifier::SLOW_BLINK),
+        ),
     ]);
     buf.set_line(content_x, cy, &search_line, content_width);
     cy += 1;
@@ -285,7 +300,10 @@ fn draw_command_palette(
             buf.set_span(
                 content_x,
                 cy,
-                &Span::styled("Backspace to go back · Esc to close", Style::default().fg(colors.muted)),
+                &Span::styled(
+                    "Backspace to go back · Esc to close",
+                    Style::default().fg(colors.muted),
+                ),
                 content_width,
             );
         }
@@ -397,7 +415,10 @@ fn draw_tab_bar(frame: &mut Frame, area: Rect, buffers: &BufferList, colors: &Mo
         // Activity indicator (only for inactive tabs)
         if !is_active {
             if has_highlight {
-                spans.push(Span::styled("*", Style::default().fg(Color::Rgb(255, 120, 120))));
+                spans.push(Span::styled(
+                    "*",
+                    Style::default().fg(Color::Rgb(255, 120, 120)),
+                ));
             } else if has_unread {
                 spans.push(Span::styled("+", Style::default().fg(colors.accent)));
             }
@@ -452,15 +473,18 @@ fn draw_status_line(
     } else {
         Color::Rgb(200, 100, 100)
     };
-    spans.push(Span::styled(conn_indicator, Style::default().fg(conn_color)));
+    spans.push(Span::styled(
+        conn_indicator,
+        Style::default().fg(conn_color),
+    ));
     spans.push(Span::raw(" "));
 
     // Nick
+    spans.push(Span::styled(nick, Style::default().fg(colors.accent)));
     spans.push(Span::styled(
-        nick,
-        Style::default().fg(colors.accent),
+        " │ ",
+        Style::default().fg(Color::Rgb(50, 55, 65)),
     ));
-    spans.push(Span::styled(" │ ", Style::default().fg(Color::Rgb(50, 55, 65))));
 
     // Buffer name
     spans.push(Span::styled(
@@ -523,7 +547,12 @@ fn draw_sidebar(
             buf.set_span(
                 content_x,
                 y,
-                &Span::styled("TOPIC", Style::default().fg(colors.muted).add_modifier(Modifier::BOLD)),
+                &Span::styled(
+                    "TOPIC",
+                    Style::default()
+                        .fg(colors.muted)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 content_width as u16,
             );
             y += 1;
@@ -568,7 +597,12 @@ fn draw_sidebar(
         let filter_line = Line::from(vec![
             Span::styled("/ ", Style::default().fg(colors.accent)),
             Span::styled(filter_text, Style::default().fg(Color::White)),
-            Span::styled("_", Style::default().fg(colors.accent).add_modifier(Modifier::SLOW_BLINK)),
+            Span::styled(
+                "_",
+                Style::default()
+                    .fg(colors.accent)
+                    .add_modifier(Modifier::SLOW_BLINK),
+            ),
         ]);
         buf.set_line(content_x, y, &filter_line, content_width as u16);
         y += 1;
@@ -577,13 +611,16 @@ fn draw_sidebar(
     // Sort and filter users
     let mut sorted_users: Vec<_> = users.to_vec();
     sorted_users.sort_by(|a, b| {
-        a.status.cmp(&b.status).then_with(|| a.nick.to_lowercase().cmp(&b.nick.to_lowercase()))
+        a.status
+            .cmp(&b.status)
+            .then_with(|| a.nick.to_lowercase().cmp(&b.nick.to_lowercase()))
     });
 
     // Apply filter if there's filter text
     let filtered_users: Vec<_> = if !filter_text.is_empty() {
         let filter_lower = filter_text.to_lowercase();
-        sorted_users.into_iter()
+        sorted_users
+            .into_iter()
             .filter(|u| u.nick.to_lowercase().contains(&filter_lower))
             .collect()
     } else {
@@ -600,7 +637,12 @@ fn draw_sidebar(
         buf.set_span(
             content_x,
             y,
-            &Span::styled(user_header, Style::default().fg(colors.muted).add_modifier(Modifier::BOLD)),
+            &Span::styled(
+                user_header,
+                Style::default()
+                    .fg(colors.muted)
+                    .add_modifier(Modifier::BOLD),
+            ),
             content_width as u16,
         );
         y += 1;
@@ -656,7 +698,10 @@ fn draw_sidebar(
         buf.set_span(
             content_x,
             y,
-            &Span::styled("Alt+F to filter", Style::default().fg(Color::Rgb(60, 65, 80))),
+            &Span::styled(
+                "Alt+F to filter",
+                Style::default().fg(Color::Rgb(60, 65, 80)),
+            ),
             content_width as u16,
         );
     }
@@ -886,7 +931,10 @@ fn draw_messages_modern(
             }
 
             MessageKind::Part { nick, message } => {
-                let m = message.as_ref().map(|m| format!(" ({})", m)).unwrap_or_default();
+                let m = message
+                    .as_ref()
+                    .map(|m| format!(" ({})", m))
+                    .unwrap_or_default();
                 visual_lines.push(VisualLine::System {
                     prefix: "← ",
                     text: format!("{} left{}", nick, m),
@@ -896,7 +944,10 @@ fn draw_messages_modern(
             }
 
             MessageKind::Quit { nick, message } => {
-                let m = message.as_ref().map(|m| format!(" ({})", m)).unwrap_or_default();
+                let m = message
+                    .as_ref()
+                    .map(|m| format!(" ({})", m))
+                    .unwrap_or_default();
                 visual_lines.push(VisualLine::System {
                     prefix: "← ",
                     text: format!("{} quit{}", nick, m),
@@ -983,8 +1034,15 @@ fn draw_messages_modern(
                 prev_nick = None;
             }
 
-            MessageKind::Kick { nick, kicker, reason } => {
-                let r = reason.as_ref().map(|r| format!(" ({})", r)).unwrap_or_default();
+            MessageKind::Kick {
+                nick,
+                kicker,
+                reason,
+            } => {
+                let r = reason
+                    .as_ref()
+                    .map(|r| format!(" ({})", r))
+                    .unwrap_or_default();
                 visual_lines.push(VisualLine::System {
                     prefix: "✕ ",
                     text: format!("{} kicked by {}{}", nick, kicker, r),
@@ -1007,7 +1065,9 @@ fn draw_messages_modern(
     // Calculate scrolling based on visual lines
     let visible_height = area.height as usize;
     let total_visual = visual_lines.len();
-    let scroll_offset = buffer.scroll_offset.min(total_visual.saturating_sub(visible_height));
+    let scroll_offset = buffer
+        .scroll_offset
+        .min(total_visual.saturating_sub(visible_height));
 
     let start = total_visual.saturating_sub(visible_height + scroll_offset);
     let end = total_visual.saturating_sub(scroll_offset);
@@ -1020,7 +1080,12 @@ fn draw_messages_modern(
         }
 
         match vline {
-            VisualLine::MessageFirst { time_str, nick, text, nick_color } => {
+            VisualLine::MessageFirst {
+                time_str,
+                nick,
+                text,
+                nick_color,
+            } => {
                 let nick_display = if nick.len() > NICK_WIDTH - 1 {
                     format!("{:.width$}", nick, width = NICK_WIDTH - 1)
                 } else {
@@ -1028,7 +1093,10 @@ fn draw_messages_modern(
                 };
 
                 let line = Line::from(vec![
-                    Span::styled(format!("{} ", time_str), Style::default().fg(colors.timestamp)),
+                    Span::styled(
+                        format!("{} ", time_str),
+                        Style::default().fg(colors.timestamp),
+                    ),
                     Span::styled(nick_display, Style::default().fg(*nick_color)),
                     Span::styled(" │ ", Style::default().fg(Color::Rgb(50, 55, 65))),
                     Span::styled(text.clone(), Style::default().fg(colors.fg)),
@@ -1054,9 +1122,16 @@ fn draw_messages_modern(
                 buf.set_line(msg_x, y, &line, msg_width as u16);
             }
 
-            VisualLine::Action { time_str, nick, text } => {
+            VisualLine::Action {
+                time_str,
+                nick,
+                text,
+            } => {
                 let line = Line::from(vec![
-                    Span::styled(format!("{} ", time_str), Style::default().fg(colors.timestamp)),
+                    Span::styled(
+                        format!("{} ", time_str),
+                        Style::default().fg(colors.timestamp),
+                    ),
                     Span::styled("        ", Style::default()),
                     Span::styled("* ", Style::default().fg(colors.accent)),
                     Span::styled(nick.clone(), Style::default().fg(nick_color(nick))),
@@ -1065,7 +1140,11 @@ fn draw_messages_modern(
                 buf.set_line(msg_x, y, &line, msg_width as u16);
             }
 
-            VisualLine::System { prefix, text, color } => {
+            VisualLine::System {
+                prefix,
+                text,
+                color,
+            } => {
                 let line = Line::from(vec![
                     Span::styled("      ", Style::default()),
                     Span::styled(*prefix, Style::default().fg(*color)),
@@ -1178,9 +1257,7 @@ fn draw_input_line(
 
     if cursor_x < area.x + area.width {
         let cursor_char = input.text[input.cursor..].chars().next().unwrap_or(' ');
-        let cursor_style = Style::default()
-            .fg(colors.bg)
-            .bg(colors.accent);
+        let cursor_style = Style::default().fg(colors.bg).bg(colors.accent);
         buf[(cursor_x, area.y)].set_char(cursor_char);
         buf[(cursor_x, area.y)].set_style(cursor_style);
         frame.set_cursor_position((cursor_x, area.y));

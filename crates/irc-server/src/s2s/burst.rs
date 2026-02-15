@@ -17,16 +17,11 @@ use irc_proto::{S2SCommand, S2SMessage, SjoinMember};
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 use crate::error::Result;
-use crate::state::{ServerState, Channel};
 use crate::lock::RwLockExt;
-
+use crate::state::{Channel, ServerState};
 
 /// Send our state to a newly linked server.
-pub async fn send_burst<W>(
-    writer: &mut W,
-    state: &Arc<ServerState>,
-    our_sid: &str,
-) -> Result<()>
+pub async fn send_burst<W>(writer: &mut W, state: &Arc<ServerState>, our_sid: &str) -> Result<()>
 where
     W: AsyncWrite + Unpin,
 {
@@ -58,7 +53,11 @@ where
 
         // Build user modes string
         let modes_str = client.modes.read_lock("modes")?.to_string();
-        let modes = if modes_str.is_empty() { "+".to_string() } else { modes_str };
+        let modes = if modes_str.is_empty() {
+            "+".to_string()
+        } else {
+            modes_str
+        };
 
         // Generate a UID for this client if not already assigned
         // For now, we use a placeholder - real implementation would track UIDs
@@ -126,7 +125,10 @@ where
         let (modes, mode_params) = parse_mode_string(&mode_string);
 
         let topic = channel.topic.as_ref().map(|t| {
-            let ts = channel.topic_set_at.map(|dt| dt.timestamp()).unwrap_or_else(|| Utc::now().timestamp());
+            let ts = channel
+                .topic_set_at
+                .map(|dt| dt.timestamp())
+                .unwrap_or_else(|| Utc::now().timestamp());
             (t.clone(), ts, channel.topic_set_by.clone())
         });
 
@@ -238,7 +240,9 @@ pub fn process_sjoin(
     let mut channel = channel.write_lock("channel")?;
 
     let our_ts = channel.created_at.timestamp();
-    let remote_ts_dt = Utc.timestamp_opt(channel_ts, 0).single()
+    let remote_ts_dt = Utc
+        .timestamp_opt(channel_ts, 0)
+        .single()
         .unwrap_or_else(Utc::now);
 
     if channel_ts < our_ts || created {
@@ -300,7 +304,10 @@ pub fn process_tb(
         let mut channel = channel_arc.write_lock("channel")?;
 
         // Accept topic if we don't have one or theirs is older
-        let our_ts = channel.topic_set_at.map(|t| t.timestamp()).unwrap_or(i64::MAX);
+        let our_ts = channel
+            .topic_set_at
+            .map(|t| t.timestamp())
+            .unwrap_or(i64::MAX);
 
         if topic_ts <= our_ts {
             channel.topic = Some(topic.to_string());

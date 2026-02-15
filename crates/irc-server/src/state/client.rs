@@ -186,12 +186,7 @@ pub struct Client {
 
 impl Client {
     /// Create a new local client.
-    pub fn new(
-        id: ClientId,
-        addr: SocketAddr,
-        sender: mpsc::Sender<Message>,
-        tls: bool,
-    ) -> Self {
+    pub fn new(id: ClientId, addr: SocketAddr, sender: mpsc::Sender<Message>, tls: bool) -> Self {
         let hostname = addr.ip().to_string();
         let now = Utc::now();
 
@@ -248,7 +243,10 @@ impl Client {
             modes: RwLock::new(UserModes::default()),
             channels: RwLock::new(HashSet::new()),
             away: RwLock::new(None),
-            connected_at: Utc.timestamp_opt(nick_ts, 0).single().unwrap_or_else(Utc::now),
+            connected_at: Utc
+                .timestamp_opt(nick_ts, 0)
+                .single()
+                .unwrap_or_else(Utc::now),
             tls: false,
             password: RwLock::new(None),
             cap_state: RwLock::new(ClientCapState::new()),

@@ -140,10 +140,7 @@ fn force_nick_change_to_uid(
 /// Check if a channel mode change should be accepted based on TS.
 ///
 /// Mode changes from a server with a newer TS for the channel should be ignored.
-pub fn handle_channel_ts(
-    our_ts: i64,
-    their_ts: i64,
-) -> bool {
+pub fn handle_channel_ts(our_ts: i64, their_ts: i64) -> bool {
     // Accept if their TS is older or equal
     their_ts <= our_ts
 }
@@ -151,10 +148,7 @@ pub fn handle_channel_ts(
 /// Determine if we should accept channel state from a remote server.
 ///
 /// Returns true if we should accept (their TS is older or equal).
-pub fn should_accept_channel_state(
-    our_ts: i64,
-    their_ts: i64,
-) -> ChannelTsAction {
+pub fn should_accept_channel_state(our_ts: i64, their_ts: i64) -> ChannelTsAction {
     if their_ts < our_ts {
         // They're older - accept everything and reset our modes
         ChannelTsAction::AcceptAndReset

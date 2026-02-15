@@ -2,19 +2,22 @@
 
 mod common;
 
-use irc_proto::{errors, replies, Command};
+use irc_proto::{Command, errors, replies};
 use irc_server::ServerConfig;
 
 use common::{TestClient, TestServer};
 
 /// Generate an argon2 password hash for testing.
 fn hash_password(password: &str) -> String {
-    use argon2::{Argon2, PasswordHasher};
     use argon2::password_hash::SaltString;
+    use argon2::{Argon2, PasswordHasher};
 
     let salt = SaltString::from_b64("c29tZXNhbHRmb3J0ZXN0").unwrap();
     let argon2 = Argon2::default();
-    argon2.hash_password(password.as_bytes(), &salt).unwrap().to_string()
+    argon2
+        .hash_password(password.as_bytes(), &salt)
+        .unwrap()
+        .to_string()
 }
 
 // ============================================================
@@ -35,7 +38,11 @@ async fn test_cap_ls_returns_capabilities() {
             Command::Cap { subcommand, params } => {
                 // subcommand is target (*), params[0] is "LS", params[1] is cap list
                 assert_eq!(subcommand, "*", "Target should be *");
-                assert_eq!(params.first().map(|s| s.as_str()), Some("LS"), "Should be LS response");
+                assert_eq!(
+                    params.first().map(|s| s.as_str()),
+                    Some("LS"),
+                    "Should be LS response"
+                );
                 let caps = params.get(1).map(|s| s.as_str()).unwrap_or("");
                 assert!(caps.contains("sasl"), "Should include sasl");
                 assert!(caps.contains("server-time"), "Should include server-time");
@@ -64,9 +71,21 @@ async fn test_cap_req_ack_valid_cap() {
     // Should receive ACK
     if let Some(msg) = client.recv().await {
         match &msg.command {
-            Command::Cap { subcommand: _, params } => {
-                assert_eq!(params.first().map(|s| s.as_str()), Some("ACK"), "Should be ACK response");
-                assert!(params.get(1).map(|s| s.contains("server-time")).unwrap_or(false));
+            Command::Cap {
+                subcommand: _,
+                params,
+            } => {
+                assert_eq!(
+                    params.first().map(|s| s.as_str()),
+                    Some("ACK"),
+                    "Should be ACK response"
+                );
+                assert!(
+                    params
+                        .get(1)
+                        .map(|s| s.contains("server-time"))
+                        .unwrap_or(false)
+                );
             }
             _ => panic!("Expected CAP ACK, got {:?}", msg.command),
         }
@@ -90,8 +109,15 @@ async fn test_cap_req_nak_invalid_cap() {
     // Should receive NAK
     if let Some(msg) = client.recv().await {
         match &msg.command {
-            Command::Cap { subcommand: _, params } => {
-                assert_eq!(params.first().map(|s| s.as_str()), Some("NAK"), "Should be NAK response");
+            Command::Cap {
+                subcommand: _,
+                params,
+            } => {
+                assert_eq!(
+                    params.first().map(|s| s.as_str()),
+                    Some("NAK"),
+                    "Should be NAK response"
+                );
             }
             _ => panic!("Expected CAP NAK, got {:?}", msg.command),
         }
@@ -114,7 +140,10 @@ async fn test_cap_req_multiple_caps() {
     // Should receive ACK for both
     if let Some(msg) = client.recv().await {
         match &msg.command {
-            Command::Cap { subcommand: _, params } => {
+            Command::Cap {
+                subcommand: _,
+                params,
+            } => {
                 assert_eq!(params.first().map(|s| s.as_str()), Some("ACK"));
                 let caps = params.get(1).map(|s| s.as_str()).unwrap_or("");
                 assert!(caps.contains("server-time"));
@@ -142,10 +171,16 @@ async fn test_cap_list_enabled_caps() {
 
     if let Some(msg) = client.recv().await {
         match &msg.command {
-            Command::Cap { subcommand: _, params } => {
+            Command::Cap {
+                subcommand: _,
+                params,
+            } => {
                 assert_eq!(params.first().map(|s| s.as_str()), Some("LIST"));
                 let caps = params.get(1).map(|s| s.as_str()).unwrap_or("");
-                assert!(caps.contains("server-time"), "Should list server-time as enabled");
+                assert!(
+                    caps.contains("server-time"),
+                    "Should list server-time as enabled"
+                );
             }
             _ => panic!("Expected CAP LIST, got {:?}", msg.command),
         }
@@ -167,10 +202,7 @@ async fn test_cap_negotiation_delays_registration() {
 
     // Should NOT receive welcome yet (CAP not ended)
     // Give it a moment and try to receive - should timeout
-    let result = tokio::time::timeout(
-        std::time::Duration::from_millis(200),
-        client.recv(),
-    ).await;
+    let result = tokio::time::timeout(std::time::Duration::from_millis(200), client.recv()).await;
 
     // Either timeout or no welcome message
     if let Ok(Some(msg)) = result {
@@ -187,7 +219,9 @@ async fn test_cap_negotiation_delays_registration() {
     // Should now receive welcome
     let msgs = client.recv_until_numeric(replies::RPL_WELCOME).await;
     assert!(
-        msgs.iter().any(|m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_WELCOME)),
+        msgs.iter().any(
+            |m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_WELCOME)
+        ),
         "Should receive welcome after CAP END"
     );
 }
@@ -214,8 +248,15 @@ async fn test_sasl_plain_success() {
     client.cap_req("sasl").await;
     let ack = client.recv().await.expect("Should receive CAP response");
     match &ack.command {
-        Command::Cap { subcommand: _, params } => {
-            assert_eq!(params.first().map(|s| s.as_str()), Some("ACK"), "Should ACK sasl");
+        Command::Cap {
+            subcommand: _,
+            params,
+        } => {
+            assert_eq!(
+                params.first().map(|s| s.as_str()),
+                Some("ACK"),
+                "Should ACK sasl"
+            );
         }
         _ => panic!("Expected CAP response, got {:?}", ack.command),
     }
@@ -490,17 +531,17 @@ async fn test_basic_registration() {
 
     // Should have received RPL_CREATED (003)
     assert!(
-        messages
-            .iter()
-            .any(|m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_CREATED)),
+        messages.iter().any(
+            |m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_CREATED)
+        ),
         "Should receive created message"
     );
 
     // Should have received RPL_MYINFO (004)
     assert!(
-        messages
-            .iter()
-            .any(|m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_MYINFO)),
+        messages.iter().any(
+            |m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_MYINFO)
+        ),
         "Should receive myinfo message"
     );
 }
@@ -794,7 +835,9 @@ async fn test_join_existing_channel() {
     // Bob should receive JOIN and names
     let bob_msgs = bob.recv_until_numeric(replies::RPL_ENDOFNAMES).await;
     assert!(
-        bob_msgs.iter().any(|m| matches!(&m.command, Command::Join { .. })),
+        bob_msgs
+            .iter()
+            .any(|m| matches!(&m.command, Command::Join { .. })),
         "Bob should receive JOIN"
     );
 
@@ -844,7 +887,8 @@ async fn test_join_with_key() {
     bob.join_with_key("#secret", "password123").await;
     let msgs = bob.recv_until_numeric(replies::RPL_ENDOFNAMES).await;
     assert!(
-        msgs.iter().any(|m| matches!(&m.command, Command::Join { .. })),
+        msgs.iter()
+            .any(|m| matches!(&m.command, Command::Join { .. })),
         "Bob should join with correct key"
     );
 }
@@ -886,7 +930,8 @@ async fn test_join_invite_only() {
     bob.join("#private").await;
     let msgs = bob.recv_until_numeric(replies::RPL_ENDOFNAMES).await;
     assert!(
-        msgs.iter().any(|m| matches!(&m.command, Command::Join { .. })),
+        msgs.iter()
+            .any(|m| matches!(&m.command, Command::Join { .. })),
         "Bob should join after invite"
     );
 }
@@ -927,7 +972,8 @@ async fn test_join_banned() {
     bob.join("#test").await;
     let msgs = bob.recv_until_numeric(replies::RPL_ENDOFNAMES).await;
     assert!(
-        msgs.iter().any(|m| matches!(&m.command, Command::Join { .. })),
+        msgs.iter()
+            .any(|m| matches!(&m.command, Command::Join { .. })),
         "Bob should join with exception"
     );
 }
@@ -1080,9 +1126,9 @@ async fn test_names_list() {
     let msgs = alice.recv_until_numeric(replies::RPL_ENDOFNAMES).await;
 
     // Check names reply has @alice and +bob
-    let names_msg = msgs.iter().find(|m| {
-        matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_NAMREPLY)
-    });
+    let names_msg = msgs.iter().find(
+        |m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_NAMREPLY),
+    );
     assert!(names_msg.is_some(), "Should have names reply");
     if let Some(msg) = names_msg {
         if let Command::Numeric { params, .. } = &msg.command {
@@ -1118,7 +1164,9 @@ async fn test_list_channels() {
     // Should have RPL_LIST (322) for each channel
     let list_entries: Vec<_> = msgs
         .iter()
-        .filter(|m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_LIST))
+        .filter(
+            |m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_LIST),
+        )
         .collect();
 
     assert!(list_entries.len() >= 2, "Should list at least 2 channels");
@@ -1189,7 +1237,11 @@ async fn test_kick_user() {
     // Both should see KICK
     if let Some(msg) = alice.recv().await {
         match &msg.command {
-            Command::Kick { channel, users, comment } => {
+            Command::Kick {
+                channel,
+                users,
+                comment,
+            } => {
                 assert_eq!(channel, "#test");
                 assert!(users.contains(&"bob".to_string()));
                 assert_eq!(comment.as_deref(), Some("Bye!"));
@@ -1510,7 +1562,9 @@ async fn test_info_command() {
     // Should get RPL_INFO (371) lines ending with RPL_ENDOFINFO (374)
     let msgs = client.recv_until_numeric(replies::RPL_ENDOFINFO).await;
     assert!(
-        msgs.iter().any(|m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_INFO)),
+        msgs.iter().any(
+            |m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_INFO)
+        ),
         "Should have INFO lines"
     );
     assert!(
@@ -1569,7 +1623,10 @@ async fn test_who_channel() {
         .filter(|m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_WHOREPLY))
         .collect();
 
-    assert!(who_replies.len() >= 2, "Should have WHO replies for both users");
+    assert!(
+        who_replies.len() >= 2,
+        "Should have WHO replies for both users"
+    );
 }
 
 #[tokio::test]
@@ -1694,7 +1751,8 @@ async fn test_oper_wrong_password() {
     // This is the hash for "testpass" using argon2
     config.operators.push(irc_server::config::OperConfig {
         name: "admin".to_string(),
-        password_hash: "$argon2id$v=19$m=19456,t=2,p=1$testSALT1234$K9M3Kn9KvJKzYJ7F7vXdxQ".to_string(),
+        password_hash: "$argon2id$v=19$m=19456,t=2,p=1$testSALT1234$K9M3Kn9KvJKzYJ7F7vXdxQ"
+            .to_string(),
         host_mask: None,
     });
 
@@ -1819,7 +1877,10 @@ async fn test_isupport_required_tokens() {
     // Collect all ISUPPORT params
     let mut isupport_tokens: Vec<String> = Vec::new();
     for msg in &messages {
-        if let Command::Numeric { code: 5, params, .. } = &msg.command {
+        if let Command::Numeric {
+            code: 5, params, ..
+        } = &msg.command
+        {
             for param in params {
                 if param != "are supported by this server" {
                     isupport_tokens.push(param.clone());
@@ -1833,23 +1894,49 @@ async fn test_isupport_required_tokens() {
     // Required tokens per spec
     assert!(tokens_str.contains("NETWORK="), "Missing NETWORK token");
     assert!(tokens_str.contains("NICKLEN="), "Missing NICKLEN token");
-    assert!(tokens_str.contains("CHANNELLEN="), "Missing CHANNELLEN token");
-    assert!(tokens_str.contains("CASEMAPPING="), "Missing CASEMAPPING token");
+    assert!(
+        tokens_str.contains("CHANNELLEN="),
+        "Missing CHANNELLEN token"
+    );
+    assert!(
+        tokens_str.contains("CASEMAPPING="),
+        "Missing CASEMAPPING token"
+    );
     assert!(tokens_str.contains("CHANTYPES="), "Missing CHANTYPES token");
     assert!(tokens_str.contains("PREFIX="), "Missing PREFIX token");
     assert!(tokens_str.contains("CHANMODES="), "Missing CHANMODES token");
 
     // Verify CHANMODES format (A,B,C,D categories)
-    let chanmodes = isupport_tokens.iter().find(|t| t.starts_with("CHANMODES=")).unwrap();
-    let parts: Vec<&str> = chanmodes.strip_prefix("CHANMODES=").unwrap().split(',').collect();
-    assert_eq!(parts.len(), 4, "CHANMODES should have 4 categories (A,B,C,D)");
+    let chanmodes = isupport_tokens
+        .iter()
+        .find(|t| t.starts_with("CHANMODES="))
+        .unwrap();
+    let parts: Vec<&str> = chanmodes
+        .strip_prefix("CHANMODES=")
+        .unwrap()
+        .split(',')
+        .collect();
+    assert_eq!(
+        parts.len(),
+        4,
+        "CHANMODES should have 4 categories (A,B,C,D)"
+    );
     assert!(parts[0].contains('b'), "Type A should include ban mode 'b'");
     assert!(parts[1].contains('k'), "Type B should include key mode 'k'");
-    assert!(parts[2].contains('l'), "Type C should include limit mode 'l'");
+    assert!(
+        parts[2].contains('l'),
+        "Type C should include limit mode 'l'"
+    );
 
     // Verify PREFIX format (modes)prefixes
-    let prefix = isupport_tokens.iter().find(|t| t.starts_with("PREFIX=")).unwrap();
-    assert!(prefix.contains("(ov)@+") || prefix.contains("(o)@"), "PREFIX should define mode-to-prefix mapping");
+    let prefix = isupport_tokens
+        .iter()
+        .find(|t| t.starts_with("PREFIX="))
+        .unwrap();
+    assert!(
+        prefix.contains("(ov)@+") || prefix.contains("(o)@"),
+        "PREFIX should define mode-to-prefix mapping"
+    );
 }
 
 #[tokio::test]
@@ -1867,7 +1954,10 @@ async fn test_rpl_myinfo_format() {
         .expect("Should receive RPL_MYINFO");
 
     if let Command::Numeric { params, .. } = &myinfo.command {
-        assert!(params.len() >= 4, "RPL_MYINFO should have at least 4 params");
+        assert!(
+            params.len() >= 4,
+            "RPL_MYINFO should have at least 4 params"
+        );
         // params[0] = servername, [1] = version, [2] = user modes, [3] = channel modes
         let user_modes = &params[2];
         let channel_modes = &params[3];
@@ -1877,8 +1967,14 @@ async fn test_rpl_myinfo_format() {
         assert!(user_modes.contains('o'), "User modes should include 'o'");
 
         // Channel modes should include standard modes
-        assert!(channel_modes.contains('n'), "Channel modes should include 'n'");
-        assert!(channel_modes.contains('t'), "Channel modes should include 't'");
+        assert!(
+            channel_modes.contains('n'),
+            "Channel modes should include 'n'"
+        );
+        assert!(
+            channel_modes.contains('t'),
+            "Channel modes should include 't'"
+        );
     } else {
         panic!("Expected numeric command");
     }
@@ -1948,7 +2044,10 @@ async fn test_message_ids_on_privmsg() {
             "Should receive PRIVMSG"
         );
         assert!(
-            msg.tags.as_ref().map(|t| t.get("msgid").is_some()).unwrap_or(false),
+            msg.tags
+                .as_ref()
+                .map(|t| t.get("msgid").is_some())
+                .unwrap_or(false),
             "Message should have msgid tag"
         );
     } else {
@@ -2070,7 +2169,10 @@ async fn test_labeled_response() {
 
     // Check if any response has the label tag
     let has_label = response.iter().any(|m| {
-        m.tags.as_ref().map(|t| t.get("label") == Some("test-label-123")).unwrap_or(false)
+        m.tags
+            .as_ref()
+            .map(|t| t.get("label") == Some("test-label-123"))
+            .unwrap_or(false)
     });
 
     assert!(has_label, "Server should echo label tag on responses");
@@ -2135,13 +2237,23 @@ async fn test_whois_reply_sequence() {
         .collect();
 
     // Must have 311 (WHOISUSER)
-    assert!(codes.contains(&311), "WHOIS should include RPL_WHOISUSER (311)");
+    assert!(
+        codes.contains(&311),
+        "WHOIS should include RPL_WHOISUSER (311)"
+    );
     // Must end with 318 (ENDOFWHOIS)
-    assert_eq!(codes.last(), Some(&318), "WHOIS should end with RPL_ENDOFWHOIS (318)");
+    assert_eq!(
+        codes.last(),
+        Some(&318),
+        "WHOIS should end with RPL_ENDOFWHOIS (318)"
+    );
     // 311 should come before 318
     let pos_311 = codes.iter().position(|&c| c == 311).unwrap();
     let pos_318 = codes.iter().position(|&c| c == 318).unwrap();
-    assert!(pos_311 < pos_318, "RPL_WHOISUSER should come before RPL_ENDOFWHOIS");
+    assert!(
+        pos_311 < pos_318,
+        "RPL_WHOISUSER should come before RPL_ENDOFWHOIS"
+    );
 }
 
 #[tokio::test]
@@ -2163,11 +2275,15 @@ async fn test_channel_mode_query_response() {
     let messages = client.recv_until_numeric(replies::RPL_CREATIONTIME).await;
 
     assert!(
-        messages.iter().any(|m| matches!(&m.command, Command::Numeric { code: 324, .. })),
+        messages
+            .iter()
+            .any(|m| matches!(&m.command, Command::Numeric { code: 324, .. })),
         "Should receive RPL_CHANNELMODEIS"
     );
     assert!(
-        messages.iter().any(|m| matches!(&m.command, Command::Numeric { code: 329, .. })),
+        messages
+            .iter()
+            .any(|m| matches!(&m.command, Command::Numeric { code: 329, .. })),
         "Should receive RPL_CREATIONTIME"
     );
 }

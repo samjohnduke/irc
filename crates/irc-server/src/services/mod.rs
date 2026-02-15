@@ -23,11 +23,7 @@ pub fn is_service_nick(nick: &str) -> bool {
 /// Handle a message to a service.
 ///
 /// Returns Ok(true) if the message was handled by a service, Ok(false) otherwise.
-pub fn handle_service_message(
-    ctx: &HandlerContext,
-    target: &str,
-    message: &str,
-) -> Result<bool> {
+pub fn handle_service_message(ctx: &HandlerContext, target: &str, message: &str) -> Result<bool> {
     let target_upper = target.to_uppercase();
 
     // Parse command and arguments

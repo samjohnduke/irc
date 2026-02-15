@@ -115,7 +115,11 @@ pub fn remove_ban(conn: &PooledConnection, ban_type: BanType, mask: &str) -> Res
 }
 
 /// Find a specific ban.
-pub fn find_ban(conn: &PooledConnection, ban_type: BanType, mask: &str) -> Result<Option<ServerBan>> {
+pub fn find_ban(
+    conn: &PooledConnection,
+    ban_type: BanType,
+    mask: &str,
+) -> Result<Option<ServerBan>> {
     let mut stmt = conn
         .prepare(
             "SELECT id, ban_type, mask, reason, set_by, set_at, expires_at
@@ -152,7 +156,11 @@ pub fn list_bans(conn: &PooledConnection, ban_type: BanType) -> Result<Vec<Serve
 
 /// Check if a value matches any active ban of the given type.
 /// This does pattern matching for wildcards.
-pub fn is_banned(conn: &PooledConnection, ban_type: BanType, value: &str) -> Result<Option<ServerBan>> {
+pub fn is_banned(
+    conn: &PooledConnection,
+    ban_type: BanType,
+    value: &str,
+) -> Result<Option<ServerBan>> {
     let bans = list_bans(conn, ban_type)?;
     let now = Utc::now();
 
@@ -197,7 +205,10 @@ fn row_to_ban(row: &rusqlite::Row) -> rusqlite::Result<ServerBan> {
     let expires_at_ts: Option<i64> = row.get(6)?;
 
     let ban_type = BanType::parse(&ban_type_str).unwrap_or(BanType::Kline);
-    let set_at = Utc.timestamp_opt(set_at_ts, 0).single().unwrap_or_else(Utc::now);
+    let set_at = Utc
+        .timestamp_opt(set_at_ts, 0)
+        .single()
+        .unwrap_or_else(Utc::now);
     let expires_at = expires_at_ts.and_then(|ts| Utc.timestamp_opt(ts, 0).single());
 
     Ok(ServerBan {
@@ -263,7 +274,13 @@ mod tests {
 
     #[test]
     fn test_ban_type_roundtrip() {
-        assert_eq!(BanType::parse(BanType::Kline.as_str()), Some(BanType::Kline));
-        assert_eq!(BanType::parse(BanType::Zline.as_str()), Some(BanType::Zline));
+        assert_eq!(
+            BanType::parse(BanType::Kline.as_str()),
+            Some(BanType::Kline)
+        );
+        assert_eq!(
+            BanType::parse(BanType::Zline.as_str()),
+            Some(BanType::Zline)
+        );
     }
 }

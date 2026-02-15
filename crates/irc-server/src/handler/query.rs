@@ -20,7 +20,10 @@ pub fn handle_who(ctx: &HandlerContext, mask: &str, operators_only: bool) -> Res
             let is_member = channel.is_member(ctx.client.id);
             if channel.modes.secret && !is_member {
                 // Don't show secret channel members to non-members
-                ctx.reply(RPL_ENDOFWHO, vec![mask.to_string(), "End of /WHO list.".into()])?;
+                ctx.reply(
+                    RPL_ENDOFWHO,
+                    vec![mask.to_string(), "End of /WHO list.".into()],
+                )?;
                 return Ok(());
             }
 
@@ -89,7 +92,11 @@ pub fn handle_who(ctx: &HandlerContext, mask: &str, operators_only: bool) -> Res
 
             // Check if user matches the mask
             let hostmask = format!("{}!{}@{}", nick, user, host);
-            if mask != "*" && mask != "0" && !matches_mask(mask, &hostmask) && !matches_mask(mask, &nick) {
+            if mask != "*"
+                && mask != "0"
+                && !matches_mask(mask, &hostmask)
+                && !matches_mask(mask, &nick)
+            {
                 continue;
             }
 
@@ -99,9 +106,9 @@ pub fn handle_who(ctx: &HandlerContext, mask: &str, operators_only: bool) -> Res
                 // Check if we share a channel with them
                 let our_channels = ctx.client.channel_names()?;
                 let their_channels = client.channel_names()?;
-                let shares_channel = our_channels.iter().any(|c| {
-                    their_channels.iter().any(|tc| tc.eq_ignore_ascii_case(c))
-                });
+                let shares_channel = our_channels
+                    .iter()
+                    .any(|c| their_channels.iter().any(|tc| tc.eq_ignore_ascii_case(c)));
                 if !shares_channel {
                     continue;
                 }
@@ -130,7 +137,10 @@ pub fn handle_who(ctx: &HandlerContext, mask: &str, operators_only: bool) -> Res
     }
 
     // 315 RPL_ENDOFWHO
-    ctx.reply(RPL_ENDOFWHO, vec![mask.to_string(), "End of /WHO list.".into()])?;
+    ctx.reply(
+        RPL_ENDOFWHO,
+        vec![mask.to_string(), "End of /WHO list.".into()],
+    )?;
 
     Ok(())
 }
@@ -150,13 +160,7 @@ pub fn handle_whois(ctx: &HandlerContext, nicknames: &[String]) -> Result<()> {
             // <nick> <user> <host> * :<real name>
             ctx.reply(
                 RPL_WHOISUSER,
-                vec![
-                    target_nick.clone(),
-                    user,
-                    host,
-                    "*".into(),
-                    realname,
-                ],
+                vec![target_nick.clone(), user, host, "*".into(), realname],
             )?;
 
             // 312 RPL_WHOISSERVER
@@ -181,10 +185,7 @@ pub fn handle_whois(ctx: &HandlerContext, nicknames: &[String]) -> Result<()> {
 
             // 335 RPL_WHOISBOT (if bot mode is set)
             if modes.bot {
-                ctx.reply(
-                    RPL_WHOISBOT,
-                    vec![target_nick.clone(), "is a Bot".into()],
-                )?;
+                ctx.reply(RPL_WHOISBOT, vec![target_nick.clone(), "is a Bot".into()])?;
             }
             drop(modes);
 
@@ -238,10 +239,7 @@ pub fn handle_whois(ctx: &HandlerContext, nicknames: &[String]) -> Result<()> {
 
             // 301 RPL_AWAY (if away)
             if let Some(away_msg) = target.away_message()? {
-                ctx.reply(
-                    RPL_AWAY,
-                    vec![target_nick.clone(), away_msg],
-                )?;
+                ctx.reply(RPL_AWAY, vec![target_nick.clone(), away_msg])?;
             }
 
             // 318 RPL_ENDOFWHOIS

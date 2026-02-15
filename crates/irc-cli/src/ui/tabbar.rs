@@ -49,7 +49,10 @@ impl Widget for TabBarWidget<'_> {
             spans.push(Span::styled(format!("{}", i + 1), num_style));
 
             // Separator
-            spans.push(Span::styled(":", Style::default().fg(Color::Rgb(60, 60, 70))));
+            spans.push(Span::styled(
+                ":",
+                Style::default().fg(Color::Rgb(60, 60, 70)),
+            ));
 
             // Buffer name with styling
             let name = if buffer.name.len() > 12 {
@@ -67,20 +70,24 @@ impl Widget for TabBarWidget<'_> {
                     .fg(Color::Rgb(255, 100, 100))
                     .add_modifier(Modifier::BOLD)
             } else if has_unread {
-                Style::default()
-                    .fg(Color::Rgb(100, 180, 255))
+                Style::default().fg(Color::Rgb(100, 180, 255))
             } else {
-                Style::default()
-                    .fg(Color::Rgb(140, 140, 150))
+                Style::default().fg(Color::Rgb(140, 140, 150))
             };
 
             spans.push(Span::styled(name, name_style));
 
             // Activity indicator
             if has_highlight {
-                spans.push(Span::styled("*", Style::default().fg(Color::Rgb(255, 100, 100))));
+                spans.push(Span::styled(
+                    "*",
+                    Style::default().fg(Color::Rgb(255, 100, 100)),
+                ));
             } else if has_unread {
-                spans.push(Span::styled("+", Style::default().fg(Color::Rgb(100, 180, 255))));
+                spans.push(Span::styled(
+                    "+",
+                    Style::default().fg(Color::Rgb(100, 180, 255)),
+                ));
             }
 
             // Spacer between tabs

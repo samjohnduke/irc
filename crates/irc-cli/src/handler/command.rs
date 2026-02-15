@@ -10,35 +10,22 @@ pub enum Command {
     },
 
     /// /part [message]
-    Part {
-        message: Option<String>,
-    },
+    Part { message: Option<String> },
 
     /// /msg nick text
-    Msg {
-        target: String,
-        text: String,
-    },
+    Msg { target: String, text: String },
 
     /// /me action
-    Me {
-        text: String,
-    },
+    Me { text: String },
 
     /// /nick newnick
-    Nick {
-        nick: String,
-    },
+    Nick { nick: String },
 
     /// /quit [message]
-    Quit {
-        message: Option<String>,
-    },
+    Quit { message: Option<String> },
 
     /// /topic [text]
-    Topic {
-        text: Option<String>,
-    },
+    Topic { text: Option<String> },
 
     /// /kick nick [reason]
     Kick {
@@ -47,14 +34,10 @@ pub enum Command {
     },
 
     /// /invite nick
-    Invite {
-        nick: String,
-    },
+    Invite { nick: String },
 
     /// /away [message]
-    Away {
-        message: Option<String>,
-    },
+    Away { message: Option<String> },
 
     /// /clear - Clear current buffer
     Clear,
@@ -63,24 +46,16 @@ pub enum Command {
     Close,
 
     /// /query nick - Open query with nick
-    Query {
-        nick: String,
-    },
+    Query { nick: String },
 
     /// /history [count] - Request chat history
-    History {
-        count: Option<usize>,
-    },
+    History { count: Option<usize> },
 
     /// /raw command - Send raw IRC command
-    Raw {
-        text: String,
-    },
+    Raw { text: String },
 
     /// /help [topic]
-    Help {
-        topic: Option<String>,
-    },
+    Help { topic: Option<String> },
 
     /// /reconnect - Manual reconnect
     Reconnect,
@@ -89,17 +64,13 @@ pub enum Command {
     Disconnect,
 
     /// /list [filter] - List channels (with optional filter)
-    List {
-        filter: Option<String>,
-    },
+    List { filter: Option<String> },
 
     /// /joinpart - Toggle join/part message visibility
     JoinPart,
 
     /// Regular message (not a command)
-    Message {
-        text: String,
-    },
+    Message { text: String },
 }
 
 /// Parse user input into a command.

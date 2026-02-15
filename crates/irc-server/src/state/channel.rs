@@ -290,17 +290,23 @@ impl Channel {
 
     /// Check if a hostmask is banned.
     pub fn is_banned(&self, hostmask: &str) -> bool {
-        self.bans.iter().any(|entry| matches_mask(&entry.mask, hostmask))
+        self.bans
+            .iter()
+            .any(|entry| matches_mask(&entry.mask, hostmask))
     }
 
     /// Check if a hostmask has a ban exception.
     pub fn has_exception(&self, hostmask: &str) -> bool {
-        self.exceptions.iter().any(|entry| matches_mask(&entry.mask, hostmask))
+        self.exceptions
+            .iter()
+            .any(|entry| matches_mask(&entry.mask, hostmask))
     }
 
     /// Check if a hostmask has an invite exception.
     pub fn has_invite_exception(&self, hostmask: &str) -> bool {
-        self.invites.iter().any(|entry| matches_mask(&entry.mask, hostmask))
+        self.invites
+            .iter()
+            .any(|entry| matches_mask(&entry.mask, hostmask))
     }
 
     /// Get all member IDs.
@@ -442,8 +448,14 @@ mod tests {
 
     #[test]
     fn test_matches_mask_combined() {
-        assert!(matches_mask("*!*@*.example.com", "nick!user@foo.example.com"));
-        assert!(matches_mask("*!*@*.example.com", "nick!user@bar.example.com"));
+        assert!(matches_mask(
+            "*!*@*.example.com",
+            "nick!user@foo.example.com"
+        ));
+        assert!(matches_mask(
+            "*!*@*.example.com",
+            "nick!user@bar.example.com"
+        ));
         assert!(!matches_mask("*!*@*.example.com", "nick!user@example.org"));
     }
 

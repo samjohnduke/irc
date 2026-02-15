@@ -1,7 +1,7 @@
 //! Registration command handlers (PASS, NICK, USER, QUIT).
 
 use chrono::Utc;
-use irc_proto::{errors::*, Command, Message};
+use irc_proto::{Command, Message, errors::*};
 
 use super::HandlerContext;
 use crate::error::{Error, Result};
@@ -143,8 +143,7 @@ pub fn handle_user(ctx: &HandlerContext, username: &str, realname: &str) -> Resu
         clean_username
     };
 
-    ctx.client
-        .set_user(clean_username, realname.to_string())?;
+    ctx.client.set_user(clean_username, realname.to_string())?;
     ctx.client.got_user()?;
 
     // Check if registration is now complete
@@ -212,7 +211,11 @@ pub fn handle_quit(ctx: &HandlerContext, message: Option<&str>) -> Result<()> {
     // Send ERROR message to client before disconnecting
     let error_msg = Message::new(Command::Unknown {
         command: "ERROR".into(),
-        params: vec![format!("Closing Link: {} ({})", ctx.client.hostname()?, quit_msg)],
+        params: vec![format!(
+            "Closing Link: {} ({})",
+            ctx.client.hostname()?,
+            quit_msg
+        )],
     });
     // Ignore send errors - client is quitting anyway
     let _ = ctx.client.send(error_msg);

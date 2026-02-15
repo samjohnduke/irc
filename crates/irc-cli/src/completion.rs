@@ -51,7 +51,13 @@ impl CompletionState {
     }
 
     /// Start a new completion with the given candidates.
-    pub fn start(&mut self, prefix: String, start_pos: usize, end_pos: usize, candidates: Vec<String>) {
+    pub fn start(
+        &mut self,
+        prefix: String,
+        start_pos: usize,
+        end_pos: usize,
+        candidates: Vec<String>,
+    ) {
         if candidates.is_empty() {
             self.reset();
             return;
@@ -177,9 +183,7 @@ pub fn get_candidates(prefix: &str, context: &CompletionContext) -> Vec<String> 
         .collect();
 
     // Sort by length (shorter first) then alphabetically
-    candidates.sort_by(|a, b| {
-        a.len().cmp(&b.len()).then_with(|| a.cmp(b))
-    });
+    candidates.sort_by(|a, b| a.len().cmp(&b.len()).then_with(|| a.cmp(b)));
 
     candidates
 }
