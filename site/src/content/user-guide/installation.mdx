@@ -10,7 +10,7 @@ section: Getting Started
 The recommended way to install is with the install script:
 
 ```sh
-curl -sSf https://irc.example.com/install.sh | sh
+curl -sSf https://raw.githubusercontent.com/samjohnduke/irc/main/install.sh | sh
 ```
 
 The script detects your OS and architecture, downloads the latest release from GitHub, and installs all three binaries to `/usr/local/bin`.
@@ -18,12 +18,12 @@ The script detects your OS and architecture, downloads the latest release from G
 To install to a custom directory:
 
 ```sh
-IRC_INSTALL_DIR=~/.local/bin curl -sSf https://irc.example.com/install.sh | sh
+IRC_INSTALL_DIR=~/.local/bin curl -sSf https://raw.githubusercontent.com/samjohnduke/irc/main/install.sh | sh
 ```
 
 ## Download Binaries
 
-Pre-built binaries are available on the [GitHub releases page](https://github.com/example/irc/releases).
+Pre-built binaries are available on the [GitHub releases page](https://github.com/samjohnduke/irc/releases).
 
 Table of platforms and binaries:
 
@@ -47,7 +47,7 @@ sudo mv irc-server-linux-x86_64 /usr/local/bin/irc-server
 You'll need [Rust](https://www.rust-lang.org/tools/install) 1.85 or later.
 
 ```sh
-git clone https://github.com/example/irc.git
+git clone https://github.com/samjohnduke/irc.git
 cd irc
 cargo build --release
 ```

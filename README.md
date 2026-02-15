@@ -56,11 +56,29 @@ irc/
 
 5. **Readable code.** Clear over clever. Good names. Useful comments where behavior isn't obvious.
 
+## Installation
+
+**Quick install:**
+
+```sh
+curl -sSf https://raw.githubusercontent.com/samjohnduke/irc/main/install.sh | sh
+```
+
+**Or download binaries** from the [releases page](https://github.com/samjohnduke/irc/releases).
+
+**Build from source:**
+
+```sh
+git clone https://github.com/samjohnduke/irc.git
+cd irc
+cargo build --release
+```
+
 ## Status
 
-**Phase: Design**
+**Phase: Active Development**
 
-We're currently documenting the architecture and API design for each crate before writing implementation code.
+The core protocol implementation is complete. We're currently polishing the CLI client UI.
 
 ## Documentation
 
@@ -84,4 +102,4 @@ See the `docs/` directory for detailed design documents:
 
 ## License
 
-TBD
+Licensed under MIT OR Apache-2.0
