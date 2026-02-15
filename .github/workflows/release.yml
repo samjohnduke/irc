@@ -111,6 +111,9 @@ jobs:
       - name: List artifacts
         run: ls -la artifacts/
 
+      - name: Copy install script
+        run: cp install.sh artifacts/
+
       - name: Generate checksums
         working-directory: artifacts
         run: |
