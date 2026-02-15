@@ -1,5 +1,6 @@
 //! Messages display widget.
 
+use chrono::Duration;
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
@@ -8,8 +9,11 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
 
-use crate::state::{message::MessageKind, Buffer as IrcBuffer};
+use crate::state::{message::MessageKind, Buffer as IrcBuffer, DisplayMessage};
 use crate::style::{format_timestamp, nick_color, Theme};
+
+/// Time window for grouping consecutive messages from the same user (5 minutes).
+const MESSAGE_GROUP_WINDOW_SECS: i64 = 300;
 
 /// Widget for displaying messages in a buffer.
 pub struct MessagesWidget<'a> {
@@ -22,7 +26,53 @@ impl<'a> MessagesWidget<'a> {
         Self { buffer, theme }
     }
 
-    fn format_message(&self, msg: &crate::state::DisplayMessage) -> Line<'static> {
+    /// Check if the current message should be grouped with the previous one.
+    /// Returns the nick of the previous message if they should be grouped.
+    fn should_group_with_previous(
+        &self,
+        msg: &DisplayMessage,
+        prev_msg: Option<&DisplayMessage>,
+    ) -> bool {
+        let Some(prev) = prev_msg else {
+            return false;
+        };
+
+        // Only group Privmsg messages (not actions, joins, etc.)
+        let (MessageKind::Privmsg { nick: curr_nick, .. }, MessageKind::Privmsg { nick: prev_nick, .. }) =
+            (&msg.kind, &prev.kind)
+        else {
+            return false;
+        };
+
+        // Same user?
+        if !curr_nick.eq_ignore_ascii_case(prev_nick) {
+            return false;
+        }
+
+        // Within time window?
+        let time_diff = msg.time.signed_duration_since(prev.time);
+        time_diff >= Duration::zero() && time_diff < Duration::seconds(MESSAGE_GROUP_WINDOW_SECS)
+    }
+
+    /// Format a message as a continuation (no timestamp/nick header).
+    fn format_continuation(&self, text: &str) -> Line<'static> {
+        // Indent to align with message text after "[HH:MM] <nick> "
+        // Timestamp is 6 chars "[HH:MM] " + indent for alignment
+        let indent = "        ";
+        Line::from(vec![
+            Span::styled(indent.to_string(), Style::default()),
+            Span::styled(text.to_string(), self.theme.message_style()),
+        ])
+    }
+
+    fn format_message(&self, msg: &DisplayMessage, is_continuation: bool) -> Line<'static> {
+        // Handle continuation messages (grouped)
+        if is_continuation {
+            if let MessageKind::Privmsg { text, .. } = &msg.kind {
+                return self.format_continuation(text);
+            }
+        }
+
         let time_str = format_timestamp(&msg.time);
         let time_span = Span::styled(
             format!("{} ", time_str),
@@ -226,6 +276,58 @@ impl<'a> MessagesWidget<'a> {
                     ),
                 ])
             }
+
+            MessageKind::AggregatedJoin { nicks } => {
+                let count = nicks.len();
+                let nicks_str = if count <= 3 {
+                    nicks.join(", ")
+                } else {
+                    format!("{} and {} others", nicks[..3].join(", "), count - 3)
+                };
+                Line::from(vec![
+                    time_span,
+                    Span::styled("→ ", Style::default().fg(Color::Rgb(100, 200, 100))),
+                    Span::styled(
+                        format!(
+                            "{} user{} joined: ",
+                            count,
+                            if count == 1 { "" } else { "s" }
+                        ),
+                        Style::default().fg(Color::Rgb(100, 160, 100)),
+                    ),
+                    Span::styled(
+                        nicks_str,
+                        Style::default().fg(Color::Rgb(140, 200, 140)),
+                    ),
+                ])
+            }
+
+            MessageKind::AggregatedPart { nicks, is_quit } => {
+                let count = nicks.len();
+                let nicks_str = if count <= 3 {
+                    nicks.join(", ")
+                } else {
+                    format!("{} and {} others", nicks[..3].join(", "), count - 3)
+                };
+                let action = if *is_quit { "quit" } else { "left" };
+                Line::from(vec![
+                    time_span,
+                    Span::styled("← ", Style::default().fg(Color::Rgb(200, 100, 100))),
+                    Span::styled(
+                        format!(
+                            "{} user{} {}: ",
+                            count,
+                            if count == 1 { "" } else { "s" },
+                            action
+                        ),
+                        Style::default().fg(Color::Rgb(160, 100, 100)),
+                    ),
+                    Span::styled(
+                        nicks_str,
+                        Style::default().fg(Color::Rgb(180, 120, 120)),
+                    ),
+                ])
+            }
         }
     }
 }
@@ -252,9 +354,24 @@ impl Widget for MessagesWidget<'_> {
         let start = total.saturating_sub(visible_height + scroll_offset);
         let end = total.saturating_sub(scroll_offset);
 
-        let lines: Vec<Line> = messages[start..end]
+        // Format messages with grouping
+        let visible_messages = &messages[start..end];
+        let lines: Vec<Line> = visible_messages
             .iter()
-            .map(|m| self.format_message(m))
+            .enumerate()
+            .map(|(i, msg)| {
+                // Get the previous message in the visible range, or from before if this is first visible
+                let prev_msg = if i > 0 {
+                    Some(visible_messages[i - 1])
+                } else if start > 0 {
+                    // First visible message - check against message before visible range
+                    Some(messages[start - 1])
+                } else {
+                    None
+                };
+                let is_continuation = self.should_group_with_previous(msg, prev_msg);
+                self.format_message(msg, is_continuation)
+            })
             .collect();
 
         // Title with buffer name
@@ -293,6 +410,36 @@ impl Widget for MessagesWidget<'_> {
             buf[(x, border_y)].set_char('─');
             buf[(x, border_y)].set_fg(self.theme.border);
             buf[(x, border_y)].set_bg(bg);
+        }
+
+        // Draw "N new messages" indicator when scrolled up and have new messages
+        if self.buffer.new_messages_while_scrolled > 0 && !self.buffer.is_at_bottom() {
+            let new_count = self.buffer.new_messages_while_scrolled;
+            let indicator_text = if new_count == 1 {
+                " ↓ 1 new message ".to_string()
+            } else {
+                format!(" ↓ {} new messages ", new_count)
+            };
+
+            let indicator_width = indicator_text.len() as u16;
+            let indicator_x = area.x + (area.width.saturating_sub(indicator_width)) / 2;
+            let indicator_y = area.y + area.height.saturating_sub(1);
+
+            // Only draw if we have space
+            if indicator_y > area.y && indicator_x + indicator_width <= area.x + area.width {
+                let indicator_style = Style::default()
+                    .fg(Color::Rgb(255, 255, 255))
+                    .bg(Color::Rgb(80, 100, 140))
+                    .add_modifier(Modifier::BOLD);
+
+                for (i, c) in indicator_text.chars().enumerate() {
+                    let x = indicator_x + i as u16;
+                    if x < area.x + area.width {
+                        buf[(x, indicator_y)].set_char(c);
+                        buf[(x, indicator_y)].set_style(indicator_style);
+                    }
+                }
+            }
         }
     }
 }

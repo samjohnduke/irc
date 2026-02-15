@@ -198,6 +198,12 @@ impl Client {
         self.connected
     }
 
+    /// Get enabled IRCv3 capabilities.
+    pub async fn capabilities(&self) -> Vec<String> {
+        let state = self.state.read().await;
+        state.caps().enabled_caps().map(|s| s.to_string()).collect()
+    }
+
     /// Send a raw IRC message.
     pub async fn send_raw(&self, msg: Message) -> Result<(), Error> {
         if let Some(ref tx) = self.command_tx {

@@ -42,7 +42,8 @@
       "WebFetch(domain:getstream.io)",
       "WebFetch(domain:ratatui.rs)",
       "WebFetch(domain:blog.orhun.dev)",
-      "WebFetch(domain:wiki.archlinux.org)"
+      "WebFetch(domain:wiki.archlinux.org)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

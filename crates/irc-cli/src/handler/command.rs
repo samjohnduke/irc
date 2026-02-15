@@ -93,6 +93,9 @@ pub enum Command {
         filter: Option<String>,
     },
 
+    /// /joinpart - Toggle join/part message visibility
+    JoinPart,
+
     /// Regular message (not a command)
     Message {
         text: String,
@@ -271,6 +274,8 @@ pub fn parse_command(input: &str) -> Command {
             },
         },
 
+        "joinpart" | "jp" => Command::JoinPart,
+
         _ => {
             // Unknown command - try to send as raw
             Command::Raw {
@@ -297,11 +302,12 @@ pub fn command_help(topic: Option<&str>) -> &'static str {
         Some("close") => "/close - Close the current buffer",
         Some("history") => "/history [count] - Request chat history",
         Some("raw") => "/raw <command> - Send a raw IRC command",
+        Some("joinpart") => "/joinpart - Toggle visibility of join/part/quit messages",
         _ => concat!(
             "Available commands:\n",
             "  /join, /part, /msg, /me, /nick, /quit, /topic\n",
             "  /kick, /invite, /away, /clear, /close, /history\n",
-            "  /raw, /help\n",
+            "  /raw, /joinpart, /help\n",
             "\n",
             "Keyboard shortcuts:\n",
             "  Ctrl+N / Alt+Down - Next buffer\n",

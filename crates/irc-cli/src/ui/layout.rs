@@ -9,6 +9,7 @@ use ratatui::{
     Frame,
 };
 
+use crate::handler::input::InputMode;
 use crate::state::BufferList;
 use crate::style::Theme;
 use crate::ui::input::InputState;
@@ -16,6 +17,14 @@ use crate::ui::messages::MessagesWidget;
 use crate::ui::sidebar::SidebarWidget;
 use crate::ui::statusbar::StatusbarWidget;
 use crate::ui::userlist::{ChannelUser, EmptyUserListWidget, UserListWidget};
+
+/// Search state for rendering.
+pub struct SearchRenderState {
+    pub active: bool,
+    pub query: String,
+    pub current_match: usize,
+    pub total_matches: usize,
+}
 
 /// Layout configuration.
 pub struct LayoutConfig {
@@ -41,6 +50,7 @@ impl Default for LayoutConfig {
 }
 
 /// Draw the complete UI layout.
+#[allow(dead_code)]
 pub fn draw_layout(
     frame: &mut Frame,
     buffers: &BufferList,
@@ -50,6 +60,33 @@ pub fn draw_layout(
     theme: &Theme,
     config: &LayoutConfig,
     channel_users: &[ChannelUser],
+) {
+    draw_layout_with_mode(
+        frame,
+        buffers,
+        input,
+        nick,
+        connected,
+        theme,
+        config,
+        channel_users,
+        InputMode::Insert,
+        None,
+    )
+}
+
+/// Draw the complete UI layout with vim mode and search state.
+pub fn draw_layout_with_mode(
+    frame: &mut Frame,
+    buffers: &BufferList,
+    input: &InputState,
+    nick: &str,
+    connected: bool,
+    theme: &Theme,
+    config: &LayoutConfig,
+    channel_users: &[ChannelUser],
+    input_mode: InputMode,
+    search: Option<&SearchRenderState>,
 ) {
     let area = frame.area();
 
@@ -148,16 +185,18 @@ pub fn draw_layout(
 
     // Input area with border
     let input_area = vertical[slot];
-    draw_input_area(frame, input, nick, theme, input_area);
+    draw_input_area_with_mode(frame, input, nick, theme, input_area, input_mode, search);
 }
 
 /// Draw the input area with a nice border and prompt.
-fn draw_input_area(
+fn draw_input_area_with_mode(
     frame: &mut Frame,
     input: &InputState,
     nick: &str,
     theme: &Theme,
     area: Rect,
+    input_mode: InputMode,
+    search: Option<&SearchRenderState>,
 ) {
     // Input background (slightly lighter)
     let input_bg = Color::Rgb(30, 32, 42);
@@ -180,20 +219,71 @@ fn draw_input_area(
         }
     }
 
-    // Create prompt with nick
-    let prompt_text = format!("[{}] ", nick);
-    let prompt_style = Style::default()
-        .fg(theme.accent)
-        .add_modifier(Modifier::BOLD);
+    // Mode indicator for vim-style navigation
+    let (mode_indicator, mode_style) = match input_mode {
+        InputMode::Insert => ("", Style::default()),
+        InputMode::Normal => (
+            "[N] ",
+            Style::default()
+                .fg(Color::Rgb(255, 200, 100))
+                .add_modifier(Modifier::BOLD),
+        ),
+        InputMode::Search => (
+            "[/] ",
+            Style::default()
+                .fg(Color::Rgb(100, 200, 255))
+                .add_modifier(Modifier::BOLD),
+        ),
+    };
+
+    // Create prompt with nick (or search indicator)
+    let (prompt_text, prompt_style, display_text) = if let Some(search_state) = search {
+        if search_state.active {
+            let search_info = if search_state.total_matches > 0 {
+                format!(" [{}/{}]", search_state.current_match + 1, search_state.total_matches)
+            } else if !search_state.query.is_empty() {
+                " [no match]".to_string()
+            } else {
+                String::new()
+            };
+            (
+                "/".to_string(),
+                Style::default()
+                    .fg(Color::Rgb(100, 200, 255))
+                    .add_modifier(Modifier::BOLD),
+                format!("{}{}", search_state.query, search_info),
+            )
+        } else {
+            (
+                format!("[{}] ", nick),
+                Style::default()
+                    .fg(theme.accent)
+                    .add_modifier(Modifier::BOLD),
+                input.text.clone(),
+            )
+        }
+    } else {
+        (
+            format!("[{}] ", nick),
+            Style::default()
+                .fg(theme.accent)
+                .add_modifier(Modifier::BOLD),
+            input.text.clone(),
+        )
+    };
 
     // Input text style
     let text_style = Style::default().fg(theme.fg);
 
     // Build the line
-    let prompt_span = Span::styled(&prompt_text, prompt_style);
-    let text_span = Span::styled(&input.text, text_style);
+    let mut spans = vec![];
+    if !mode_indicator.is_empty() {
+        spans.push(Span::styled(mode_indicator, mode_style));
+    }
+    spans.push(Span::styled(&prompt_text, prompt_style));
+    spans.push(Span::styled(&display_text, text_style));
 
-    let line = Line::from(vec![prompt_span.clone(), text_span]);
+    let line = Line::from(spans);
 
     // Render on the first line of inner area
     if inner.height > 0 {

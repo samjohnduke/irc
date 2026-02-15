@@ -4,11 +4,18 @@
 //! and the server buffer.
 
 use std::collections::VecDeque;
+use std::time::Instant;
 
 use super::message::DisplayMessage;
 
 /// Maximum messages to keep in a buffer.
 const MAX_BUFFER_MESSAGES: usize = 1000;
+
+/// Number of lines from bottom to consider "at bottom" for auto-scroll.
+const AUTO_SCROLL_THRESHOLD: usize = 3;
+
+/// Time window for aggregating join/part events (30 seconds).
+const JOIN_PART_AGGREGATE_WINDOW_MS: u128 = 30_000;
 
 /// A message buffer (channel, query, or server).
 #[derive(Debug)]
@@ -33,6 +40,19 @@ pub struct Buffer {
 
     /// Channel topic (if channel).
     pub topic: Option<String>,
+
+    /// Number of new messages that arrived while scrolled up.
+    /// Reset when scrolling to bottom.
+    pub new_messages_while_scrolled: usize,
+
+    /// Pending join events for aggregation.
+    pending_joins: Vec<String>,
+
+    /// Pending part/quit events for aggregation.
+    pending_parts: Vec<(String, bool)>, // (nick, is_quit)
+
+    /// Time when first pending event was added.
+    pending_events_start: Option<Instant>,
 }
 
 /// Buffer type.
@@ -57,6 +77,10 @@ impl Buffer {
             unread_count: 0,
             has_highlight: false,
             topic: None,
+            new_messages_while_scrolled: 0,
+            pending_joins: Vec::new(),
+            pending_parts: Vec::new(),
+            pending_events_start: None,
         }
     }
 
@@ -66,29 +90,34 @@ impl Buffer {
     }
 
 
+    /// Check if we're at or near the bottom (within threshold for auto-scroll).
+    pub fn is_at_bottom(&self) -> bool {
+        self.scroll_offset <= AUTO_SCROLL_THRESHOLD
+    }
+
     /// Add a message to the buffer.
     pub fn add_message(&mut self, msg: DisplayMessage) {
-        // Check for duplicate by msgid
-        if let Some(ref msgid) = msg.msgid {
-            if self.messages.iter().any(|m| m.msgid.as_ref() == Some(msgid)) {
-                return;
+        // Check for expired pending events first
+        self.check_pending_events();
+
+        // Handle join/part/quit aggregation for channel buffers
+        if self.kind == BufferKind::Channel {
+            if let Some(nick) = msg.join_part_nick() {
+                let nick = nick.to_string();
+                if msg.is_join() {
+                    self.add_join(nick);
+                    return;
+                } else {
+                    self.add_part(nick, msg.is_quit());
+                    return;
+                }
             }
         }
 
-        // If we're scrolled, keep the scroll position stable
-        if self.scroll_offset > 0 {
-            self.scroll_offset += 1;
-        }
+        // Non-join/part message: flush any pending events first
+        self.flush_pending_events();
 
-        self.messages.push_back(msg);
-
-        // Trim old messages
-        while self.messages.len() > MAX_BUFFER_MESSAGES {
-            self.messages.pop_front();
-            if self.scroll_offset > 0 {
-                self.scroll_offset = self.scroll_offset.saturating_sub(1);
-            }
-        }
+        self.add_message_internal(msg);
     }
 
     /// Add a message and increment unread count.
@@ -143,6 +172,7 @@ impl Buffer {
     /// Scroll to bottom.
     pub fn scroll_to_bottom(&mut self) {
         self.scroll_offset = 0;
+        self.new_messages_while_scrolled = 0;
     }
 
     /// Get display name for the buffer.
@@ -164,6 +194,106 @@ impl Buffer {
     /// Set the topic.
     pub fn set_topic(&mut self, topic: Option<String>) {
         self.topic = topic;
+    }
+
+    /// Flush any pending join/part events as aggregated messages.
+    pub fn flush_pending_events(&mut self) {
+        if self.pending_joins.is_empty() && self.pending_parts.is_empty() {
+            return;
+        }
+
+        // Flush joins
+        if !self.pending_joins.is_empty() {
+            let nicks = std::mem::take(&mut self.pending_joins);
+            let msg = DisplayMessage::aggregated_join(nicks);
+            self.add_message_internal(msg);
+        }
+
+        // Flush parts (separate quit and part)
+        if !self.pending_parts.is_empty() {
+            let events = std::mem::take(&mut self.pending_parts);
+
+            // Group by quit vs part
+            let (quits, parts): (Vec<_>, Vec<_>) = events.into_iter().partition(|(_, is_quit)| *is_quit);
+
+            if !parts.is_empty() {
+                let nicks: Vec<String> = parts.into_iter().map(|(nick, _)| nick).collect();
+                let msg = DisplayMessage::aggregated_part(nicks, false);
+                self.add_message_internal(msg);
+            }
+
+            if !quits.is_empty() {
+                let nicks: Vec<String> = quits.into_iter().map(|(nick, _)| nick).collect();
+                let msg = DisplayMessage::aggregated_part(nicks, true);
+                self.add_message_internal(msg);
+            }
+        }
+
+        self.pending_events_start = None;
+    }
+
+    /// Check if pending events window has expired and flush if needed.
+    pub fn check_pending_events(&mut self) {
+        if let Some(start) = self.pending_events_start {
+            if start.elapsed().as_millis() >= JOIN_PART_AGGREGATE_WINDOW_MS {
+                self.flush_pending_events();
+            }
+        }
+    }
+
+    /// Add a join event, aggregating if appropriate.
+    pub fn add_join(&mut self, nick: String) {
+        self.check_pending_events();
+
+        if self.pending_events_start.is_none() {
+            self.pending_events_start = Some(Instant::now());
+        }
+
+        self.pending_joins.push(nick);
+    }
+
+    /// Add a part event, aggregating if appropriate.
+    pub fn add_part(&mut self, nick: String, is_quit: bool) {
+        self.check_pending_events();
+
+        if self.pending_events_start.is_none() {
+            self.pending_events_start = Some(Instant::now());
+        }
+
+        self.pending_parts.push((nick, is_quit));
+    }
+
+    /// Internal method to add a message without join/part handling.
+    fn add_message_internal(&mut self, msg: DisplayMessage) {
+        // Check for duplicate by msgid
+        if let Some(ref msgid) = msg.msgid {
+            if self.messages.iter().any(|m| m.msgid.as_ref() == Some(msgid)) {
+                return;
+            }
+        }
+
+        // Track if we're scrolled up before adding
+        let was_scrolled_up = self.scroll_offset > AUTO_SCROLL_THRESHOLD;
+
+        // If we're scrolled, keep the scroll position stable
+        if self.scroll_offset > 0 {
+            self.scroll_offset += 1;
+        }
+
+        // Track new messages while scrolled up
+        if was_scrolled_up {
+            self.new_messages_while_scrolled += 1;
+        }
+
+        self.messages.push_back(msg);
+
+        // Trim old messages
+        while self.messages.len() > MAX_BUFFER_MESSAGES {
+            self.messages.pop_front();
+            if self.scroll_offset > 0 {
+                self.scroll_offset = self.scroll_offset.saturating_sub(1);
+            }
+        }
     }
 }
 

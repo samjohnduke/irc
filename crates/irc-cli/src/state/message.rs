@@ -57,6 +57,17 @@ pub enum MessageKind {
         message: Option<String>,
     },
 
+    /// Aggregated join events (multiple users joined).
+    AggregatedJoin {
+        nicks: Vec<String>,
+    },
+
+    /// Aggregated part/quit events (multiple users left).
+    AggregatedPart {
+        nicks: Vec<String>,
+        is_quit: bool,
+    },
+
     /// User was kicked.
     Kick {
         nick: String,
@@ -220,5 +231,44 @@ impl DisplayMessage {
     /// Create a history separator.
     pub fn history_separator() -> Self {
         Self::new(MessageKind::HistorySeparator)
+    }
+
+    /// Create an aggregated join message.
+    pub fn aggregated_join(nicks: Vec<String>) -> Self {
+        Self::new(MessageKind::AggregatedJoin { nicks })
+    }
+
+    /// Create an aggregated part/quit message.
+    pub fn aggregated_part(nicks: Vec<String>, is_quit: bool) -> Self {
+        Self::new(MessageKind::AggregatedPart { nicks, is_quit })
+    }
+
+    /// Check if this is a join/part/quit event that can be aggregated.
+    #[allow(dead_code)]
+    pub fn is_join_part_event(&self) -> bool {
+        matches!(
+            self.kind,
+            MessageKind::Join { .. } | MessageKind::Part { .. } | MessageKind::Quit { .. }
+        )
+    }
+
+    /// Get the nick from a join/part/quit event.
+    pub fn join_part_nick(&self) -> Option<&str> {
+        match &self.kind {
+            MessageKind::Join { nick, .. }
+            | MessageKind::Part { nick, .. }
+            | MessageKind::Quit { nick, .. } => Some(nick),
+            _ => None,
+        }
+    }
+
+    /// Check if this is a join event.
+    pub fn is_join(&self) -> bool {
+        matches!(self.kind, MessageKind::Join { .. })
+    }
+
+    /// Check if this is a quit event (vs part).
+    pub fn is_quit(&self) -> bool {
+        matches!(self.kind, MessageKind::Quit { .. })
     }
 }

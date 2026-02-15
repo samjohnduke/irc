@@ -129,18 +129,30 @@ impl Widget for SidebarWidget<'_> {
                 };
 
                 // Style based on state
+                // Different colors for: active, highlight/mention, private msg unread, channel unread, inactive
+                let is_private = buffer.kind == BufferKind::Query;
                 let name_style = if is_active {
                     Style::default()
                         .fg(Color::Rgb(255, 255, 255))
                         .add_modifier(Modifier::BOLD)
                 } else if has_highlight {
+                    // Mentions/highlights: accent color with bold
                     Style::default()
-                        .fg(Color::Rgb(255, 150, 150))
+                        .fg(self.theme.accent)
+                        .add_modifier(Modifier::BOLD)
+                } else if has_unread && is_private {
+                    // Private message unread: magenta/pink
+                    Style::default()
+                        .fg(Color::Rgb(255, 140, 200))
                         .add_modifier(Modifier::BOLD)
                 } else if has_unread {
-                    self.theme.unread_style()
+                    // Regular unread: bright white
+                    Style::default()
+                        .fg(Color::Rgb(240, 240, 250))
+                        .add_modifier(Modifier::BOLD)
                 } else {
-                    Style::default().fg(Color::Rgb(160, 165, 180))
+                    // Inactive: muted
+                    Style::default().fg(Color::Rgb(120, 125, 140))
                 };
 
                 // Icon

@@ -161,6 +161,15 @@ impl InputState {
         self.saved_input = None;
     }
 
+    /// Set the input text and move cursor to end.
+    pub fn set_text(&mut self, text: &str) {
+        self.text = text.to_string();
+        self.cursor = self.text.len();
+        self.history_index = None;
+        self.saved_input = None;
+        self.completion.reset();
+    }
+
     /// Take the current input and add to history.
     pub fn submit(&mut self) -> String {
         let text = std::mem::take(&mut self.text);

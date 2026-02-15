@@ -20,6 +20,39 @@ pub struct AppConfig {
     /// Server profiles.
     #[serde(default)]
     pub servers: HashMap<String, ServerProfile>,
+
+    /// UI settings.
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub ui: UiConfig,
+}
+
+/// UI configuration settings.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct UiConfig {
+    /// Enable vim-style keybindings.
+    pub vim_mode: bool,
+
+    /// Message grouping window in seconds (default 300 = 5 min).
+    pub message_group_window: u64,
+
+    /// Join/part collapse window in seconds (default 30).
+    pub joinpart_collapse_window: u64,
+
+    /// Hide join/part/quit messages entirely.
+    pub hide_joinpart: bool,
+}
+
+impl Default for UiConfig {
+    fn default() -> Self {
+        Self {
+            vim_mode: false,
+            message_group_window: 300,
+            joinpart_collapse_window: 30,
+            hide_joinpart: false,
+        }
+    }
 }
 
 /// Default settings for all connections.

@@ -12,14 +12,16 @@ use tracing::{debug, trace, info, warn};
 use irc_client_lib::{Client, ClientConfig, Event as IrcEvent};
 
 use crate::completion::{find_completion_word, format_nick_completion, get_candidates, CompletionContext};
+use crate::config::UiConfig;
 use crate::handler::command::{command_help, parse_command, Command};
-use crate::handler::input::{handle_key_event, KeyAction};
+use crate::handler::input::{handle_key_event_with_mode, InputMode, KeyAction, VimState};
 use crate::state::{BufferKind, BufferList, DisplayMessage};
 use crate::style::Theme;
 use crate::ui::channel_list::{ChannelEntry, ChannelListState, ChannelListWidget};
 use crate::ui::help::HelpWidget;
 use crate::ui::input::InputState;
-use crate::ui::layout::{draw_layout, LayoutConfig};
+use crate::ui::layout::LayoutConfig;
+use crate::ui::layout_modern::{draw_modern_layout, CommandPaletteRenderState, SearchRenderState, UserFilterRenderState};
 use crate::ui::splash::{ConnectionPhase, LogEntry, SplashWidget};
 use crate::ui::userlist::ChannelUser;
 
@@ -79,10 +81,11 @@ pub struct App {
     /// Should quit.
     should_quit: bool,
 
-    /// UI theme.
+    /// UI theme (used by modals).
     theme: Theme,
 
     /// Layout configuration.
+    #[allow(dead_code)]
     layout: LayoutConfig,
 
     /// Reconnection state.
@@ -96,6 +99,178 @@ pub struct App {
 
     /// Channel list modal state.
     channel_list: ChannelListState,
+
+    /// UI configuration.
+    ui_config: UiConfig,
+
+    /// Current input mode (for vim-style navigation).
+    input_mode: InputMode,
+
+    /// Vim state (for multi-key commands like gg).
+    vim_state: VimState,
+
+    /// Search state.
+    search: SearchState,
+
+    /// Whether to show the sidebar (user list + topic).
+    show_sidebar: bool,
+
+    /// User list filter state.
+    user_filter: UserFilterState,
+
+    /// Command palette state.
+    command_palette: CommandPalette,
+}
+
+/// User list filter state for sidebar.
+#[derive(Debug, Default)]
+pub struct UserFilterState {
+    /// Whether filter input is active.
+    pub active: bool,
+    /// Current filter text.
+    pub filter: String,
+}
+
+/// Command palette action.
+#[derive(Debug, Clone)]
+pub enum PaletteAction {
+    /// Show server capabilities.
+    ShowCapabilities,
+    /// Show server info (MOTD, version).
+    ShowServerInfo,
+    /// Join a channel (prompts for input).
+    JoinChannel,
+    /// Change nickname (prompts for input).
+    ChangeNick,
+    /// Set away status.
+    SetAway,
+    /// Clear away status.
+    ClearAway,
+    /// Toggle sidebar.
+    ToggleSidebar,
+    /// Toggle join/part messages.
+    ToggleJoinPart,
+    /// Disconnect from server.
+    Disconnect,
+    /// Reconnect to server.
+    Reconnect,
+    /// Show keyboard shortcuts.
+    ShowKeybindings,
+}
+
+impl PaletteAction {
+    fn label(&self) -> &'static str {
+        match self {
+            Self::ShowCapabilities => "Show Server Capabilities",
+            Self::ShowServerInfo => "Show Server Info (MOTD)",
+            Self::JoinChannel => "Join Channel...",
+            Self::ChangeNick => "Change Nickname...",
+            Self::SetAway => "Set Away Status...",
+            Self::ClearAway => "Clear Away Status",
+            Self::ToggleSidebar => "Toggle Sidebar",
+            Self::ToggleJoinPart => "Toggle Join/Part Messages",
+            Self::Disconnect => "Disconnect",
+            Self::Reconnect => "Reconnect",
+            Self::ShowKeybindings => "Show Keyboard Shortcuts",
+        }
+    }
+
+    fn all() -> Vec<Self> {
+        vec![
+            Self::ShowCapabilities,
+            Self::ShowServerInfo,
+            Self::JoinChannel,
+            Self::ChangeNick,
+            Self::SetAway,
+            Self::ClearAway,
+            Self::ToggleSidebar,
+            Self::ToggleJoinPart,
+            Self::Disconnect,
+            Self::Reconnect,
+            Self::ShowKeybindings,
+        ]
+    }
+}
+
+/// Command palette state.
+#[derive(Debug, Default)]
+pub struct CommandPalette {
+    /// Whether the palette is visible.
+    pub visible: bool,
+    /// Current filter/search text.
+    pub filter: String,
+    /// Selected index.
+    pub selected: usize,
+    /// Filtered actions.
+    pub filtered_actions: Vec<PaletteAction>,
+    /// Info display content (for inline results).
+    pub info_content: Vec<String>,
+}
+
+impl CommandPalette {
+    pub fn open(&mut self) {
+        self.visible = true;
+        self.filter.clear();
+        self.selected = 0;
+        self.info_content.clear();
+        self.update_filtered();
+    }
+
+    pub fn close(&mut self) {
+        self.visible = false;
+        self.filter.clear();
+        self.info_content.clear();
+    }
+
+    pub fn update_filtered(&mut self) {
+        let filter_lower = self.filter.to_lowercase();
+        self.filtered_actions = PaletteAction::all()
+            .into_iter()
+            .filter(|a| {
+                filter_lower.is_empty() || a.label().to_lowercase().contains(&filter_lower)
+            })
+            .collect();
+        // Clamp selection
+        if self.selected >= self.filtered_actions.len() {
+            self.selected = self.filtered_actions.len().saturating_sub(1);
+        }
+    }
+
+    pub fn select_next(&mut self) {
+        if !self.filtered_actions.is_empty() {
+            self.selected = (self.selected + 1) % self.filtered_actions.len();
+        }
+    }
+
+    pub fn select_prev(&mut self) {
+        if !self.filtered_actions.is_empty() {
+            self.selected = self.selected.checked_sub(1)
+                .unwrap_or(self.filtered_actions.len() - 1);
+        }
+    }
+
+    pub fn selected_action(&self) -> Option<PaletteAction> {
+        self.filtered_actions.get(self.selected).cloned()
+    }
+
+    pub fn set_info(&mut self, lines: Vec<String>) {
+        self.info_content = lines;
+    }
+}
+
+/// Search state for in-buffer search.
+#[derive(Debug, Default)]
+pub struct SearchState {
+    /// Search query.
+    pub query: String,
+    /// Whether search is active.
+    pub active: bool,
+    /// Current match index.
+    pub current_match: usize,
+    /// Total number of matches.
+    pub total_matches: usize,
+    /// Indices of matching messages in the buffer.
+    pub match_indices: Vec<usize>,
 }
 
 /// Reconnection state tracking.
@@ -114,6 +289,11 @@ struct ReconnectState {
 impl App {
     /// Create a new application with the given config.
     pub fn new(config: ClientConfig) -> Self {
+        Self::with_ui_config(config, UiConfig::default())
+    }
+
+    /// Create a new application with the given client and UI configs.
+    pub fn with_ui_config(config: ClientConfig, ui_config: UiConfig) -> Self {
         let nick = config.nicknames.first().cloned().unwrap_or_else(|| "user".into());
         let reconnect_delay = config.reconnect_delay;
 
@@ -136,6 +316,13 @@ impl App {
             splash: Some(SplashState::new()),
             show_help: false,
             channel_list: ChannelListState::new(),
+            ui_config,
+            input_mode: InputMode::Insert,
+            vim_state: VimState::default(),
+            search: SearchState::default(),
+            show_sidebar: true,
+            user_filter: UserFilterState::default(),
+            command_palette: CommandPalette::default(),
         }
     }
 
@@ -215,16 +402,57 @@ impl App {
                     // Get channel users for user list
                     let channel_users = self.get_channel_users();
 
-                    // Draw normal layout
-                    draw_layout(
+                    // Build search state for rendering
+                    let search_state = if self.search.active {
+                        Some(SearchRenderState {
+                            active: true,
+                            query: self.search.query.clone(),
+                            current_match: self.search.current_match,
+                            total_matches: self.search.total_matches,
+                        })
+                    } else {
+                        None
+                    };
+
+                    // Build user filter render state
+                    let user_filter_state = if self.user_filter.active || !self.user_filter.filter.is_empty() {
+                        Some(UserFilterRenderState {
+                            active: self.user_filter.active,
+                            filter: self.user_filter.filter.clone(),
+                        })
+                    } else {
+                        None
+                    };
+
+                    // Build command palette render state
+                    let palette_state = if self.command_palette.visible {
+                        Some(CommandPaletteRenderState {
+                            filter: self.command_palette.filter.clone(),
+                            selected: self.command_palette.selected,
+                            items: self.command_palette.filtered_actions.iter()
+                                .enumerate()
+                                .map(|(i, a)| (a.label().to_string(), i == self.command_palette.selected))
+                                .collect(),
+                            info_content: self.command_palette.info_content.clone(),
+                        })
+                    } else {
+                        None
+                    };
+
+                    // Draw modern minimal layout
+                    draw_modern_layout(
                         frame,
                         &self.buffers,
                         &self.input,
                         &self.nick,
                         self.connected,
-                        &self.theme,
-                        &self.layout,
                         &channel_users,
+                        self.input_mode,
+                        search_state.as_ref(),
+                        self.ui_config.hide_joinpart,
+                        self.show_sidebar,
+                        user_filter_state.as_ref(),
+                        palette_state.as_ref(),
                     );
 
                     // Draw channel list modal if active
@@ -373,7 +601,111 @@ impl App {
             return;
         }
 
-        match handle_key_event(key, &mut self.input) {
+        // Handle user filter input when active
+        if self.user_filter.active {
+            match key.code {
+                KeyCode::Esc | KeyCode::Enter => {
+                    self.user_filter.active = false;
+                    // Keep the filter text so results stay filtered
+                }
+                KeyCode::Backspace => {
+                    self.user_filter.filter.pop();
+                }
+                KeyCode::Char('u') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                    self.user_filter.filter.clear();
+                }
+                KeyCode::Char(c) if !key.modifiers.contains(event::KeyModifiers::CONTROL)
+                    && !key.modifiers.contains(event::KeyModifiers::ALT) => {
+                    self.user_filter.filter.push(c);
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        // Handle command palette when open
+        if self.command_palette.visible {
+            // If showing info content, Backspace or Esc goes back to list
+            if !self.command_palette.info_content.is_empty() {
+                match key.code {
+                    KeyCode::Esc | KeyCode::Backspace => {
+                        self.command_palette.info_content.clear();
+                    }
+                    _ => {}
+                }
+                return;
+            }
+
+            match key.code {
+                KeyCode::Esc => {
+                    self.command_palette.close();
+                }
+                KeyCode::Up => {
+                    self.command_palette.select_prev();
+                }
+                KeyCode::Down => {
+                    self.command_palette.select_next();
+                }
+                KeyCode::Enter => {
+                    if let Some(action) = self.command_palette.selected_action() {
+                        self.execute_palette_action(action).await;
+                    }
+                }
+                KeyCode::Backspace => {
+                    self.command_palette.filter.pop();
+                    self.command_palette.update_filtered();
+                }
+                KeyCode::Char('u') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                    self.command_palette.filter.clear();
+                    self.command_palette.update_filtered();
+                }
+                KeyCode::Char(c) if !key.modifiers.contains(event::KeyModifiers::CONTROL)
+                    && !key.modifiers.contains(event::KeyModifiers::ALT) => {
+                    self.command_palette.filter.push(c);
+                    self.command_palette.update_filtered();
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        // Special handling for mode switching with Esc
+        if key.code == KeyCode::Esc {
+            if self.show_help {
+                self.show_help = false;
+                return;
+            }
+            if self.search.active {
+                self.search.active = false;
+                self.input_mode = InputMode::Insert;
+                return;
+            }
+            // In insert mode with empty input and vim_mode enabled -> switch to normal
+            if self.ui_config.vim_mode && self.input_mode == InputMode::Insert && self.input.text.is_empty() {
+                self.input_mode = InputMode::Normal;
+                return;
+            }
+            // In normal mode -> switch back to insert
+            if self.input_mode == InputMode::Normal {
+                self.input_mode = InputMode::Insert;
+                return;
+            }
+        }
+
+        // Handle 'i' to return to insert mode from normal mode
+        if self.input_mode == InputMode::Normal && key.code == KeyCode::Char('i') {
+            self.input_mode = InputMode::Insert;
+            return;
+        }
+
+        let action = handle_key_event_with_mode(
+            key,
+            &mut self.input,
+            self.input_mode,
+            &mut self.vim_state,
+        );
+
+        match action {
             KeyAction::None => {}
 
             KeyAction::Submit(text) => {
@@ -387,10 +719,19 @@ impl App {
 
             KeyAction::NextBuffer => {
                 self.buffers.next();
+                self.search.active = false; // Clear search when switching buffers
             }
 
             KeyAction::PrevBuffer => {
                 self.buffers.prev();
+                self.search.active = false;
+            }
+
+            KeyAction::JumpToBuffer(index) => {
+                if let Some(name) = self.buffers.all().get(index).map(|b| b.name.clone()) {
+                    self.buffers.switch_to(&name);
+                    self.search.active = false;
+                }
             }
 
             KeyAction::ScrollUp(lines) => {
@@ -399,6 +740,10 @@ impl App {
 
             KeyAction::ScrollDown(lines) => {
                 self.buffers.active_mut().scroll_down(lines);
+            }
+
+            KeyAction::ScrollTop => {
+                self.buffers.active_mut().scroll_up(usize::MAX);
             }
 
             KeyAction::ScrollBottom => {
@@ -417,12 +762,150 @@ impl App {
                 self.show_help = !self.show_help;
             }
 
+            KeyAction::ToggleSidebar => {
+                self.show_sidebar = !self.show_sidebar;
+            }
+
+            KeyAction::ToggleUserFilter => {
+                if self.show_sidebar {
+                    self.user_filter.active = !self.user_filter.active;
+                    if !self.user_filter.active {
+                        // Clear filter when deactivating
+                        self.user_filter.filter.clear();
+                    }
+                }
+            }
+
+            KeyAction::OpenCommandPalette => {
+                self.command_palette.open();
+            }
+
             KeyAction::CloseHelp => {
-                // Only close, don't open (Esc key behavior)
                 if self.show_help {
                     self.show_help = false;
                 }
             }
+
+            KeyAction::CloseBuffer => {
+                let name = self.buffers.active_name().to_string();
+                if name.starts_with('#') || name.starts_with('&') {
+                    let _ = self.client.part(&name, None).await;
+                }
+                self.buffers.remove(&name);
+            }
+
+            KeyAction::EnterSearch => {
+                self.search.active = true;
+                self.search.query.clear();
+                self.input_mode = InputMode::Search;
+            }
+
+            KeyAction::ExitSearch => {
+                self.search.active = false;
+                self.input_mode = if self.ui_config.vim_mode {
+                    InputMode::Normal
+                } else {
+                    InputMode::Insert
+                };
+            }
+
+            KeyAction::SearchNext => {
+                if self.search.active {
+                    // Update query from input
+                    self.search.query = self.input.text.clone();
+                    self.perform_search();
+                    self.search_next();
+                }
+            }
+
+            KeyAction::SearchPrev => {
+                if self.search.active {
+                    self.search.query = self.input.text.clone();
+                    self.perform_search();
+                    self.search_prev();
+                }
+            }
+        }
+    }
+
+    /// Perform search in current buffer.
+    fn perform_search(&mut self) {
+        if self.search.query.is_empty() {
+            self.search.match_indices.clear();
+            self.search.total_matches = 0;
+            return;
+        }
+
+        let query_lower = self.search.query.to_lowercase();
+        let messages: Vec<_> = self.buffers.active().messages().collect();
+
+        self.search.match_indices = messages
+            .iter()
+            .enumerate()
+            .filter(|(_, msg)| {
+                // Check if message contains search term
+                match &msg.kind {
+                    crate::state::MessageKind::Privmsg { text, nick, .. } => {
+                        text.to_lowercase().contains(&query_lower)
+                            || nick.to_lowercase().contains(&query_lower)
+                    }
+                    crate::state::MessageKind::Action { text, nick, .. } => {
+                        text.to_lowercase().contains(&query_lower)
+                            || nick.to_lowercase().contains(&query_lower)
+                    }
+                    crate::state::MessageKind::Notice { text, .. } => {
+                        text.to_lowercase().contains(&query_lower)
+                    }
+                    crate::state::MessageKind::Server { text } => {
+                        text.to_lowercase().contains(&query_lower)
+                    }
+                    _ => false,
+                }
+            })
+            .map(|(i, _)| i)
+            .collect();
+
+        self.search.total_matches = self.search.match_indices.len();
+        self.search.current_match = 0;
+    }
+
+    /// Navigate to next search match.
+    fn search_next(&mut self) {
+        if self.search.match_indices.is_empty() {
+            return;
+        }
+
+        if self.search.current_match < self.search.total_matches.saturating_sub(1) {
+            self.search.current_match += 1;
+        } else {
+            self.search.current_match = 0; // Wrap around
+        }
+
+        self.scroll_to_match();
+    }
+
+    /// Navigate to previous search match.
+    fn search_prev(&mut self) {
+        if self.search.match_indices.is_empty() {
+            return;
+        }
+
+        if self.search.current_match > 0 {
+            self.search.current_match -= 1;
+        } else {
+            self.search.current_match = self.search.total_matches.saturating_sub(1); // Wrap around
+        }
+
+        self.scroll_to_match();
+    }
+
+    /// Scroll to show current search match.
+    fn scroll_to_match(&mut self) {
+        if let Some(&msg_index) = self.search.match_indices.get(self.search.current_match) {
+            let total_messages = self.buffers.active().messages().count();
+            // Calculate scroll offset to show the match
+            let offset = total_messages.saturating_sub(msg_index + 1);
+            self.buffers.active_mut().scroll_offset = offset;
         }
     }
 
@@ -698,6 +1181,109 @@ impl App {
         }
     }
 
+    /// Execute a command palette action.
+    async fn execute_palette_action(&mut self, action: PaletteAction) {
+        match action {
+            PaletteAction::ShowCapabilities => {
+                // Get capabilities from client
+                let caps = self.client.capabilities().await;
+                let mut lines = vec!["Server Capabilities:".to_string()];
+                if caps.is_empty() {
+                    lines.push("  (none negotiated)".to_string());
+                } else {
+                    for cap in caps {
+                        lines.push(format!("  • {}", cap));
+                    }
+                }
+                self.command_palette.set_info(lines);
+            }
+
+            PaletteAction::ShowServerInfo => {
+                let mut lines = vec!["Server Information:".to_string()];
+                lines.push(format!("  Server: {}", self.config.server));
+                lines.push(format!("  Port: {}", self.config.port));
+                lines.push(format!("  TLS: {}", if self.config.tls { "yes" } else { "no" }));
+                lines.push(format!("  Connected: {}", if self.connected { "yes" } else { "no" }));
+                lines.push(format!("  Nick: {}", self.nick));
+                self.command_palette.set_info(lines);
+            }
+
+            PaletteAction::JoinChannel => {
+                // Close palette and let user type /join
+                self.command_palette.close();
+                self.input.set_text("/join ");
+            }
+
+            PaletteAction::ChangeNick => {
+                self.command_palette.close();
+                self.input.set_text("/nick ");
+            }
+
+            PaletteAction::SetAway => {
+                self.command_palette.close();
+                self.input.set_text("/away ");
+            }
+
+            PaletteAction::ClearAway => {
+                self.command_palette.close();
+                let _ = self.client.away(None).await;
+                self.buffers.add_message(
+                    "Server",
+                    DisplayMessage::server("Away status cleared"),
+                    true,
+                );
+            }
+
+            PaletteAction::ToggleSidebar => {
+                self.command_palette.close();
+                self.show_sidebar = !self.show_sidebar;
+            }
+
+            PaletteAction::ToggleJoinPart => {
+                self.command_palette.close();
+                self.ui_config.hide_joinpart = !self.ui_config.hide_joinpart;
+                let status = if self.ui_config.hide_joinpart { "hidden" } else { "visible" };
+                self.buffers.add_message(
+                    "Server",
+                    DisplayMessage::server(format!("Join/part messages are now {}", status)),
+                    true,
+                );
+            }
+
+            PaletteAction::Disconnect => {
+                self.command_palette.close();
+                let _ = self.client.quit(Some("Disconnecting")).await;
+                self.connected = false;
+            }
+
+            PaletteAction::Reconnect => {
+                self.command_palette.close();
+                if !self.connected {
+                    self.reconnect_state.attempts = 0;
+                    self.reconnect_state.reconnecting = true;
+                    self.reconnect_state.next_attempt = Some(std::time::Instant::now());
+                }
+            }
+
+            PaletteAction::ShowKeybindings => {
+                let lines = vec![
+                    "Keyboard Shortcuts:".to_string(),
+                    "".to_string(),
+                    "  Ctrl+K      Command palette".to_string(),
+                    "  Ctrl+N/P    Next/prev buffer".to_string(),
+                    "  Alt+1-9     Jump to buffer".to_string(),
+                    "  Alt+S       Toggle sidebar".to_string(),
+                    "  Alt+F       Filter users".to_string(),
+                    "  Ctrl+F      Search messages".to_string(),
+                    "  PgUp/PgDn   Scroll messages".to_string(),
+                    "  Tab         Nick completion".to_string(),
+                    "  F1          Help".to_string(),
+                ];
+                self.command_palette.set_info(lines);
+            }
+        }
+    }
+
     /// Handle user input (command or message).
     async fn handle_input(&mut self, text: String) {
         let command = parse_command(&text);
@@ -796,6 +1382,20 @@ impl App {
 
             Command::Clear => {
                 self.buffers.active_mut().clear();
+            }
+
+            Command::JoinPart => {
+                self.ui_config.hide_joinpart = !self.ui_config.hide_joinpart;
+                let status = if self.ui_config.hide_joinpart {
+                    "hidden"
+                } else {
+                    "visible"
+                };
+                self.buffers.add_message(
+                    "Server",
+                    DisplayMessage::server(format!("Join/part messages are now {}", status)),
+                    true,
+                );
             }
 
             Command::Close => {
