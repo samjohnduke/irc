@@ -20,6 +20,7 @@ mod handler;
 mod state;
 mod style;
 mod ui;
+mod update;
 
 use app::App;
 use config::AppConfig;
@@ -87,6 +88,18 @@ struct Args {
     /// Verbose debug output (trace level)
     #[arg(short, long)]
     verbose: bool,
+
+    /// Update to latest version (keeps previous as .backup)
+    #[arg(long)]
+    update: bool,
+
+    /// Check for available updates
+    #[arg(long)]
+    check_update: bool,
+
+    /// Print version
+    #[arg(short = 'V', long)]
+    version: bool,
 }
 
 fn setup_terminal() -> io::Result<Terminal<CrosstermBackend<io::Stdout>>> {
@@ -162,6 +175,48 @@ fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
+
+    // Handle --version
+    if args.version {
+        println!("irc {}", update::VERSION);
+        return Ok(());
+    }
+
+    // Handle --check-update
+    if args.check_update {
+        match update::check_update().await {
+            Ok(Some(version)) => {
+                println!("New version available: {} -> {}", update::VERSION, version);
+                println!("Run 'irc --update' to install.");
+            }
+            Ok(None) => {
+                println!("Already up to date ({})", update::VERSION);
+            }
+            Err(e) => {
+                eprintln!("Error checking for updates: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return Ok(());
+    }
+
+    // Handle --update
+    if args.update {
+        match update::update().await {
+            update::UpdateResult::Updated { from, to, backup } => {
+                println!("Updated successfully: {} -> {}", from, to);
+                println!("Previous version saved to: {}", backup.display());
+            }
+            update::UpdateResult::UpToDate { version } => {
+                println!("Already up to date ({})", version);
+            }
+            update::UpdateResult::Error(e) => {
+                eprintln!("Update failed: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return Ok(());
+    }
 
     // Setup logging if requested
     let _log_guard = setup_logging(args.debug, args.verbose);

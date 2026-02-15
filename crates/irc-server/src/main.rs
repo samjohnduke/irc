@@ -7,6 +7,8 @@ use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use irc_server::{Server, ServerConfig};
 
+mod update;
+
 /// IRC server daemon.
 #[derive(Parser, Debug)]
 #[command(name = "irc-server")]
@@ -27,11 +29,55 @@ struct Args {
     /// Enable verbose logging
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+
+    /// Update to latest version (keeps previous as .backup)
+    #[arg(long)]
+    update: bool,
+
+    /// Check for available updates
+    #[arg(long)]
+    check_update: bool,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+
+    // Handle --check-update
+    if args.check_update {
+        match update::check_update().await {
+            Ok(Some(version)) => {
+                println!("New version available: {} -> {}", update::VERSION, version);
+                println!("Run 'irc-server --update' to install.");
+            }
+            Ok(None) => {
+                println!("Already up to date ({})", update::VERSION);
+            }
+            Err(e) => {
+                eprintln!("Error checking for updates: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return Ok(());
+    }
+
+    // Handle --update
+    if args.update {
+        match update::update().await {
+            update::UpdateResult::Updated { from, to, backup } => {
+                println!("Updated successfully: {} -> {}", from, to);
+                println!("Previous version saved to: {}", backup.display());
+            }
+            update::UpdateResult::UpToDate { version } => {
+                println!("Already up to date ({})", version);
+            }
+            update::UpdateResult::Error(e) => {
+                eprintln!("Update failed: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return Ok(());
+    }
 
     // Initialize logging
     let filter = match args.verbose {
