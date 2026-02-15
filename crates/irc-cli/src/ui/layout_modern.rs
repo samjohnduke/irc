@@ -26,6 +26,7 @@ use crate::ui::input::InputState;
 use crate::ui::userlist::ChannelUser;
 
 /// Colors for the modern theme (muted, minimal).
+#[allow(dead_code)]
 pub struct ModernColors {
     pub bg: Color,
     pub fg: Color,
@@ -83,6 +84,7 @@ pub struct CommandPaletteRenderState {
 const SIDEBAR_WIDTH: u16 = 24;
 
 /// Draw the modern minimal layout.
+#[allow(clippy::too_many_arguments)]
 pub fn draw_modern_layout(
     frame: &mut Frame,
     buffers: &BufferList,
@@ -192,7 +194,7 @@ fn draw_command_palette(
     colors: &ModernColors,
 ) {
     // Calculate palette dimensions (centered, 50% width, up to 60% height)
-    let width = (area.width * 50 / 100).min(60).max(40);
+    let width = (area.width * 50 / 100).clamp(40, 60);
     let max_height = (area.height * 60 / 100).max(10);
 
     // If we have info content, show that instead of the action list
@@ -442,6 +444,7 @@ fn truncate_name(name: &str, max_len: usize) -> String {
 }
 
 /// Draw the minimal status line with padding.
+#[allow(clippy::too_many_arguments)]
 fn draw_status_line(
     frame: &mut Frame,
     area: Rect,
@@ -541,51 +544,51 @@ fn draw_sidebar(
     let mut y = area.y + 1;
 
     // === Topic Section ===
-    if let Some(topic) = &active.topic {
-        if !topic.is_empty() {
-            // Topic header
+    if let Some(topic) = &active.topic
+        && !topic.is_empty()
+    {
+        // Topic header
+        buf.set_span(
+            content_x,
+            y,
+            &Span::styled(
+                "TOPIC",
+                Style::default()
+                    .fg(colors.muted)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            content_width as u16,
+        );
+        y += 1;
+
+        // Allow topic to use up to 1/3 of sidebar height
+        let max_topic_lines = ((area.height as usize) / 3).max(3);
+        let topic_lines = wrap_text(topic, content_width);
+        let truncated = topic_lines.len() > max_topic_lines;
+
+        for line in topic_lines.iter().take(max_topic_lines) {
+            if y >= area.y + area.height - 2 {
+                break;
+            }
             buf.set_span(
                 content_x,
                 y,
-                &Span::styled(
-                    "TOPIC",
-                    Style::default()
-                        .fg(colors.muted)
-                        .add_modifier(Modifier::BOLD),
-                ),
+                &Span::styled(line, Style::default().fg(Color::Rgb(150, 155, 170))),
                 content_width as u16,
             );
             y += 1;
-
-            // Allow topic to use up to 1/3 of sidebar height
-            let max_topic_lines = ((area.height as usize) / 3).max(3);
-            let topic_lines = wrap_text(topic, content_width);
-            let truncated = topic_lines.len() > max_topic_lines;
-
-            for line in topic_lines.iter().take(max_topic_lines) {
-                if y >= area.y + area.height - 2 {
-                    break;
-                }
-                buf.set_span(
-                    content_x,
-                    y,
-                    &Span::styled(line, Style::default().fg(Color::Rgb(150, 155, 170))),
-                    content_width as u16,
-                );
-                y += 1;
-            }
-            if truncated {
-                buf.set_span(
-                    content_x,
-                    y,
-                    &Span::styled("... /topic for full", Style::default().fg(colors.muted)),
-                    content_width as u16,
-                );
-                y += 1;
-            }
-
-            y += 1; // Spacing after topic
         }
+        if truncated {
+            buf.set_span(
+                content_x,
+                y,
+                &Span::styled("... /topic for full", Style::default().fg(colors.muted)),
+                content_width as u16,
+            );
+            y += 1;
+        }
+
+        y += 1; // Spacing after topic
     }
 
     // Get filter state
@@ -649,8 +652,7 @@ fn draw_sidebar(
     }
 
     // Draw users
-    let mut displayed = 0;
-    for user in filtered_users.iter() {
+    for (displayed, user) in filtered_users.iter().enumerate() {
         if y >= area.y + area.height - 1 {
             // Show "and N more" if we can't fit all users
             let remaining = filtered_users.len() - displayed;
@@ -689,7 +691,6 @@ fn draw_sidebar(
         ]);
         buf.set_line(content_x, y, &line, content_width as u16);
         y += 1;
-        displayed += 1;
     }
 
     // Show hint if no filter and not active

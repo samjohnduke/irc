@@ -39,7 +39,7 @@ pub fn message_to_event(msg: &Message, state: &mut SessionState) -> Option<Event
         }
 
         Command::Notice { target, message } => Some(Event::Notice {
-            source: msg.prefix.as_ref().map(|p| format_prefix(p)),
+            source: msg.prefix.as_ref().map(format_prefix),
             target: target.clone(),
             message: message.clone(),
             meta,
@@ -386,11 +386,11 @@ fn handle_numeric(code: u16, params: &[String], state: &mut SessionState) -> Opt
                 let setter = &params[1];
                 let timestamp: Option<i64> = params.get(2).and_then(|s| s.parse().ok());
 
-                if let Some(chan) = state.channel_mut(channel) {
-                    if let Some(ref mut topic) = chan.topic {
-                        topic.setter = Some(setter.clone());
-                        topic.set_at = timestamp;
-                    }
+                if let Some(chan) = state.channel_mut(channel)
+                    && let Some(ref mut topic) = chan.topic
+                {
+                    topic.setter = Some(setter.clone());
+                    topic.set_at = timestamp;
                 }
             }
             None

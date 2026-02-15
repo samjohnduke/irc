@@ -419,6 +419,7 @@ impl TestClient {
     }
 
     /// Perform SASL PLAIN authentication.
+    #[allow(dead_code)]
     pub async fn sasl_plain(&mut self, username: &str, password: &str) {
         // Request SASL capability
         self.cap_req("sasl").await;

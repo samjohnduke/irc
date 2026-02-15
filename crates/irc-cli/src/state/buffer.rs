@@ -100,16 +100,16 @@ impl Buffer {
         self.check_pending_events();
 
         // Handle join/part/quit aggregation for channel buffers
-        if self.kind == BufferKind::Channel {
-            if let Some(nick) = msg.join_part_nick() {
-                let nick = nick.to_string();
-                if msg.is_join() {
-                    self.add_join(nick);
-                    return;
-                } else {
-                    self.add_part(nick, msg.is_quit());
-                    return;
-                }
+        if self.kind == BufferKind::Channel
+            && let Some(nick) = msg.join_part_nick()
+        {
+            let nick = nick.to_string();
+            if msg.is_join() {
+                self.add_join(nick);
+                return;
+            } else {
+                self.add_part(nick, msg.is_quit());
+                return;
             }
         }
 
@@ -234,10 +234,10 @@ impl Buffer {
 
     /// Check if pending events window has expired and flush if needed.
     pub fn check_pending_events(&mut self) {
-        if let Some(start) = self.pending_events_start {
-            if start.elapsed().as_millis() >= JOIN_PART_AGGREGATE_WINDOW_MS {
-                self.flush_pending_events();
-            }
+        if let Some(start) = self.pending_events_start
+            && start.elapsed().as_millis() >= JOIN_PART_AGGREGATE_WINDOW_MS
+        {
+            self.flush_pending_events();
         }
     }
 
@@ -266,14 +266,13 @@ impl Buffer {
     /// Internal method to add a message without join/part handling.
     fn add_message_internal(&mut self, msg: DisplayMessage) {
         // Check for duplicate by msgid
-        if let Some(ref msgid) = msg.msgid {
-            if self
+        if let Some(ref msgid) = msg.msgid
+            && self
                 .messages
                 .iter()
                 .any(|m| m.msgid.as_ref() == Some(msgid))
-            {
-                return;
-            }
+        {
+            return;
         }
 
         // Track if we're scrolled up before adding

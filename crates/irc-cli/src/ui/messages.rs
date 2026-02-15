@@ -73,10 +73,8 @@ impl<'a> MessagesWidget<'a> {
 
     fn format_message(&self, msg: &DisplayMessage, is_continuation: bool) -> Line<'static> {
         // Handle continuation messages (grouped)
-        if is_continuation {
-            if let MessageKind::Privmsg { text, .. } = &msg.kind {
-                return self.format_continuation(text);
-            }
+        if is_continuation && let MessageKind::Privmsg { text, .. } = &msg.kind {
+            return self.format_continuation(text);
         }
 
         let time_str = format_timestamp(&msg.time);

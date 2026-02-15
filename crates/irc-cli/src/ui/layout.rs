@@ -50,7 +50,7 @@ impl Default for LayoutConfig {
 }
 
 /// Draw the complete UI layout.
-#[allow(dead_code)]
+#[allow(dead_code, clippy::too_many_arguments)]
 pub fn draw_layout(
     frame: &mut Frame,
     buffers: &BufferList,
@@ -76,6 +76,7 @@ pub fn draw_layout(
 }
 
 /// Draw the complete UI layout with vim mode and search state.
+#[allow(clippy::too_many_arguments)]
 pub fn draw_layout_with_mode(
     frame: &mut Frame,
     buffers: &BufferList,

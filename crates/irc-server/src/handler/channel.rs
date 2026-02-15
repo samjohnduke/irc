@@ -993,10 +993,10 @@ pub fn handle_invite(ctx: &HandlerContext, nickname: &str, channel_name: &str) -
             if !status.operator {
                 continue;
             }
-            if let Some(member) = ctx.state.clients.get(member_id) {
-                if member.has_cap("invite-notify")? {
-                    let _ = member.send(invite_msg.clone());
-                }
+            if let Some(member) = ctx.state.clients.get(member_id)
+                && member.has_cap("invite-notify")?
+            {
+                let _ = member.send(invite_msg.clone());
             }
         }
     }

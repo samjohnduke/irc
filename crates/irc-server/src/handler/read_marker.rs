@@ -117,17 +117,17 @@ fn parse_timestamp(s: &str) -> Result<DateTime<Utc>> {
     }
 
     // Try parsing as Unix timestamp (seconds)
-    if let Ok(ts) = s.parse::<i64>() {
-        if let Some(dt) = Utc.timestamp_opt(ts, 0).single() {
-            return Ok(dt);
-        }
+    if let Ok(ts) = s.parse::<i64>()
+        && let Some(dt) = Utc.timestamp_opt(ts, 0).single()
+    {
+        return Ok(dt);
     }
 
     // Try parsing as Unix timestamp (milliseconds)
-    if let Ok(ts) = s.parse::<i64>() {
-        if let Some(dt) = Utc.timestamp_millis_opt(ts).single() {
-            return Ok(dt);
-        }
+    if let Ok(ts) = s.parse::<i64>()
+        && let Some(dt) = Utc.timestamp_millis_opt(ts).single()
+    {
+        return Ok(dt);
     }
 
     // Default to current time

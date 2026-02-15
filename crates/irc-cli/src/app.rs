@@ -1010,10 +1010,10 @@ impl App {
 
         // Get members from client state
         let state = self.client.state();
-        if let Ok(state) = state.try_read() {
-            if let Some(channel) = state.channel(&active.name) {
-                return channel.member_nicks().map(String::from).collect();
-            }
+        if let Ok(state) = state.try_read()
+            && let Some(channel) = state.channel(&active.name)
+        {
+            return channel.member_nicks().map(String::from).collect();
         }
 
         Vec::new()
@@ -1044,35 +1044,35 @@ impl App {
         }
 
         let state = self.client.state();
-        if let Ok(state) = state.try_read() {
-            if let Some(channel) = state.channel(&active.name) {
-                return channel
-                    .members
-                    .iter()
-                    .map(|(nick, info)| {
-                        // Determine the highest status from prefixes
-                        let status = if info.prefixes.contains('~') {
-                            UserStatus::Owner
-                        } else if info.prefixes.contains('&') {
-                            UserStatus::Admin
-                        } else if info.prefixes.contains('@') {
-                            UserStatus::Op
-                        } else if info.prefixes.contains('%') {
-                            UserStatus::HalfOp
-                        } else if info.prefixes.contains('+') {
-                            UserStatus::Voice
-                        } else {
-                            UserStatus::Normal
-                        };
+        if let Ok(state) = state.try_read()
+            && let Some(channel) = state.channel(&active.name)
+        {
+            return channel
+                .members
+                .iter()
+                .map(|(nick, info)| {
+                    // Determine the highest status from prefixes
+                    let status = if info.prefixes.contains('~') {
+                        UserStatus::Owner
+                    } else if info.prefixes.contains('&') {
+                        UserStatus::Admin
+                    } else if info.prefixes.contains('@') {
+                        UserStatus::Op
+                    } else if info.prefixes.contains('%') {
+                        UserStatus::HalfOp
+                    } else if info.prefixes.contains('+') {
+                        UserStatus::Voice
+                    } else {
+                        UserStatus::Normal
+                    };
 
-                        ChannelUser {
-                            nick: nick.to_string(),
-                            status,
-                            away: false, // TODO: track away status
-                        }
-                    })
-                    .collect();
-            }
+                    ChannelUser {
+                        nick: nick.to_string(),
+                        status,
+                        away: false, // TODO: track away status
+                    }
+                })
+                .collect();
         }
 
         Vec::new()
@@ -1898,72 +1898,72 @@ impl App {
                 target,
                 messages,
             } => {
-                if batch_type == "chathistory" {
-                    if let Some(target) = target {
-                        // Add history separator
-                        let sep = DisplayMessage::history_separator();
-                        let is_active = self.buffers.active_name().eq_ignore_ascii_case(&target);
+                if batch_type == "chathistory"
+                    && let Some(target) = target
+                {
+                    // Add history separator
+                    let sep = DisplayMessage::history_separator();
+                    let is_active = self.buffers.active_name().eq_ignore_ascii_case(&target);
 
-                        // Convert batch events to display messages
-                        let display_msgs: Vec<DisplayMessage> = messages
-                            .into_iter()
-                            .filter_map(|e| match e {
-                                IrcEvent::Privmsg {
-                                    source,
-                                    message,
-                                    meta,
-                                    ..
-                                } => {
-                                    let nick = source.split('!').next().unwrap_or(&source);
-                                    let mut msg = if let Some(time) = meta.time {
-                                        DisplayMessage::with_time(
-                                            time,
-                                            crate::state::MessageKind::Privmsg {
-                                                nick: nick.to_string(),
-                                                text: message,
-                                            },
-                                        )
-                                    } else {
-                                        DisplayMessage::privmsg(nick, message)
-                                    };
-                                    if let Some(msgid) = meta.msgid {
-                                        msg = msg.with_msgid(msgid);
-                                    }
-                                    Some(msg)
+                    // Convert batch events to display messages
+                    let display_msgs: Vec<DisplayMessage> = messages
+                        .into_iter()
+                        .filter_map(|e| match e {
+                            IrcEvent::Privmsg {
+                                source,
+                                message,
+                                meta,
+                                ..
+                            } => {
+                                let nick = source.split('!').next().unwrap_or(&source);
+                                let mut msg = if let Some(time) = meta.time {
+                                    DisplayMessage::with_time(
+                                        time,
+                                        crate::state::MessageKind::Privmsg {
+                                            nick: nick.to_string(),
+                                            text: message,
+                                        },
+                                    )
+                                } else {
+                                    DisplayMessage::privmsg(nick, message)
+                                };
+                                if let Some(msgid) = meta.msgid {
+                                    msg = msg.with_msgid(msgid);
                                 }
-                                IrcEvent::Action {
-                                    source,
-                                    action,
-                                    meta,
-                                    ..
-                                } => {
-                                    let nick = source.split('!').next().unwrap_or(&source);
-                                    let mut msg = if let Some(time) = meta.time {
-                                        DisplayMessage::with_time(
-                                            time,
-                                            crate::state::MessageKind::Action {
-                                                nick: nick.to_string(),
-                                                text: action,
-                                            },
-                                        )
-                                    } else {
-                                        DisplayMessage::action(nick, action)
-                                    };
-                                    if let Some(msgid) = meta.msgid {
-                                        msg = msg.with_msgid(msgid);
-                                    }
-                                    Some(msg)
+                                Some(msg)
+                            }
+                            IrcEvent::Action {
+                                source,
+                                action,
+                                meta,
+                                ..
+                            } => {
+                                let nick = source.split('!').next().unwrap_or(&source);
+                                let mut msg = if let Some(time) = meta.time {
+                                    DisplayMessage::with_time(
+                                        time,
+                                        crate::state::MessageKind::Action {
+                                            nick: nick.to_string(),
+                                            text: action,
+                                        },
+                                    )
+                                } else {
+                                    DisplayMessage::action(nick, action)
+                                };
+                                if let Some(msgid) = meta.msgid {
+                                    msg = msg.with_msgid(msgid);
                                 }
-                                _ => None,
-                            })
-                            .collect();
+                                Some(msg)
+                            }
+                            _ => None,
+                        })
+                        .collect();
 
-                        // Prepend history to buffer
-                        let buffer = self.buffers.get_or_create(&target, BufferKind::Channel);
-                        buffer.prepend_messages(std::iter::once(sep).chain(display_msgs));
+                    // Prepend history to buffer
+                    let buffer = self.buffers.get_or_create(&target, BufferKind::Channel);
+                    buffer.prepend_messages(std::iter::once(sep).chain(display_msgs));
 
-                        let _ = is_active; // Suppress unused warning
-                    }
+                    let _ = is_active; // Suppress unused warning
                 }
             }
 

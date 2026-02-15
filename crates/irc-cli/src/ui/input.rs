@@ -178,10 +178,8 @@ impl InputState {
         self.saved_input = None;
 
         // Add to history if non-empty and different from last
-        if !text.is_empty() {
-            if self.history.last() != Some(&text) {
-                self.history.push(text.clone());
-            }
+        if !text.is_empty() && self.history.last() != Some(&text) {
+            self.history.push(text.clone());
         }
 
         text

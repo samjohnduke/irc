@@ -196,7 +196,7 @@ impl Widget for SidebarWidget<'_> {
                             buffer.unread_count.to_string()
                         };
 
-                        if remaining_space >= count_text.len() + 1 {
+                        if remaining_space > count_text.len() {
                             spans.push(Span::styled(
                                 format!(" {}", count_text),
                                 Style::default().fg(self.theme.accent),

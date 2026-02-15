@@ -193,8 +193,8 @@ impl<'a> ChannelListWidget<'a> {
 impl Widget for ChannelListWidget<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // Calculate centered popup area (90% width, 85% height)
-        let popup_width = (area.width * 90 / 100).min(120).max(60);
-        let popup_height = (area.height * 85 / 100).min(40).max(15);
+        let popup_width = (area.width * 90 / 100).clamp(60, 120);
+        let popup_height = (area.height * 85 / 100).clamp(15, 40);
         let popup_x = area.x + (area.width.saturating_sub(popup_width)) / 2;
         let popup_y = area.y + (area.height.saturating_sub(popup_height)) / 2;
 

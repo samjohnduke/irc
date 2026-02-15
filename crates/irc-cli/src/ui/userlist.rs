@@ -79,10 +79,10 @@ impl ChannelUser {
     /// Parse nick with prefix (e.g., "@alice" -> Op, "alice")
     #[allow(dead_code)]
     pub fn from_prefixed_nick(prefixed: &str) -> Self {
-        if let Some(first) = prefixed.chars().next() {
-            if let Some(status) = UserStatus::from_prefix(first) {
-                return Self::new(prefixed[1..].to_string(), status);
-            }
+        if let Some(first) = prefixed.chars().next()
+            && let Some(status) = UserStatus::from_prefix(first)
+        {
+            return Self::new(prefixed[1..].to_string(), status);
         }
         Self::new(prefixed.to_string(), UserStatus::Normal)
     }

@@ -1130,12 +1130,12 @@ async fn test_names_list() {
         |m| matches!(&m.command, Command::Numeric { code, .. } if *code == replies::RPL_NAMREPLY),
     );
     assert!(names_msg.is_some(), "Should have names reply");
-    if let Some(msg) = names_msg {
-        if let Command::Numeric { params, .. } = &msg.command {
-            let names = params.last().unwrap();
-            assert!(names.contains("@alice"), "Should have @alice");
-            assert!(names.contains("+bob"), "Should have +bob");
-        }
+    if let Some(msg) = names_msg
+        && let Command::Numeric { params, .. } = &msg.command
+    {
+        let names = params.last().unwrap();
+        assert!(names.contains("@alice"), "Should have @alice");
+        assert!(names.contains("+bob"), "Should have +bob");
     }
 }
 
@@ -1206,11 +1206,11 @@ async fn test_channel_modes() {
 
     // Query again
     client.mode("#test", None, &[]).await;
-    if let Some(msg) = client.recv().await {
-        if let Command::Numeric { params, .. } = &msg.command {
-            let mode_str = &params[1];
-            assert!(mode_str.contains('l'), "Should have +l");
-        }
+    if let Some(msg) = client.recv().await
+        && let Command::Numeric { params, .. } = &msg.command
+    {
+        let mode_str = &params[1];
+        assert!(mode_str.contains('l'), "Should have +l");
     }
 }
 

@@ -204,19 +204,14 @@ impl SessionState {
     /// Add a channel we've joined.
     pub fn add_channel(&mut self, name: &str) {
         let key = UniCase::new(name.to_string());
-        if !self.channels.contains_key(&key) {
-            self.channels.insert(
-                key,
-                ChannelState {
-                    name: name.to_string(),
-                    topic: None,
-                    members: HashMap::new(),
-                    modes: HashSet::new(),
-                    key: None,
-                    limit: None,
-                },
-            );
-        }
+        self.channels.entry(key).or_insert_with(|| ChannelState {
+            name: name.to_string(),
+            topic: None,
+            members: HashMap::new(),
+            modes: HashSet::new(),
+            key: None,
+            limit: None,
+        });
     }
 
     /// Remove a channel we've left.

@@ -153,11 +153,11 @@ pub fn get_candidates(prefix: &str, context: &CompletionContext) -> Vec<String> 
     }
 
     // Command completion (starts with /)
-    if prefix.starts_with('/') {
-        let cmd_prefix = &prefix[1..].to_lowercase();
+    if let Some(cmd_str) = prefix.strip_prefix('/') {
+        let cmd_prefix = cmd_str.to_lowercase();
         return COMMANDS
             .iter()
-            .filter(|cmd| cmd.starts_with(cmd_prefix))
+            .filter(|cmd| cmd.starts_with(&cmd_prefix))
             .map(|cmd| format!("/{}", cmd))
             .collect();
     }

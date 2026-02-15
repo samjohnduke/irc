@@ -69,9 +69,9 @@ impl BatchCollector {
             params,
         } = &msg.command
         {
-            if reference.starts_with('+') {
+            if let Some(ref_str) = reference.strip_prefix('+') {
                 // Start new batch
-                let ref_id = reference[1..].to_string();
+                let ref_id = ref_str.to_string();
                 let batch_type = batch_type.clone().unwrap_or_default();
                 let target = params.first().cloned();
 
@@ -86,9 +86,8 @@ impl BatchCollector {
                 );
 
                 return BatchResult::Started;
-            } else if reference.starts_with('-') {
+            } else if let Some(ref_id) = reference.strip_prefix('-') {
                 // End batch
-                let ref_id = &reference[1..];
                 if let Some(batch) = self.batches.remove(ref_id) {
                     return BatchResult::Complete(Event::Batch {
                         batch_type: batch.batch_type,
@@ -102,14 +101,14 @@ impl BatchCollector {
         }
 
         // Check if message belongs to an active batch
-        if let Some(batch_ref) = msg.tags.as_ref().and_then(|t| t.batch()) {
-            if let Some(batch) = self.batches.get_mut(batch_ref) {
-                // Convert to event and add to batch
-                if let Some(event) = event_converter(msg) {
-                    batch.events.push(event);
-                }
-                return BatchResult::Batched;
+        if let Some(batch_ref) = msg.tags.as_ref().and_then(|t| t.batch())
+            && let Some(batch) = self.batches.get_mut(batch_ref)
+        {
+            // Convert to event and add to batch
+            if let Some(event) = event_converter(msg) {
+                batch.events.push(event);
             }
+            return BatchResult::Batched;
         }
 
         // Not part of any batch
@@ -174,7 +173,7 @@ mod tests {
         assert!(collector.has_active_batches());
 
         // Add batched message
-        let result = collector.process(make_batched_privmsg("abc123", "#test", "Hello"), |msg| {
+        let result = collector.process(make_batched_privmsg("abc123", "#test", "Hello"), |_msg| {
             Some(Event::Privmsg {
                 source: "nick".to_string(),
                 target: "#test".to_string(),

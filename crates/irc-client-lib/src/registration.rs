@@ -142,15 +142,11 @@ impl RegistrationState {
 
         self.phase = RegistrationPhase::WaitingCapLs;
 
-        let mut messages = Vec::new();
-
         // Send CAP LS 302 to start capability negotiation
-        messages.push(Message::new(Command::Cap {
+        vec![Message::new(Command::Cap {
             subcommand: "LS".into(),
             params: vec!["302".into()],
-        }));
-
-        messages
+        })]
     }
 
     /// Process an incoming message during registration.
@@ -218,10 +214,11 @@ impl RegistrationState {
                 tracing::debug!("Caps to request: {:?}", to_request);
 
                 // Add SASL if configured and available
-                if config.sasl.is_some() && self.caps.sasl_available() {
-                    if !to_request.contains(&"sasl".to_string()) {
-                        to_request.push("sasl".into());
-                    }
+                if config.sasl.is_some()
+                    && self.caps.sasl_available()
+                    && !to_request.contains(&"sasl".to_string())
+                {
+                    to_request.push("sasl".into());
                 }
 
                 if to_request.is_empty() {

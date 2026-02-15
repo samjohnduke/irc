@@ -109,10 +109,10 @@ pub async fn update() -> UpdateResult {
 
     eprintln!("Backing up current version to: {}", backup_path.display());
 
-    if backup_path.exists() {
-        if let Err(e) = fs::remove_file(&backup_path) {
-            return UpdateResult::Error(format!("Cannot remove old backup: {}", e));
-        }
+    if backup_path.exists()
+        && let Err(e) = fs::remove_file(&backup_path)
+    {
+        return UpdateResult::Error(format!("Cannot remove old backup: {}", e));
     }
 
     if let Err(e) = fs::rename(&current_exe, &backup_path) {

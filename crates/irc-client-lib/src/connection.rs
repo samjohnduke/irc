@@ -22,6 +22,7 @@ use crate::config::ClientConfig;
 use crate::error::{ConnectionError, TlsError};
 
 /// A connection to an IRC server.
+#[allow(clippy::large_enum_variant)]
 pub enum Connection {
     /// Plain TCP connection.
     Plain(Framed<TcpStream, MessageCodec>),

@@ -125,7 +125,7 @@ impl Widget for StatusbarWidget<'_> {
             ));
 
             // Channel icon
-            if channel.starts_with('#') {
+            if let Some(channel_name) = channel.strip_prefix('#') {
                 spans.push(Span::styled(
                     "#",
                     Style::default()
@@ -133,7 +133,7 @@ impl Widget for StatusbarWidget<'_> {
                         .add_modifier(Modifier::BOLD),
                 ));
                 spans.push(Span::styled(
-                    &channel[1..],
+                    channel_name,
                     Style::default()
                         .fg(Color::Rgb(255, 255, 255))
                         .add_modifier(Modifier::BOLD),

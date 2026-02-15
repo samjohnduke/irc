@@ -186,7 +186,7 @@ impl AppConfig {
             .nick
             .clone()
             .or_else(|| defaults.nick.clone())
-            .unwrap_or_else(|| whoami::username());
+            .unwrap_or_else(whoami::username);
 
         let mut nicknames = vec![nick.clone()];
         if !profile.alt_nicks.is_empty() {
